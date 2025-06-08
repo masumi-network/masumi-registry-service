@@ -13,7 +13,7 @@ export const seed = async (prisma: PrismaClient) => {
       return;
     }
   }
-  const adminKey = process.env.Admin_KEY;
+  const adminKey = process.env.ADMIN_KEY;
   if (adminKey != null) {
     if (adminKey.length < 15) throw Error('API-KEY is insecure');
     console.log('Admin_KEY is seeded');
@@ -36,8 +36,8 @@ export const seed = async (prisma: PrismaClient) => {
     console.log('Admin_KEY is seeded');
   }
 
-  const registryPolicyPreprod = DEFAULTS.REGISTRY_POLICY_ID_Preprod;
-  if (process.env.Blockfrost_API_KEY_Preprod != null) {
+  const registryPolicyPreprod = DEFAULTS.REGISTRY_POLICY_ID_PREPROD;
+  if (process.env.BLOCKFROST_API_KEY_PREPROD != null) {
     console.log('REGISTRY_SOURCE_IDENTIFIER_CARDANO_Preprod is seeded');
     await prisma.registrySource.upsert({
       create: {
@@ -48,7 +48,7 @@ export const seed = async (prisma: PrismaClient) => {
         RegistrySourceConfig: {
           create: {
             rpcProvider: RPCProvider.Blockfrost,
-            rpcProviderApiKey: process.env.Blockfrost_API_KEY_Preprod,
+            rpcProviderApiKey: process.env.BLOCKFROST_API_KEY_PREPROD,
           },
         },
       },
@@ -64,8 +64,8 @@ export const seed = async (prisma: PrismaClient) => {
     console.log('REGISTRY_SOURCE_IDENTIFIER_CARDANO_Preprod is not seeded');
   }
 
-  const registrySourcePolicyMainnet = DEFAULTS.REGISTRY_POLICY_ID_Mainnet;
-  if (process.env.Blockfrost_API_KEY_Mainnet != null) {
+  const registrySourcePolicyMainnet = DEFAULTS.REGISTRY_POLICY_ID_MAINNET;
+  if (process.env.BLOCKFROST_API_KEY_MAINNET != null) {
     console.log('REGISTRY_SOURCE_IDENTIFIER_CARDANO_Mainnet is seeded');
     await prisma.registrySource.upsert({
       create: {
@@ -76,7 +76,7 @@ export const seed = async (prisma: PrismaClient) => {
         RegistrySourceConfig: {
           create: {
             rpcProvider: RPCProvider.Blockfrost,
-            rpcProviderApiKey: process.env.Blockfrost_API_KEY_Mainnet,
+            rpcProviderApiKey: process.env.BLOCKFROST_API_KEY_MAINNET,
           },
         },
       },
