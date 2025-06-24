@@ -24,9 +24,7 @@ async function checkAndVerifyEndpoint({
     if (url.protocol !== 'https:' && url.protocol !== 'http:') {
       return $Enums.Status.Invalid;
     }
-    if (url.port !== '80' && url.port !== '443' && url.port !== '') {
-      return $Enums.Status.Invalid;
-    }
+
     if (url.search != '') {
       return $Enums.Status.Invalid;
     }
