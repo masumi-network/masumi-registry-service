@@ -4,6 +4,7 @@ import { ez } from 'express-zod-api';
 import { $Enums } from '@prisma/client';
 import { tokenCreditService } from '@/services/token-credit';
 import { paymentInformationRepository } from '@/repositories/payment-information';
+import createHttpError from 'http-errors';
 
 export const queryPaymentInformationInput = z.object({
   agentIdentifier: z.string().min(57).max(250),
@@ -92,7 +93,7 @@ export const queryPaymentInformationGet = authenticatedEndpointFactory.build({
       input.agentIdentifier
     );
     if (!result) {
-      throw new Error('Payment information not found');
+      throw createHttpError(404, 'Payment information not found');
     }
     return {
       ...result,
