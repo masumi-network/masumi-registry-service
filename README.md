@@ -85,7 +85,7 @@ You can start the service in different modes:
    npm run dev
    ```
 
-Once running, you can access the OpenAPI Documentation at [http://localhost:3000/api/docs](http://localhost:3000/api/docs).
+Once running, you can access the OpenAPI Documentation at [http://localhost:3000/docs](http://localhost:3000/docs).
 
 ## Additional Setup
 
