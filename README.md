@@ -55,7 +55,6 @@ Copy the `.env.example` file to `.env` and update only the following variables:
 
 ```sh
 DATABASE_URL="postgresql://johndoe:randompassword@localhost:5432/masumi_registry?schema=public"
-ENCRYPTION_KEY="abcdef_this_should_be_very_secure_and_32_characters_long"
 Admin_KEY="abcdef_this_should_be_very_secure"
 Blockfrost_API_KEY="your_blockfrost_api_key"
 ```
