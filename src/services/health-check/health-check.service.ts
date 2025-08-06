@@ -67,8 +67,8 @@ async function checkAndVerifyRegistryEntry({
     registryEntry.lastUptimeCheck.getTime() >
     (minHealthCheckDate?.getTime() ?? 0)
   ) {
-    logger.info(
-      'returning early',
+    logger.debug(
+      'Skipping health check for registry entry',
       registryEntry.lastUptimeCheck,
       minHealthCheckDate
     );

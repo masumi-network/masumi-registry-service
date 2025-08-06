@@ -62,21 +62,27 @@ const metadataSchema = z.object({
     })
     .optional(),
   tags: z.array(z.string().min(1)).min(1),
-  agentPricing: z.object({
-    pricingType: z.enum([PricingType.Fixed]),
-    fixedPricing: z
-      .array(
-        z.object({
-          amount: z.number({ coerce: true }).int().min(1),
-          unit: z
-            .string()
-            .min(1)
-            .or(z.array(z.string().min(1))),
-        })
-      )
-      .min(1)
-      .max(25),
-  }),
+  agentPricing: z
+    .object({
+      pricingType: z.enum([PricingType.Fixed]),
+      fixedPricing: z
+        .array(
+          z.object({
+            amount: z.number({ coerce: true }).int().min(1),
+            unit: z
+              .string()
+              .min(1)
+              .or(z.array(z.string().min(1))),
+          })
+        )
+        .min(1)
+        .max(25),
+    })
+    .or(
+      z.object({
+        pricingType: z.enum([PricingType.None]),
+      })
+    ),
   image: z.string().or(z.array(z.string())),
   metadata_version: z.number({ coerce: true }).int().min(1).max(1),
 });
@@ -537,6 +543,10 @@ export const updateCardanoAssets = async (
       if (!parsedMetadata.success || holderData.length < 1) {
         return null;
       }
+      const paymentType =
+        parsedMetadata.data.agentPricing.pricingType == 'None'
+          ? $Enums.PaymentType.Offchain
+          : $Enums.PaymentType.Web3CardanoV1;
 
       //check endpoint
       const endpoint = metadataStringConvert(parsedMetadata.data.api_base_url)!;
@@ -569,7 +579,6 @@ export const updateCardanoAssets = async (
                 },
                 ExampleOutput: true,
               },
-
               where: {
                 assetIdentifier: asset.asset,
               },
@@ -580,42 +589,46 @@ export const updateCardanoAssets = async (
                 },
                 uptimeCheckCount: { increment: 1 },
                 status: isAvailable,
-
                 AgentPricing: {
-                  create: {
-                    pricingType: PricingType.Fixed,
-                    FixedPricing: {
-                      create: {
-                        Amounts: {
-                          createMany: {
-                            data: parsedMetadata.data.agentPricing.fixedPricing.map(
-                              (price) => ({
-                                amount: price.amount,
-                                unit: metadataStringConvert(price.unit)!,
-                              })
-                            ),
+                  create:
+                    parsedMetadata.data.agentPricing.pricingType == 'None'
+                      ? {
+                          pricingType: PricingType.None,
+                        }
+                      : {
+                          pricingType: PricingType.Fixed,
+                          FixedPricing: {
+                            create: {
+                              Amounts: {
+                                createMany: {
+                                  data: parsedMetadata.data.agentPricing.fixedPricing.map(
+                                    (price) => ({
+                                      amount: price.amount,
+                                      unit: metadataStringConvert(price.unit)!,
+                                    })
+                                  ),
+                                },
+                              },
+                            },
                           },
                         },
-                      },
-                    },
-                  },
                 },
                 PaymentIdentifier: {
                   upsert: {
                     create: {
                       paymentIdentifier: holderData[0].address,
                       sellerVKey: resolvePaymentKeyHash(holderData[0].address),
-                      paymentType: $Enums.PaymentType.Web3CardanoV1,
+                      paymentType: paymentType,
                     },
                     update: {
                       sellerVKey: resolvePaymentKeyHash(holderData[0].address),
                       paymentIdentifier: holderData[0].address,
-                      paymentType: $Enums.PaymentType.Web3CardanoV1,
+                      paymentType: paymentType,
                     },
                     where: {
                       registryEntryId_paymentType: {
                         registryEntryId: existingEntry.id,
-                        paymentType: $Enums.PaymentType.Web3CardanoV1,
+                        paymentType: paymentType,
                       },
                     },
                   },
@@ -694,29 +707,34 @@ export const updateCardanoAssets = async (
                 tags: parsedMetadata.data.tags,
                 metadataVersion: DEFAULTS.METADATA_VERSION,
                 AgentPricing: {
-                  create: {
-                    pricingType: PricingType.Fixed,
-                    FixedPricing: {
-                      create: {
-                        Amounts: {
-                          createMany: {
-                            data: parsedMetadata.data.agentPricing.fixedPricing.map(
-                              (price) => ({
-                                amount: price.amount,
-                                unit: metadataStringConvert(price.unit)!,
-                              })
-                            ),
+                  create:
+                    parsedMetadata.data.agentPricing.pricingType == 'None'
+                      ? {
+                          pricingType: PricingType.None,
+                        }
+                      : {
+                          pricingType: PricingType.Fixed,
+                          FixedPricing: {
+                            create: {
+                              Amounts: {
+                                createMany: {
+                                  data: parsedMetadata.data.agentPricing.fixedPricing.map(
+                                    (price) => ({
+                                      amount: price.amount,
+                                      unit: metadataStringConvert(price.unit)!,
+                                    })
+                                  ),
+                                },
+                              },
+                            },
                           },
                         },
-                      },
-                    },
-                  },
                 },
                 assetIdentifier: asset.asset,
                 PaymentIdentifier: {
                   create: {
                     paymentIdentifier: holderData[0].address,
-                    paymentType: $Enums.PaymentType.Web3CardanoV1,
+                    paymentType: paymentType,
                     sellerVKey: resolvePaymentKeyHash(holderData[0].address),
                   },
                 },

@@ -142,7 +142,8 @@
                                                             "paymentType": {
                                                                 "type": "string",
                                                                 "enum": [
-                                                                    "Web3CardanoV1"
+                                                                    "Web3CardanoV1",
+                                                                    "Offchain"
                                                                 ]
                                                             },
                                                             "sellerVKey": {
@@ -181,7 +182,8 @@
                                                         "pricingType": {
                                                             "type": "string",
                                                             "enum": [
-                                                                "Fixed"
+                                                                "Fixed",
+                                                                "None"
                                                             ]
                                                         },
                                                         "FixedPricing": {
@@ -468,7 +470,8 @@
                                                 "items": {
                                                     "type": "string",
                                                     "enum": [
-                                                        "Web3CardanoV1"
+                                                        "Web3CardanoV1",
+                                                        "Offchain"
                                                     ]
                                                 },
                                                 "maxItems": 5
@@ -726,7 +729,8 @@
                                                                     "pricingType": {
                                                                         "type": "string",
                                                                         "enum": [
-                                                                            "Fixed"
+                                                                            "Fixed",
+                                                                            "None"
                                                                         ]
                                                                     },
                                                                     "FixedPricing": {
