@@ -129,6 +129,7 @@ model AgentPricing {
 
 enum PricingType {
   Fixed
+  None
 }
 
 model AgentFixedPricing {
@@ -152,6 +153,7 @@ model UnitValue {
 
 enum PaymentType {
   Web3CardanoV1
+  Offchain
 }
 
 enum Status {

@@ -63,17 +63,23 @@ export const queryRegistrySchemaOutput = z.object({
       otherLegal: z.string().nullable(),
       tags: z.array(z.string()).nullable(),
       agentIdentifier: z.string(),
-      AgentPricing: z.object({
-        pricingType: z.nativeEnum($Enums.PricingType),
-        FixedPricing: z.object({
-          Amounts: z.array(
-            z.object({
-              amount: z.string(),
-              unit: z.string(),
-            })
-          ),
-        }),
-      }),
+      AgentPricing: z
+        .object({
+          pricingType: z.nativeEnum($Enums.PricingType),
+          FixedPricing: z.object({
+            Amounts: z.array(
+              z.object({
+                amount: z.string(),
+                unit: z.string(),
+              })
+            ),
+          }),
+        })
+        .or(
+          z.object({
+            pricingType: z.nativeEnum($Enums.PricingType),
+          })
+        ),
       ExampleOutput: z.array(
         z.object({
           name: z.string(),
@@ -117,16 +123,23 @@ export const queryRegistryEntryPost = authenticatedEndpointFactory.build({
         .map((entry) => ({
           ...entry,
           agentIdentifier: entry.assetIdentifier,
-          AgentPricing: {
-            pricingType: entry.AgentPricing.pricingType,
-            FixedPricing: {
-              Amounts:
-                entry.AgentPricing.FixedPricing?.Amounts.map((amount) => ({
-                  amount: amount.amount.toString(),
-                  unit: amount.unit,
-                })) ?? [],
-            },
-          },
+          AgentPricing:
+            entry.AgentPricing.pricingType == $Enums.PricingType.None
+              ? {
+                  pricingType: $Enums.PricingType.None,
+                }
+              : {
+                  pricingType: entry.AgentPricing.pricingType,
+                  FixedPricing: {
+                    Amounts:
+                      entry.AgentPricing.FixedPricing?.Amounts.map(
+                        (amount) => ({
+                          amount: amount.amount.toString(),
+                          unit: amount.unit,
+                        })
+                      ) ?? [],
+                  },
+                },
           ExampleOutput: [],
         })),
     };

@@ -142,7 +142,8 @@
                                                             "paymentType": {
                                                                 "type": "string",
                                                                 "enum": [
-                                                                    "Web3CardanoV1"
+                                                                    "Web3CardanoV1",
+                                                                    "Offchain"
                                                                 ]
                                                             },
                                                             "sellerVKey": {
@@ -181,7 +182,8 @@
                                                         "pricingType": {
                                                             "type": "string",
                                                             "enum": [
-                                                                "Fixed"
+                                                                "Fixed",
+                                                                "None"
                                                             ]
                                                         },
                                                         "FixedPricing": {
@@ -468,7 +470,8 @@
                                                 "items": {
                                                     "type": "string",
                                                     "enum": [
-                                                        "Web3CardanoV1"
+                                                        "Web3CardanoV1",
+                                                        "Offchain"
                                                     ]
                                                 },
                                                 "maxItems": 5
@@ -721,44 +724,64 @@
                                                                 "type": "string"
                                                             },
                                                             "AgentPricing": {
-                                                                "type": "object",
-                                                                "properties": {
-                                                                    "pricingType": {
-                                                                        "type": "string",
-                                                                        "enum": [
-                                                                            "Fixed"
-                                                                        ]
-                                                                    },
-                                                                    "FixedPricing": {
+                                                                "anyOf": [
+                                                                    {
                                                                         "type": "object",
                                                                         "properties": {
-                                                                            "Amounts": {
-                                                                                "type": "array",
-                                                                                "items": {
-                                                                                    "type": "object",
-                                                                                    "properties": {
-                                                                                        "amount": {
-                                                                                            "type": "string"
-                                                                                        },
-                                                                                        "unit": {
-                                                                                            "type": "string"
+                                                                            "pricingType": {
+                                                                                "type": "string",
+                                                                                "enum": [
+                                                                                    "Fixed",
+                                                                                    "None"
+                                                                                ]
+                                                                            },
+                                                                            "FixedPricing": {
+                                                                                "type": "object",
+                                                                                "properties": {
+                                                                                    "Amounts": {
+                                                                                        "type": "array",
+                                                                                        "items": {
+                                                                                            "type": "object",
+                                                                                            "properties": {
+                                                                                                "amount": {
+                                                                                                    "type": "string"
+                                                                                                },
+                                                                                                "unit": {
+                                                                                                    "type": "string"
+                                                                                                }
+                                                                                            },
+                                                                                            "required": [
+                                                                                                "amount",
+                                                                                                "unit"
+                                                                                            ]
                                                                                         }
-                                                                                    },
-                                                                                    "required": [
-                                                                                        "amount",
-                                                                                        "unit"
-                                                                                    ]
-                                                                                }
+                                                                                    }
+                                                                                },
+                                                                                "required": [
+                                                                                    "Amounts"
+                                                                                ]
                                                                             }
                                                                         },
                                                                         "required": [
-                                                                            "Amounts"
+                                                                            "pricingType",
+                                                                            "FixedPricing"
+                                                                        ]
+                                                                    },
+                                                                    {
+                                                                        "type": "object",
+                                                                        "properties": {
+                                                                            "pricingType": {
+                                                                                "type": "string",
+                                                                                "enum": [
+                                                                                    "Fixed",
+                                                                                    "None"
+                                                                                ]
+                                                                            }
+                                                                        },
+                                                                        "required": [
+                                                                            "pricingType"
                                                                         ]
                                                                     }
-                                                                },
-                                                                "required": [
-                                                                    "pricingType",
-                                                                    "FixedPricing"
                                                                 ]
                                                             },
                                                             "ExampleOutput": {
