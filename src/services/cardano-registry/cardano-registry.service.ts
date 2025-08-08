@@ -183,16 +183,14 @@ export async function updateHealthCheck(onlyEntriesAfter?: Date | undefined) {
   }
 
   //we do not need any isolation level here as worst case we have a few duplicate checks in the next run but no data loss. Advantage we do not need to lock the table
-  let sources = await prisma.registrySource.findMany({
+  const sourcesCount = await prisma.registrySource.aggregate({
     where: {
       type: $Enums.RegistryEntryType.Web3CardanoV1,
     },
-    include: {
-      RegistrySourceConfig: true,
-    },
+    _count: true,
   });
 
-  if (sources.length == 0) return;
+  if (sourcesCount._count == 0) return;
 
   let release: MutexInterface.Releaser | null;
   try {
@@ -203,7 +201,7 @@ export async function updateHealthCheck(onlyEntriesAfter?: Date | undefined) {
   }
   //if we are already performing an update, we wait for it to finish and return
 
-  sources = await prisma.registrySource.findMany({
+  const sources = await prisma.registrySource.findMany({
     where: {
       type: $Enums.RegistryEntryType.Web3CardanoV1,
     },
@@ -212,16 +210,12 @@ export async function updateHealthCheck(onlyEntriesAfter?: Date | undefined) {
     },
   });
   if (sources.length == 0) {
+    logger.info('No registry sources found, skipping health check');
     release();
     return;
   }
 
   try {
-    //sanity checks
-    const invalidSourcesTypes = sources.filter(
-      (s) => s.type !== $Enums.RegistryEntryType.Web3CardanoV1
-    );
-    if (invalidSourcesTypes.length > 0) throw new Error('Invalid source types');
     const invalidSourceIdentifiers = sources.filter((s) => s.policyId == null);
     if (invalidSourceIdentifiers.length > 0)
       //this should never happen unless the db is corrupted or someone played with the settings
@@ -254,6 +248,9 @@ export async function updateHealthCheck(onlyEntriesAfter?: Date | undefined) {
             },
           },
         });
+        logger.info('found registry entries in status online or offline', {
+          count: entries.length,
+        });
         const invalidEntries = await prisma.registryEntry.findMany({
           where: {
             registrySourceId: source.id,
@@ -281,9 +278,11 @@ export async function updateHealthCheck(onlyEntriesAfter?: Date | undefined) {
             },
           },
         });
+        logger.info('found registry entries in status invalid', {
+          count: invalidEntries.length,
+        });
         const filteredOutInvalidStaggeredEntries = invalidEntries.filter(
           (e) => {
-            if (e.status !== $Enums.Status.Invalid) return true;
             const retries = e.uptimeCheckCount;
             const staggeredWaitTime = 1000 * 60 * 10 * retries;
             return (
@@ -293,8 +292,13 @@ export async function updateHealthCheck(onlyEntriesAfter?: Date | undefined) {
           }
         );
         const excludedEntries = invalidEntries.filter(
-          (e) => !filteredOutInvalidStaggeredEntries.includes(e)
+          (e) =>
+            filteredOutInvalidStaggeredEntries.find((e2) => e2.id === e.id) !=
+            null
         );
+        logger.info('filtered out invalid staggered entries', {
+          count: filteredOutInvalidStaggeredEntries.length,
+        });
         await Promise.allSettled(
           excludedEntries.map(async (e) => {
             await prisma.registryEntry.update({
@@ -310,6 +314,9 @@ export async function updateHealthCheck(onlyEntriesAfter?: Date | undefined) {
           Math.min(10, filteredOutInvalidStaggeredEntries.length)
         );
         const combinedEntries = [...entries, ...invalidBatch];
+        logger.info('checking and updating registry entries', {
+          count: combinedEntries.length,
+        });
         await healthCheckService.checkVerifyAndUpdateRegistryEntries({
           registryEntries: combinedEntries,
           minHealthCheckDate: onlyEntriesAfter,
@@ -541,8 +548,13 @@ export const updateCardanoAssets = async (
       const endpoint = metadataStringConvert(parsedMetadata.data.api_base_url)!;
       const isAvailable = await healthCheckService.checkAndVerifyEndpoint({
         api_url: endpoint,
-        assetIdentifier: asset.asset,
       });
+      const status =
+        isAvailable.returnedAgentIdentifier != null
+          ? isAvailable.returnedAgentIdentifier == asset.asset
+            ? isAvailable.status
+            : $Enums.Status.Invalid
+          : isAvailable.status;
 
       return await prisma.$transaction(
         async (tx) => {
@@ -574,10 +586,10 @@ export const updateCardanoAssets = async (
               data: {
                 lastUptimeCheck: new Date(),
                 uptimeCount: {
-                  increment: isAvailable == $Enums.Status.Online ? 1 : 0,
+                  increment: status == $Enums.Status.Online ? 1 : 0,
                 },
                 uptimeCheckCount: { increment: 1 },
-                status: isAvailable,
+                status: status,
                 AgentPricing: {
                   create:
                     parsedMetadata.data.agentPricing.pricingType == 'None'
@@ -644,9 +656,9 @@ export const updateCardanoAssets = async (
               },
               data: {
                 lastUptimeCheck: new Date(),
-                uptimeCount: isAvailable == $Enums.Status.Online ? 1 : 0,
+                uptimeCount: status == $Enums.Status.Online ? 1 : 0,
                 uptimeCheckCount: 1,
-                status: isAvailable,
+                status: status,
                 name: metadataStringConvert(parsedMetadata.data.name)!,
                 description: metadataStringConvert(
                   parsedMetadata.data.description
