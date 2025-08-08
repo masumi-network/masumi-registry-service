@@ -54,7 +54,7 @@ async function checkAndVerifyEndpoint({ api_url }: { api_url: string }) {
     const responseBody = await endpointResponse.json();
     //we need to verify the registry points to the correct url to prevent a later registry providing a wrong payment address
     //if the registry is wrong, we usually want to invalidate the entry in the database and exclude it from further checks
-    if (responseBody.agentIdentifier != '') {
+    if (responseBody.agentIdentifier && responseBody.agentIdentifier != '') {
       return {
         returnedAgentIdentifier: responseBody.agentIdentifier,
         status: $Enums.Status.Online,
