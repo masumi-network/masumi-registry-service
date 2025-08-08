@@ -32,7 +32,17 @@ async function checkAndVerifyEndpoint({
     if (urlString.endsWith('/')) {
       urlString = urlString.slice(0, -1);
     }
-    const endpointResponse = await fetch(`${urlString}/availability`);
+    // Avoid potential native crashes in Docker by disabling compression and keep-alive, and enforce a timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 25000);
+    const endpointResponse = await fetch(`${urlString}/availability`, {
+      headers: {
+        'accept-encoding': 'identity',
+        connection: 'close',
+      },
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
     if (!endpointResponse.ok) {
       //if the endpoint is offline, we probably want to do some later on checks if it is back up again
       return $Enums.Status.Offline;
@@ -67,7 +77,7 @@ async function checkAndVerifyRegistryEntry({
     registryEntry.lastUptimeCheck.getTime() >
     (minHealthCheckDate?.getTime() ?? 0)
   ) {
-    logger.debug(
+    logger.info(
       'Skipping health check for registry entry',
       registryEntry.lastUptimeCheck,
       minHealthCheckDate

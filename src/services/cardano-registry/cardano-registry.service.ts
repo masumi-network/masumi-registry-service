@@ -227,7 +227,7 @@ export async function updateHealthCheck(onlyEntriesAfter?: Date | undefined) {
       //this should never happen unless the db is corrupted or someone played with the settings
       throw new Error('Invalid source identifiers');
 
-    logger.debug('updating entries from sources', { count: sources.length });
+    logger.info('updating entries from sources', { count: sources.length });
     await Promise.allSettled(
       sources.map(async (source) => {
         const entries = await prisma.registryEntry.findMany({
@@ -381,7 +381,6 @@ export async function updateLatestCardanoRegistryEntries(
       //this should never happen unless the db is corrupted or someone played with the settings
       throw new Error('Invalid source identifiers');
 
-    logger.debug('updating entries from sources', { count: sources.length });
     //the return variable, note that the order of the entries is not guaranteed
     const latestEntries = [];
     //iterate via promises to skip await time
@@ -403,9 +402,6 @@ export async function updateLatestCardanoRegistryEntries(
           while (latestAssets.length != 0) {
             let assetsToProcess = latestAssets;
             if (latestIdentifier != null) {
-              logger.debug('Latest identifier', {
-                latestIdentifier: latestIdentifier,
-              });
               const foundAsset = latestAssets.findIndex(
                 (a) => a.asset === latestIdentifier
               );
@@ -437,9 +433,6 @@ export async function updateLatestCardanoRegistryEntries(
               latestIdentifier = latestAssets[latestAssets.length - 1].asset;
 
             if (latestAssets.length < 100) {
-              logger.debug('No more assets to process', {
-                latestIdentifier: latestIdentifier,
-              });
               break;
             }
 
@@ -487,10 +480,6 @@ export const updateCardanoAssets = async (
       if (source.RegistrySourceConfig.rpcProviderApiKey == null)
         throw new Error('Source api key is not set');
 
-      logger.debug('updating asset', {
-        asset: asset.asset,
-        quantity: asset.quantity,
-      });
       //we will allow only unique tokens (integer quantities) via smart contract, therefore we do not care about large numbers
       const quantity = parseInt(asset.quantity);
       if (quantity == 0) {
