@@ -19,9 +19,8 @@ describe('healthCheckService', () => {
 
       const result = await healthCheckService.checkAndVerifyEndpoint({
         api_url: mockUrl,
-        assetIdentifier: `${mockRegistryId}${mockIdentifier}`,
       });
-      expect(result).toBe($Enums.Status.Offline);
+      expect(result.status).toBe($Enums.Status.Offline);
     });
 
     it('should return Online status when decentralized verification succeeds', async () => {
@@ -36,10 +35,12 @@ describe('healthCheckService', () => {
 
       const result = await healthCheckService.checkAndVerifyEndpoint({
         api_url: mockUrl,
-        assetIdentifier: `${mockRegistryId}${mockIdentifier}`,
       });
 
-      expect(result).toBe($Enums.Status.Online);
+      expect(result.status).toBe($Enums.Status.Online);
+      expect(result.returnedAgentIdentifier).toBe(
+        `${mockRegistryId}${mockIdentifier}`
+      );
     });
 
     it('should return Invalid status when decentralized verification fails', async () => {
@@ -55,10 +56,10 @@ describe('healthCheckService', () => {
 
       const result = await healthCheckService.checkAndVerifyEndpoint({
         api_url: mockUrl,
-        assetIdentifier: mockIdentifier,
       });
 
-      expect(result).toBe($Enums.Status.Invalid);
+      expect(result.status).toBe($Enums.Status.Invalid);
+      expect(result.returnedAgentIdentifier).toBe(null);
     });
   });
 });
