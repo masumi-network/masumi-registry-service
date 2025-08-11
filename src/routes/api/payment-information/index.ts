@@ -5,6 +5,9 @@ import { $Enums } from '@prisma/client';
 import { tokenCreditService } from '@/services/token-credit';
 import { paymentInformationRepository } from '@/repositories/payment-information';
 import createHttpError from 'http-errors';
+import { BlockFrostAPI } from '@blockfrost/blockfrost-js';
+import { prisma } from '@/utils/db';
+import { resolvePaymentKeyHash } from '@meshsdk/core';
 
 export const queryPaymentInformationInput = z.object({
   agentIdentifier: z.string().min(57).max(250),
@@ -16,30 +19,29 @@ export const queryPaymentInformationSchemaOutput = z.object({
     policyId: z.string().nullable(),
     url: z.string().nullable(),
   }),
-  PaymentIdentifier: z.array(
-    z.object({
-      paymentIdentifier: z.string().nullable(),
-      paymentType: z.nativeEnum($Enums.PaymentType),
-      sellerVKey: z.string().nullable(),
-    })
-  ),
+  sellerWallet: z.object({
+    address: z.string(),
+    vkey: z.string(),
+  }),
   Capability: z
     .object({
       name: z.string().nullable(),
       version: z.string().nullable(),
     })
     .nullable(),
-  AgentPricing: z.object({
-    pricingType: z.nativeEnum($Enums.PricingType),
-    FixedPricing: z.object({
-      Amounts: z.array(
-        z.object({
-          amount: z.string(),
-          unit: z.string(),
-        })
-      ),
-    }),
-  }),
+  AgentPricing: z
+    .object({
+      pricingType: z.literal($Enums.PricingType.Fixed),
+      FixedPricing: z.object({
+        Amounts: z.array(
+          z.object({
+            amount: z.string(),
+            unit: z.string(),
+          })
+        ),
+      }),
+    })
+    .or(z.object({ pricingType: z.literal($Enums.PricingType.Free) })),
   name: z.string(),
   description: z.string().nullable(),
   status: z.nativeEnum($Enums.Status),
@@ -57,6 +59,7 @@ export const queryPaymentInformationSchemaOutput = z.object({
   termsAndCondition: z.string().nullable(),
   otherLegal: z.string().nullable(),
   tags: z.array(z.string()).nullable(),
+  paymentType: z.nativeEnum($Enums.PaymentType),
   agentIdentifier: z.string(),
   ExampleOutput: z.array(
     z.object({
@@ -95,19 +98,52 @@ export const queryPaymentInformationGet = authenticatedEndpointFactory.build({
     if (!result) {
       throw createHttpError(404, 'Payment information not found');
     }
+    const registrySource = await prisma.registrySource.findUnique({
+      where: {
+        id: result.RegistrySource.id,
+      },
+      include: {
+        RegistrySourceConfig: true,
+      },
+    });
+    if (!registrySource) {
+      throw createHttpError(404, 'Registry source not found');
+    }
+    const blockfrost = new BlockFrostAPI({
+      projectId: registrySource.RegistrySourceConfig.rpcProviderApiKey,
+    });
+    const holderData = await blockfrost.assetsAddresses(
+      result.assetIdentifier,
+      {
+        order: 'desc',
+      }
+    );
+    if (holderData.length < 1) {
+      throw createHttpError(404, 'Payment information not found');
+    }
+    const sellerWallet = holderData[0];
     return {
       ...result,
       agentIdentifier: result.assetIdentifier,
-      AgentPricing: {
-        pricingType: result.AgentPricing.pricingType,
-        FixedPricing: {
-          Amounts:
-            result.AgentPricing.FixedPricing?.Amounts.map((amount) => ({
-              amount: amount.amount.toString(),
-              unit: amount.unit,
-            })) ?? [],
-        },
+      sellerWallet: {
+        address: sellerWallet.address,
+        vkey: resolvePaymentKeyHash(sellerWallet.address),
       },
+      AgentPricing:
+        result.AgentPricing.pricingType == $Enums.PricingType.Free
+          ? {
+              pricingType: $Enums.PricingType.Free,
+            }
+          : {
+              pricingType: result.AgentPricing.pricingType,
+              FixedPricing: {
+                Amounts:
+                  result.AgentPricing.FixedPricing?.Amounts.map((amount) => ({
+                    amount: amount.amount.toString(),
+                    unit: amount.unit,
+                  })) ?? [],
+              },
+            },
     };
   },
 });

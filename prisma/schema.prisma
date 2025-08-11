@@ -76,9 +76,9 @@ model RegistryEntry {
   status           Status
   RegistrySource   RegistrySource @relation(fields: [registrySourceId], references: [id], onDelete: Cascade)
 
-  PaymentIdentifier PaymentIdentifier[]
-  Capability        Capability?         @relation(fields: [capabilitiesId], references: [id])
-  capabilitiesId    String?
+  paymentType    PaymentType @default(Web3CardanoV1)
+  Capability     Capability? @relation(fields: [capabilitiesId], references: [id])
+  capabilitiesId String?
 
   registrySourceId String
 
@@ -103,19 +103,6 @@ model ExampleOutput {
   registryEntryId String?
 }
 
-model PaymentIdentifier {
-  id                String         @id @default(cuid())
-  createdAt         DateTime       @default(now())
-  updatedAt         DateTime       @updatedAt
-  paymentIdentifier String?
-  paymentType       PaymentType
-  RegistryEntry     RegistryEntry? @relation(fields: [registryEntryId], references: [id])
-  registryEntryId   String?
-  sellerVKey        String?
-
-  @@unique([registryEntryId, paymentType])
-}
-
 model AgentPricing {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
@@ -129,7 +116,7 @@ model AgentPricing {
 
 enum PricingType {
   Fixed
-  None
+  Free
 }
 
 model AgentFixedPricing {
@@ -153,7 +140,7 @@ model UnitValue {
 
 enum PaymentType {
   Web3CardanoV1
-  Offchain
+  None
 }
 
 enum Status {

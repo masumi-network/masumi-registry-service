@@ -25,7 +25,7 @@ async function getRegistryEntry(
   return await prisma.registryEntry.findMany({
     where: {
       Capability: capability,
-      PaymentIdentifier: { some: { paymentType: { in: allowedPaymentTypes } } },
+      paymentType: { in: allowedPaymentTypes },
       status: { in: allowedStatuses },
       assetIdentifier: currentAssetIdentifier,
       RegistrySource: {
