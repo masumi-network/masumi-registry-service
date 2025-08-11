@@ -212,7 +212,7 @@
                                                                 "pricingType": {
                                                                     "type": "string",
                                                                     "enum": [
-                                                                        "None"
+                                                                        "Free"
                                                                     ]
                                                                 }
                                                             },
@@ -791,7 +791,7 @@
                                                                             "pricingType": {
                                                                                 "type": "string",
                                                                                 "enum": [
-                                                                                    "None"
+                                                                                    "Free"
                                                                                 ]
                                                                             }
                                                                         },
