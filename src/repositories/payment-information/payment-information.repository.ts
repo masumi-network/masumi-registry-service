@@ -25,7 +25,6 @@ async function getPaymentInformation(currentAgentIdentifier: string) {
       assetIdentifier: currentAgentIdentifier,
     },
     include: {
-      PaymentIdentifier: true,
       AgentPricing: {
         include: { FixedPricing: { include: { Amounts: true } } },
       },

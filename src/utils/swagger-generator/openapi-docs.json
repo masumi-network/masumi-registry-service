@@ -130,33 +130,20 @@
                                                         "url"
                                                     ]
                                                 },
-                                                "PaymentIdentifier": {
-                                                    "type": "array",
-                                                    "items": {
-                                                        "type": "object",
-                                                        "properties": {
-                                                            "paymentIdentifier": {
-                                                                "type": "string",
-                                                                "nullable": true
-                                                            },
-                                                            "paymentType": {
-                                                                "type": "string",
-                                                                "enum": [
-                                                                    "Web3CardanoV1",
-                                                                    "Offchain"
-                                                                ]
-                                                            },
-                                                            "sellerVKey": {
-                                                                "type": "string",
-                                                                "nullable": true
-                                                            }
+                                                "sellerWallet": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "address": {
+                                                            "type": "string"
                                                         },
-                                                        "required": [
-                                                            "paymentIdentifier",
-                                                            "paymentType",
-                                                            "sellerVKey"
-                                                        ]
-                                                    }
+                                                        "vkey": {
+                                                            "type": "string"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "address",
+                                                        "vkey"
+                                                    ]
                                                 },
                                                 "Capability": {
                                                     "type": "object",
@@ -177,45 +164,62 @@
                                                     ]
                                                 },
                                                 "AgentPricing": {
-                                                    "type": "object",
-                                                    "properties": {
-                                                        "pricingType": {
-                                                            "type": "string",
-                                                            "enum": [
-                                                                "Fixed",
-                                                                "None"
-                                                            ]
-                                                        },
-                                                        "FixedPricing": {
+                                                    "anyOf": [
+                                                        {
                                                             "type": "object",
                                                             "properties": {
-                                                                "Amounts": {
-                                                                    "type": "array",
-                                                                    "items": {
-                                                                        "type": "object",
-                                                                        "properties": {
-                                                                            "amount": {
-                                                                                "type": "string"
-                                                                            },
-                                                                            "unit": {
-                                                                                "type": "string"
+                                                                "pricingType": {
+                                                                    "type": "string",
+                                                                    "enum": [
+                                                                        "Fixed"
+                                                                    ]
+                                                                },
+                                                                "FixedPricing": {
+                                                                    "type": "object",
+                                                                    "properties": {
+                                                                        "Amounts": {
+                                                                            "type": "array",
+                                                                            "items": {
+                                                                                "type": "object",
+                                                                                "properties": {
+                                                                                    "amount": {
+                                                                                        "type": "string"
+                                                                                    },
+                                                                                    "unit": {
+                                                                                        "type": "string"
+                                                                                    }
+                                                                                },
+                                                                                "required": [
+                                                                                    "amount",
+                                                                                    "unit"
+                                                                                ]
                                                                             }
-                                                                        },
-                                                                        "required": [
-                                                                            "amount",
-                                                                            "unit"
-                                                                        ]
-                                                                    }
+                                                                        }
+                                                                    },
+                                                                    "required": [
+                                                                        "Amounts"
+                                                                    ]
                                                                 }
                                                             },
                                                             "required": [
-                                                                "Amounts"
+                                                                "pricingType",
+                                                                "FixedPricing"
+                                                            ]
+                                                        },
+                                                        {
+                                                            "type": "object",
+                                                            "properties": {
+                                                                "pricingType": {
+                                                                    "type": "string",
+                                                                    "enum": [
+                                                                        "Free"
+                                                                    ]
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "pricingType"
                                                             ]
                                                         }
-                                                    },
-                                                    "required": [
-                                                        "pricingType",
-                                                        "FixedPricing"
                                                     ]
                                                 },
                                                 "name": {
@@ -288,6 +292,13 @@
                                                         "type": "string"
                                                     }
                                                 },
+                                                "paymentType": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "Web3CardanoV1",
+                                                        "None"
+                                                    ]
+                                                },
                                                 "agentIdentifier": {
                                                     "type": "string"
                                                 },
@@ -316,7 +327,7 @@
                                             },
                                             "required": [
                                                 "RegistrySource",
-                                                "PaymentIdentifier",
+                                                "sellerWallet",
                                                 "Capability",
                                                 "AgentPricing",
                                                 "name",
@@ -336,6 +347,7 @@
                                                 "termsAndCondition",
                                                 "otherLegal",
                                                 "tags",
+                                                "paymentType",
                                                 "agentIdentifier",
                                                 "ExampleOutput"
                                             ]
@@ -471,7 +483,7 @@
                                                     "type": "string",
                                                     "enum": [
                                                         "Web3CardanoV1",
-                                                        "Offchain"
+                                                        "None"
                                                     ]
                                                 },
                                                 "maxItems": 5
@@ -723,6 +735,13 @@
                                                             "agentIdentifier": {
                                                                 "type": "string"
                                                             },
+                                                            "paymentType": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "Web3CardanoV1",
+                                                                    "None"
+                                                                ]
+                                                            },
                                                             "AgentPricing": {
                                                                 "anyOf": [
                                                                     {
@@ -731,8 +750,7 @@
                                                                             "pricingType": {
                                                                                 "type": "string",
                                                                                 "enum": [
-                                                                                    "Fixed",
-                                                                                    "None"
+                                                                                    "Fixed"
                                                                                 ]
                                                                             },
                                                                             "FixedPricing": {
@@ -773,8 +791,7 @@
                                                                             "pricingType": {
                                                                                 "type": "string",
                                                                                 "enum": [
-                                                                                    "Fixed",
-                                                                                    "None"
+                                                                                    "Free"
                                                                                 ]
                                                                             }
                                                                         },
@@ -828,6 +845,7 @@
                                                             "otherLegal",
                                                             "tags",
                                                             "agentIdentifier",
+                                                            "paymentType",
                                                             "AgentPricing",
                                                             "ExampleOutput"
                                                         ]

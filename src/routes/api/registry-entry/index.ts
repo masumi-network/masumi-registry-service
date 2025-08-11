@@ -63,9 +63,10 @@ export const queryRegistrySchemaOutput = z.object({
       otherLegal: z.string().nullable(),
       tags: z.array(z.string()).nullable(),
       agentIdentifier: z.string(),
+      paymentType: z.nativeEnum($Enums.PaymentType),
       AgentPricing: z
         .object({
-          pricingType: z.nativeEnum($Enums.PricingType),
+          pricingType: z.literal($Enums.PricingType.Fixed),
           FixedPricing: z.object({
             Amounts: z.array(
               z.object({
@@ -77,7 +78,7 @@ export const queryRegistrySchemaOutput = z.object({
         })
         .or(
           z.object({
-            pricingType: z.nativeEnum($Enums.PricingType),
+            pricingType: z.literal($Enums.PricingType.Free),
           })
         ),
       ExampleOutput: z.array(
@@ -124,9 +125,9 @@ export const queryRegistryEntryPost = authenticatedEndpointFactory.build({
           ...entry,
           agentIdentifier: entry.assetIdentifier,
           AgentPricing:
-            entry.AgentPricing.pricingType == $Enums.PricingType.None
+            entry.AgentPricing.pricingType == $Enums.PricingType.Free
               ? {
-                  pricingType: $Enums.PricingType.None,
+                  pricingType: $Enums.PricingType.Free,
                 }
               : {
                   pricingType: entry.AgentPricing.pricingType,
