@@ -6,7 +6,6 @@ import { metadataStringConvert } from '@/utils/metadata-string-convert';
 import { healthCheckService } from '@/services/health-check';
 import { logger } from '@/utils/logger';
 import { BlockFrostAPI } from '@blockfrost/blockfrost-js';
-import { resolvePaymentKeyHash } from '@meshsdk/core';
 import cuid2 from '@paralleldrive/cuid2';
 import { DEFAULTS } from '@/utils/config';
 
@@ -529,19 +528,17 @@ export const updateCardanoAssets = async (
       });
 
       const registryData = await blockfrost.assetsById(asset.asset);
-      const holderData = await blockfrost.assetsAddresses(asset.asset, {
-        order: 'desc',
-      });
+
       const onchainMetadata = registryData.onchain_metadata;
       const parsedMetadata = metadataSchema.safeParse(onchainMetadata);
 
       //if the metadata is not valid or the token has no holder -> is burned, we skip it
-      if (!parsedMetadata.success || holderData.length < 1) {
+      if (!parsedMetadata.success) {
         return null;
       }
       const paymentType =
         parsedMetadata.data.agentPricing.pricingType == 'None'
-          ? $Enums.PaymentType.Offchain
+          ? $Enums.PaymentType.None
           : $Enums.PaymentType.Web3CardanoV1;
 
       //check endpoint
@@ -573,7 +570,6 @@ export const updateCardanoAssets = async (
             newEntry = await tx.registryEntry.update({
               include: {
                 RegistrySource: true,
-                PaymentIdentifier: true,
                 Capability: true,
                 AgentPricing: {
                   include: { FixedPricing: { include: { Amounts: true } } },
@@ -614,26 +610,6 @@ export const updateCardanoAssets = async (
                           },
                         },
                 },
-                PaymentIdentifier: {
-                  upsert: {
-                    create: {
-                      paymentIdentifier: holderData[0].address,
-                      sellerVKey: resolvePaymentKeyHash(holderData[0].address),
-                      paymentType: paymentType,
-                    },
-                    update: {
-                      sellerVKey: resolvePaymentKeyHash(holderData[0].address),
-                      paymentIdentifier: holderData[0].address,
-                      paymentType: paymentType,
-                    },
-                    where: {
-                      registryEntryId_paymentType: {
-                        registryEntryId: existingEntry.id,
-                        paymentType: paymentType,
-                      },
-                    },
-                  },
-                },
               },
             });
           } else {
@@ -647,7 +623,6 @@ export const updateCardanoAssets = async (
             newEntry = await tx.registryEntry.create({
               include: {
                 RegistrySource: true,
-                PaymentIdentifier: true,
                 Capability: true,
                 AgentPricing: {
                   include: { FixedPricing: { include: { Amounts: true } } },
@@ -732,13 +707,7 @@ export const updateCardanoAssets = async (
                         },
                 },
                 assetIdentifier: asset.asset,
-                PaymentIdentifier: {
-                  create: {
-                    paymentIdentifier: holderData[0].address,
-                    paymentType: paymentType,
-                    sellerVKey: resolvePaymentKeyHash(holderData[0].address),
-                  },
-                },
+                paymentType: paymentType,
                 RegistrySource: { connect: { id: source.id } },
                 Capability:
                   capability_name == null || capability_version == null

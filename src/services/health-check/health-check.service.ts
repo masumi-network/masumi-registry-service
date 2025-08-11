@@ -244,7 +244,6 @@ async function checkVerifyAndUpdateRegistryEntries({
             },
             Capability: true,
             RegistrySource: true,
-            PaymentIdentifier: true,
           },
           data: {
             status: s.status,
