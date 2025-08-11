@@ -116,7 +116,7 @@ model AgentPricing {
 
 enum PricingType {
   Fixed
-  None
+  Free
 }
 
 model AgentFixedPricing {

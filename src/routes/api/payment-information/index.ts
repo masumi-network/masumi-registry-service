@@ -41,7 +41,7 @@ export const queryPaymentInformationSchemaOutput = z.object({
         ),
       }),
     })
-    .or(z.object({ pricingType: z.literal($Enums.PricingType.None) })),
+    .or(z.object({ pricingType: z.literal($Enums.PricingType.Free) })),
   name: z.string(),
   description: z.string().nullable(),
   status: z.nativeEnum($Enums.Status),
@@ -130,9 +130,9 @@ export const queryPaymentInformationGet = authenticatedEndpointFactory.build({
         vkey: resolvePaymentKeyHash(sellerWallet.address),
       },
       AgentPricing:
-        result.AgentPricing.pricingType == $Enums.PricingType.None
+        result.AgentPricing.pricingType == $Enums.PricingType.Free
           ? {
-              pricingType: $Enums.PricingType.None,
+              pricingType: $Enums.PricingType.Free,
             }
           : {
               pricingType: result.AgentPricing.pricingType,

@@ -79,7 +79,7 @@ const metadataSchema = z.object({
     })
     .or(
       z.object({
-        pricingType: z.enum([PricingType.None]),
+        pricingType: z.enum([PricingType.Free]),
       })
     ),
   image: z.string().or(z.array(z.string())),
@@ -537,7 +537,7 @@ export const updateCardanoAssets = async (
         return null;
       }
       const paymentType =
-        parsedMetadata.data.agentPricing.pricingType == 'None'
+        parsedMetadata.data.agentPricing.pricingType == 'Free'
           ? $Enums.PaymentType.None
           : $Enums.PaymentType.Web3CardanoV1;
 
@@ -588,9 +588,9 @@ export const updateCardanoAssets = async (
                 status: status,
                 AgentPricing: {
                   create:
-                    parsedMetadata.data.agentPricing.pricingType == 'None'
+                    parsedMetadata.data.agentPricing.pricingType == 'Free'
                       ? {
-                          pricingType: PricingType.None,
+                          pricingType: PricingType.Free,
                         }
                       : {
                           pricingType: PricingType.Fixed,
@@ -684,9 +684,9 @@ export const updateCardanoAssets = async (
                 metadataVersion: DEFAULTS.METADATA_VERSION,
                 AgentPricing: {
                   create:
-                    parsedMetadata.data.agentPricing.pricingType == 'None'
+                    parsedMetadata.data.agentPricing.pricingType == 'Free'
                       ? {
-                          pricingType: PricingType.None,
+                          pricingType: PricingType.Free,
                         }
                       : {
                           pricingType: PricingType.Fixed,

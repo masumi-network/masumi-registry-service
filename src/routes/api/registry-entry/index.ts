@@ -78,7 +78,7 @@ export const queryRegistrySchemaOutput = z.object({
         })
         .or(
           z.object({
-            pricingType: z.literal($Enums.PricingType.None),
+            pricingType: z.literal($Enums.PricingType.Free),
           })
         ),
       ExampleOutput: z.array(
@@ -125,9 +125,9 @@ export const queryRegistryEntryPost = authenticatedEndpointFactory.build({
           ...entry,
           agentIdentifier: entry.assetIdentifier,
           AgentPricing:
-            entry.AgentPricing.pricingType == $Enums.PricingType.None
+            entry.AgentPricing.pricingType == $Enums.PricingType.Free
               ? {
-                  pricingType: $Enums.PricingType.None,
+                  pricingType: $Enums.PricingType.Free,
                 }
               : {
                   pricingType: entry.AgentPricing.pricingType,
