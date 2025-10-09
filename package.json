@@ -13,9 +13,9 @@
         "prepare": "husky",
         "lint": "eslint --fix --quiet --config eslint.config.mjs",
         "format": "prettier --log-level silent --write src/**/*.ts",
-        "test": "jest",
-        "test:watch": "jest --watch",
-        "test:coverage": "jest --coverage",
+        "test": "export DATABASE_URL=http://set-mock-env-for-generation.com && jest",
+        "test:watch": "export DATABASE_URL=http://set-mock-env-for-generation.com && jest --watch",
+        "test:coverage": "export DATABASE_URL=http://set-mock-env-for-generation.com && jest --coverage",
         "prisma:generate": "npx prisma generate",
         "prisma:migrate": "npx prisma migrate deploy",
         "prisma:migrate:dev": "npx prisma migrate dev",
@@ -23,7 +23,7 @@
         "dev": "tsx watch ./src/index.ts",
         "build": "npx prisma generate && npx pkgroll",
         "start": "NODE_ENV=production && node ./dist/index.js",
-        "swagger-json": "export DATABASE_URL=set-mock-env-for-generation && tsx ./src/utils/swagger-generator/cli.ts",
+        "swagger-json": "export DATABASE_URL=http://set-mock-env-for-generation.com && tsx ./src/utils/swagger-generator/cli.ts",
         "knip": "knip"
     },
     "dependencies": {
