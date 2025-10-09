@@ -23,7 +23,7 @@
         "dev": "tsx watch ./src/index.ts",
         "build": "npx prisma generate && npx pkgroll",
         "start": "NODE_ENV=production && node ./dist/index.js",
-        "swagger-json": "export DATABASE_URL=set-mock-env-for-generation && tsx ./src/utils/swagger-generator/cli.ts",
+        "swagger-json": "export DATABASE_URL=http://set-mock-env-for-generation.com && tsx ./src/utils/swagger-generator/cli.ts",
         "knip": "knip"
     },
     "dependencies": {
