@@ -5,19 +5,26 @@ import { logger } from '../logger';
 const getDatabaseUrlWithTimeouts = () => {
   const baseUrl = process.env.DATABASE_URL!;
   const url = new URL(baseUrl);
-  //override the db timeout parameters if they are not already set
-  if (!url.searchParams.has('statement_timeout')) {
-    url.searchParams.set('statement_timeout', '15000');
-  }
+  const dbConnectionTimeout = Number(process.env.DB_CONNECTION_TIMEOUT ?? '20');
+  const dbConnectionPoolLimit = Number(
+    process.env.DB_CONNECTION_POOL_LIMIT ?? '5'
+  );
+  const dbStatementTimeout = Number(process.env.DB_STAEMENT_TIMEOUT ?? '25000');
+  const dbPoolTimeout = Number(process.env.DB_POOL_TIMEOUT ?? '25');
+
   if (!url.searchParams.has('connection_limit')) {
-    url.searchParams.set('connection_limit', '5');
+    url.searchParams.set('connection_limit', dbConnectionPoolLimit.toString());
+  }
+  if (!url.searchParams.has('statement_timeout')) {
+    url.searchParams.set('statement_timeout', dbStatementTimeout.toString());
   }
   if (!url.searchParams.has('pool_timeout')) {
-    url.searchParams.set('pool_timeout', '20');
+    url.searchParams.set('pool_timeout', dbPoolTimeout.toString());
   }
   if (!url.searchParams.has('connect_timeout')) {
-    url.searchParams.set('connect_timeout', '10');
+    url.searchParams.set('connect_timeout', dbConnectionTimeout.toString());
   }
+
   return url.toString();
 };
 
@@ -36,11 +43,5 @@ export async function cleanupDB() {
 
 export async function initDB() {
   await prisma.$connect();
-  const registrySources = await prisma.registrySource.aggregate({
-    _count: true,
-  });
-  logger.info(
-    `Found ${registrySources._count} registry sources${registrySources._count == 1 ? '' : 's'}`
-  );
   logger.info('Initialized database');
 }
