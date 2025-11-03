@@ -4,9 +4,12 @@ import { logger } from '@/utils/logger/';
 import initSchedules from '@/services/schedules';
 import { createConfig, createServer } from 'express-zod-api';
 import { router } from '@/routes/index';
-import ui from 'swagger-ui-express';
+import ui, { JsonObject } from 'swagger-ui-express';
+import express from 'express';
 import { generateOpenAPI } from '@/utils/swagger-generator';
 import { cleanupDB, initDB } from '@/utils/db';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 
 async function initialize() {
   await initDB();
@@ -29,6 +32,33 @@ initialize()
       beforeRouting: ({ app }) => {
         const docs = generateOpenAPI();
         const docsString = JSON.stringify(docs, undefined, 4);
+
+        // Serve static assets from public/assets folder
+        // Works in both dev (public) and production (dist/public)
+        const assetsPathProd = join(process.cwd(), 'dist/public/assets');
+        const assetsPathDev = join(process.cwd(), 'public/assets');
+        app.use('/assets', express.static(assetsPathProd));
+        app.use('/assets', express.static(assetsPathDev));
+
+        // Load custom CSS - works in both dev and production
+        // Try dist first (production), then public (development)
+        let customCss = '';
+        try {
+          customCss = readFileSync(
+            join(process.cwd(), 'dist/public/assets/swagger-custom.css'),
+            'utf8'
+          );
+        } catch {
+          try {
+            customCss = readFileSync(
+              join(process.cwd(), 'public/assets/swagger-custom.css'),
+              'utf8'
+            );
+          } catch (error) {
+            logger.warn('Could not load custom Swagger CSS', error);
+          }
+        }
+
         logger.info(
           '************** Now serving the API documentation at localhost:' +
             PORT +
@@ -37,8 +67,11 @@ initialize()
         app.use(
           '/docs',
           ui.serve,
-          ui.setup(JSON.parse(docsString), {
+          ui.setup(JSON.parse(docsString) as JsonObject, {
             explorer: false,
+            customSiteTitle: 'Registry Service API Documentation',
+            customfavIcon: '/assets/swagger_favicon.svg',
+            customCss: customCss,
             swaggerOptions: {
               persistAuthorization: true,
               tryItOutEnabled: true,
