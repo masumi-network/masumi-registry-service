@@ -13,4 +13,5 @@ coverage
 src/utils/.DS_Store
 src/services/.DS_Store
 .DS_Store
+snapshots/
 

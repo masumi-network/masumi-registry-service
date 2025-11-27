@@ -122,6 +122,98 @@ Ensure that your `DATABASE_URL` matches the configured database settings in `.en
 DATABASE_URL="postgresql://<UserNAME>@localhost:5432/masumi_registry?schema=public"
 ```
 
+## Registry Snapshots
+
+The Masumi Registry Service supports exporting and importing registry snapshots. This feature allows you to quickly bootstrap new instances without syncing from the blockchain, which can save hours of initial setup time.
+
+### Exporting a Snapshot
+
+Export all registry entries to a JSON file:
+
+```sh
+npm run snapshot:export
+```
+
+This creates a snapshot file at `snapshots/registry-snapshot.json` by default.
+
+**Options:**
+
+```sh
+# Export only Preprod network
+npm run snapshot:export -- --network preprod --output snapshots/preprod-snapshot.json
+
+# Export only Mainnet network
+npm run snapshot:export -- --network mainnet --output snapshots/mainnet-snapshot.json
+
+# Include invalid/deregistered entries
+npm run snapshot:export -- --include-invalid
+```
+
+The exported snapshot will contain:
+- Agent metadata (name, description, URLs, etc.)
+- Pricing information
+- Capability information
+- Agent output samples
+
+
+### Importing a Snapshot
+
+**Prerequisites:**
+Before importing, you MUST have a RegistrySource configured in your database. Run the seed script first:
+
+```sh
+npm run prisma:seed
+```
+
+Import a snapshot:
+
+```sh
+npm run snapshot:import -- --input snapshots/registry-snapshot.json --skip-existing
+```
+
+**Options:**
+
+```sh
+# Preview import without making changes (dry run)
+npm run snapshot:import -- --input snapshots/registry-snapshot.json --dry-run
+
+# Skip entries that already exist (recommended)
+npm run snapshot:import -- --input snapshots/registry-snapshot.json --skip-existing
+
+# Import to fresh database
+npm run snapshot:import -- --input snapshots/registry-snapshot.json
+```
+
+**What Gets Reset on Import:**
+- Status: Set to `Offline` (will be updated by health checks)
+- Last uptime check: Set to current time
+- Uptime count: Reset to 0
+- Uptime check count: Reset to 0
+
+### Snapshot Format
+
+Snapshots are JSON files with the following structure:
+
+```json
+{
+  "version": 1,
+  "exportedAt": "2024-01-15T10:30:00.000Z",
+  "network": "Preprod",
+  "totalEntries": 42,
+  "entries": [...]
+}
+```
+
+### Important Notes
+
+1. **RegistrySource Required**: You must have a matching RegistrySource in your database before importing. The import script will fail gracefully if the source doesn't exist.
+
+2. **Duplicate Handling**: Use `--skip-existing` to avoid errors when importing into a database that already has some entries.
+
+3. **Health Checks**: After importing, the service will perform health checks on all agents during the next scheduled run.
+
+4. **Capabilities**: Capabilities are shared across agents and will be reused if they already exist.
+
 ## Contributing
 
 We welcome contributions! Refer to our [Contributing Guide](CONTRIBUTING.md) for more details.
