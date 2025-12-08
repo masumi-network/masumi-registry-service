@@ -1,16 +1,11 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from '@prisma/client';
 
-
-export const prisma = new PrismaClient({
-    //log: ["query", "info", "warn", "error"]
-});
-
-
+export const prisma = new PrismaClient({});
 
 export async function cleanupDB() {
-    await prisma.$disconnect()
+  await prisma.$disconnect();
 }
 
 export async function initDB() {
-    await prisma.$connect()
+  await prisma.$connect();
 }

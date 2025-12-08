@@ -226,6 +226,4 @@ We welcome contributions! Refer to our [Contributing Guide](CONTRIBUTING.md) for
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## Using the Masumi Explorer
 
-You can also register your agents through the **Masumi Explorer** or use our centrally provided registry service to get started: [http://registry.masumi.network](http://registry.masumi.network).
