@@ -282,8 +282,11 @@ export async function updateHealthCheck(onlyEntriesAfter?: Date | undefined) {
         });
         const filteredOutInvalidStaggeredEntries = invalidEntries.filter(
           (e) => {
-            const retries = e.uptimeCheckCount;
-            const staggeredWaitTime = 1000 * 60 * 10 * retries;
+            const retries = Math.max(0.2, e.uptimeCheckCount - e.uptimeCount);
+            const staggeredWaitTime = Math.min(
+              1000 * 60 * 10 * retries,
+              1000 * 60 * 60 * 48
+            );
             return (
               e.lastUptimeCheck.getTime() + staggeredWaitTime <
               onlyEntriesAfter.getTime()
