@@ -4,6 +4,7 @@ import {
   OpenAPIRegistry,
   OpenApiGeneratorV3,
 } from '@asteasolutions/zod-to-openapi';
+import { CONFIG } from '@/utils/config';
 import { healthResponseSchema } from '@/routes/api/health';
 import {
   queryRegistrySchemaInput,
@@ -120,14 +121,11 @@ export function generateOpenAPI() {
                       name: 'Example Capability',
                       version: '1.0.0',
                     },
-                    PaymentIdentifier: [
-                      {
-                        paymentIdentifier:
-                          'addr1333333333333333333333333333333333333333333333333333333333333333',
-                        paymentType: 'Web3CardanoV1',
-                        sellerVKey: 'sellerVKey',
-                      },
-                    ],
+                    sellerWallet: {
+                      address:
+                        'addr1333333333333333333333333333333333333333333333333333333333333333',
+                      vkey: 'sellerVKey',
+                    },
                     AgentPricing: {
                       pricingType: 'Fixed',
                       FixedPricing: {
@@ -158,6 +156,7 @@ export function generateOpenAPI() {
                     uptimeCount: 8,
                     lastUptimeCheck: new Date(0),
                     authorOrganization: 'MASUMI',
+                    paymentType: 'Web3CardanoV1',
                     agentIdentifier:
                       '222222222222222222222222222222222222222222222222222222222222222222',
                     id: 'unique_cuid_v2',
@@ -201,7 +200,7 @@ export function generateOpenAPI() {
                 network: 'Preprod',
                 filter: {
                   policyId: 'policy_id',
-                  assetName: 'asset_name',
+                  assetIdentifier: 'asset_identifier',
                   paymentTypes: [PaymentType.Web3CardanoV1],
                   status: [Status.Online, Status.Offline],
                   capability: {
@@ -261,6 +260,7 @@ export function generateOpenAPI() {
                         lastUptimeCheck: new Date(0),
                         apiBaseUrl: 'https://example.com/api/',
                         authorOrganization: 'MASUMI',
+                        paymentType: 'Web3CardanoV1',
                         agentIdentifier:
                           '222222222222222222222222222222222222222222222222222222222222222222',
                         id: 'unique_cuid_v2',
@@ -799,9 +799,10 @@ export function generateOpenAPI() {
   return new OpenApiGeneratorV3(registry.definitions).generateDocument({
     openapi: '3.0.0',
     info: {
-      version: '1.0.0',
-      title: 'Template API',
-      description: 'This is the default API from a template',
+      version: CONFIG.VERSION,
+      title: 'Masumi Registry Service API',
+      description:
+        'A comprehensive API for querying and managing the Masumi network registry of agents and nodes',
     },
 
     servers: [{ url: './../api/v1/' }],
