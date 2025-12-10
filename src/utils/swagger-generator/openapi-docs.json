@@ -1,9 +1,9 @@
 {
     "openapi": "3.0.0",
     "info": {
-        "version": "1.0.0",
-        "title": "Template API",
-        "description": "This is the default API from a template"
+        "version": "0.1.2",
+        "title": "Masumi Registry Service API",
+        "description": "A comprehensive API for querying and managing the Masumi network registry of agents and nodes"
     },
     "servers": [
         {
@@ -374,13 +374,10 @@
                                                 "name": "Example Capability",
                                                 "version": "1.0.0"
                                             },
-                                            "PaymentIdentifier": [
-                                                {
-                                                    "paymentIdentifier": "addr1333333333333333333333333333333333333333333333333333333333333333",
-                                                    "paymentType": "Web3CardanoV1",
-                                                    "sellerVKey": "sellerVKey"
-                                                }
-                                            ],
+                                            "sellerWallet": {
+                                                "address": "addr1333333333333333333333333333333333333333333333333333333333333333",
+                                                "vkey": "sellerVKey"
+                                            },
                                             "AgentPricing": {
                                                 "pricingType": "Fixed",
                                                 "FixedPricing": {
@@ -416,6 +413,7 @@
                                             "uptimeCount": 8,
                                             "lastUptimeCheck": "1970-01-01T00:00:00.000Z",
                                             "authorOrganization": "MASUMI",
+                                            "paymentType": "Web3CardanoV1",
                                             "agentIdentifier": "222222222222222222222222222222222222222222222222222222222222222222",
                                             "id": "unique_cuid_v2"
                                         },
@@ -580,7 +578,7 @@
                                     "network": "Preprod",
                                     "filter": {
                                         "policyId": "policy_id",
-                                        "assetName": "asset_name",
+                                        "assetIdentifier": "asset_identifier",
                                         "paymentTypes": [
                                             "Web3CardanoV1"
                                         ],
@@ -903,6 +901,7 @@
                                                     "lastUptimeCheck": "1970-01-01T00:00:00.000Z",
                                                     "apiBaseUrl": "https://example.com/api/",
                                                     "authorOrganization": "MASUMI",
+                                                    "paymentType": "Web3CardanoV1",
                                                     "agentIdentifier": "222222222222222222222222222222222222222222222222222222222222222222",
                                                     "id": "unique_cuid_v2",
                                                     "authorContactEmail": null,

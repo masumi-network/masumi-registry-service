@@ -35,8 +35,6 @@ async function checkAndVerifyEndpoint({ api_url }: { api_url: string }) {
     if (urlString.endsWith('/')) {
       urlString = urlString.slice(0, -1);
     }
-    logger.info('checking endpoint', { urlString });
-    // Avoid potential native crashes in Docker by disabling compression and keep-alive, and enforce a timeout
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 7500);
     const endpointResponse = await fetch(`${urlString}/availability`, {

@@ -6,7 +6,6 @@ import { metadataStringConvert } from '@/utils/metadata-string-convert';
 import { healthCheckService } from '@/services/health-check';
 import { logger } from '@/utils/logger';
 import { BlockFrostAPI } from '@blockfrost/blockfrost-js';
-import cuid2 from '@paralleldrive/cuid2';
 import { DEFAULTS } from '@/utils/config';
 
 const metadataSchema = z.object({
@@ -86,92 +85,6 @@ const metadataSchema = z.object({
   metadata_version: z.number({ coerce: true }).int().min(1).max(1),
 });
 
-const deleteMutex = new Mutex();
-
-export async function updateDeregisteredCardanoRegistryEntries() {
-  const sources = await prisma.registrySource.findMany({
-    where: {
-      type: $Enums.RegistryEntryType.Web3CardanoV1,
-    },
-    include: {
-      RegistrySourceConfig: true,
-    },
-  });
-
-  if (sources.length == 0) return;
-
-  let release: MutexInterface.Releaser | null;
-  try {
-    release = await tryAcquire(deleteMutex).acquire();
-  } catch (e) {
-    logger.info('Mutex timeout when locking', { error: e });
-    return;
-  }
-
-  await Promise.allSettled(
-    sources.map(async (source) => {
-      try {
-        const blockfrost = new BlockFrostAPI({
-          projectId: source.RegistrySourceConfig.rpcProviderApiKey!,
-          network:
-            source.network == $Enums.Network.Mainnet ? 'mainnet' : 'preprod',
-        });
-        let cursorId = null;
-        let latestAssets = await prisma.registryEntry.findMany({
-          where: {
-            status: { in: [$Enums.Status.Online, $Enums.Status.Offline] },
-            registrySourceId: source.id,
-          },
-          orderBy: { lastUptimeCheck: 'desc' },
-          take: 50,
-          cursor: cursorId != null ? { id: cursorId } : undefined,
-        });
-
-        while (latestAssets.length != 0) {
-          const assetsToProcess = await Promise.all(
-            latestAssets.map(async (asset) => {
-              return await blockfrost.assetsById(asset.assetIdentifier);
-            })
-          );
-
-          const burnedAssets = assetsToProcess.filter((a) => a.quantity == '0');
-
-          await Promise.all(
-            burnedAssets.map(async (asset) => {
-              await prisma.registryEntry.update({
-                where: {
-                  assetIdentifier: asset.asset,
-                },
-                data: { status: $Enums.Status.Deregistered },
-              });
-            })
-          );
-
-          if (latestAssets.length < 50) break;
-
-          cursorId = latestAssets[latestAssets.length - 1].id;
-          latestAssets = await prisma.registryEntry.findMany({
-            where: {
-              status: { in: [$Enums.Status.Online, $Enums.Status.Offline] },
-              registrySourceId: source.id,
-            },
-            orderBy: { lastUptimeCheck: 'desc' },
-            take: 50,
-            cursor: cursorId != null ? { id: cursorId } : undefined,
-          });
-        }
-        if (latestAssets.length == 0) return;
-      } catch (error) {
-        logger.error('Error updating deregistered cardano registry entries', {
-          error: error,
-          sourceId: source.id,
-        });
-      }
-      return null;
-    })
-  );
-  release();
-}
 const healthMutex = new Mutex();
 export async function updateHealthCheck(onlyEntriesAfter?: Date | undefined) {
   logger.info('Updating cardano registry entries health check: ', {
@@ -215,11 +128,6 @@ export async function updateHealthCheck(onlyEntriesAfter?: Date | undefined) {
   }
 
   try {
-    const invalidSourceIdentifiers = sources.filter((s) => s.policyId == null);
-    if (invalidSourceIdentifiers.length > 0)
-      //this should never happen unless the db is corrupted or someone played with the settings
-      throw new Error('Invalid source identifiers');
-
     logger.info('updating entries from sources', { count: sources.length });
     await Promise.allSettled(
       sources.map(async (source) => {
@@ -247,9 +155,9 @@ export async function updateHealthCheck(onlyEntriesAfter?: Date | undefined) {
             },
           },
         });
-        logger.info('found registry entries in status online or offline', {
-          count: entries.length,
-        });
+        logger.info(
+          `Found ${entries.length} registry entries in status online or offline`
+        );
         const invalidEntries = await prisma.registryEntry.findMany({
           where: {
             registrySourceId: source.id,
@@ -277,9 +185,9 @@ export async function updateHealthCheck(onlyEntriesAfter?: Date | undefined) {
             },
           },
         });
-        logger.info('found registry entries in status invalid', {
-          count: invalidEntries.length,
-        });
+        logger.info(
+          `Found ${invalidEntries.length} registry entries in status invalid`
+        );
         const filteredOutInvalidStaggeredEntries = invalidEntries.filter(
           (e) => {
             const retries = Math.max(0.2, e.uptimeCheckCount - e.uptimeCount);
@@ -298,9 +206,9 @@ export async function updateHealthCheck(onlyEntriesAfter?: Date | undefined) {
             filteredOutInvalidStaggeredEntries.find((e2) => e2.id === e.id) !=
             null
         );
-        logger.info('filtered out invalid staggered entries', {
-          count: filteredOutInvalidStaggeredEntries.length,
-        });
+        logger.info(
+          `Filtered out ${filteredOutInvalidStaggeredEntries.length} invalid staggered entries`
+        );
         await Promise.allSettled(
           excludedEntries.map(async (e) => {
             await prisma.registryEntry.update({
@@ -316,9 +224,9 @@ export async function updateHealthCheck(onlyEntriesAfter?: Date | undefined) {
           Math.min(10, filteredOutInvalidStaggeredEntries.length)
         );
         const combinedEntries = [...entries, ...invalidBatch];
-        logger.info('checking and updating registry entries', {
-          count: combinedEntries.length,
-        });
+        logger.info(
+          `Checking and updating ${combinedEntries.length} registry entries`
+        );
         await healthCheckService.checkVerifyAndUpdateRegistryEntries({
           registryEntries: combinedEntries,
           minHealthCheckDate: onlyEntriesAfter,
@@ -329,23 +237,46 @@ export async function updateHealthCheck(onlyEntriesAfter?: Date | undefined) {
     release();
   }
 }
+type ScriptRedeemer = {
+  tx_hash: string;
+  tx_index: number;
+  purpose: 'spend' | 'mint' | 'cert' | 'reward';
+  redeemer_data_hash: string;
+  datum_hash: string;
+  unit_mem: string;
+  unit_steps: string;
+  fee: string;
+};
+type ScriptRedeemersResponse = ScriptRedeemer[];
+
+async function getScriptsRedeemers(
+  network: $Enums.Network,
+  blockfrostToken: string,
+  policyId: string,
+  page: number
+) {
+  const result = await fetch(
+    `https://cardano-${network == $Enums.Network.Mainnet ? 'mainnet' : 'preprod'}.blockfrost.io/api/v0/scripts/${policyId}/redeemers?count=100&page=${page}&order=asc`,
+    {
+      headers: {
+        project_id: blockfrostToken,
+      },
+    }
+  );
+  if (!result.ok) {
+    throw new Error('Failed to get scripts redeemers');
+  }
+  const json = await result.json();
+  const data = json as ScriptRedeemersResponse;
+  return data;
+}
 
 const updateMutex = new Mutex();
-export async function updateLatestCardanoRegistryEntries(
-  onlyEntriesAfter?: Date | undefined
-) {
-  logger.info('Updating cardano registry entries after: ', {
-    onlyEntriesAfter: onlyEntriesAfter,
-  });
-  if (onlyEntriesAfter == undefined) return;
-
+export async function updateLatestCardanoRegistryEntries() {
   //we do not need any isolation level here as worst case we have a few duplicate checks in the next run but no data loss. Advantage we do not need to lock the table
   let sources = await prisma.registrySource.findMany({
     where: {
       type: $Enums.RegistryEntryType.Web3CardanoV1,
-      updatedAt: {
-        lte: onlyEntriesAfter,
-      },
     },
     include: {
       RegistrySourceConfig: true,
@@ -366,9 +297,6 @@ export async function updateLatestCardanoRegistryEntries(
   sources = await prisma.registrySource.findMany({
     where: {
       type: $Enums.RegistryEntryType.Web3CardanoV1,
-      updatedAt: {
-        lte: onlyEntriesAfter,
-      },
     },
     include: {
       RegistrySourceConfig: true,
@@ -389,9 +317,6 @@ export async function updateLatestCardanoRegistryEntries(
     if (invalidSourceIdentifiers.length > 0)
       //this should never happen unless the db is corrupted or someone played with the settings
       throw new Error('Invalid source identifiers');
-
-    //the return variable, note that the order of the entries is not guaranteed
-    const latestEntries = [];
     //iterate via promises to skip await time
     await Promise.all(
       sources.map(async (source) => {
@@ -401,64 +326,274 @@ export async function updateLatestCardanoRegistryEntries(
             network:
               source.network == $Enums.Network.Mainnet ? 'mainnet' : 'preprod',
           });
-          let pageOffset = source.latestPage;
-          let latestIdentifier = source.latestIdentifier;
-          let latestAssets = await blockfrost.assetsPolicyById(
-            source.policyId!,
-            { page: pageOffset, count: 100, order: 'asc' }
+          let cursorTxHash = source.lastTxId;
+          if (cursorTxHash == null) {
+            logger.info(
+              '***** No existing tx id found - Doing a full Sync.  *****'
+            );
+            logger.info(
+              '***** To skip a full sync please import from a snapshot.  *****'
+            );
+          }
+          let page = source.lastCheckedPage;
+          let txs = await getScriptsRedeemers(
+            source.network,
+            source.RegistrySourceConfig.rpcProviderApiKey,
+            source.policyId,
+            page
           );
-          pageOffset = pageOffset + 1;
-          while (latestAssets.length != 0) {
-            let assetsToProcess = latestAssets;
-            if (latestIdentifier != null) {
-              const foundAsset = latestAssets.findIndex(
-                (a) => a.asset === latestIdentifier
-              );
-              //sanity check
-              if (foundAsset != -1) {
-                logger.info('found asset', { foundAsset: foundAsset });
-                //check if we have more assets to process
-                if (foundAsset + 1 < latestAssets.length) {
-                  assetsToProcess = latestAssets.slice(foundAsset + 1);
-                } else {
-                  //we are at the latest asset of the page
-                  assetsToProcess = [];
+
+          while (txs.length > 0) {
+            const existingTx = txs.findIndex(
+              (tx) => tx.tx_hash === cursorTxHash
+            );
+            if (existingTx != -1) {
+              txs = txs.slice(existingTx + 1);
+            }
+            if (txs.length == 0) {
+              break;
+            }
+            logger.info(
+              `Processing page ${page} with ${txs.length} transactions`,
+              {
+                cursorTxId: cursorTxHash,
+              }
+            );
+
+            for (const tx of txs) {
+              if (tx.purpose != 'mint') {
+                continue;
+              }
+              const txsUtxos = await blockfrost.txsUtxos(tx.tx_hash);
+              const mintedOrBurnedAssetsOfPolicy = new Map<string, number>();
+              for (const inputUtxo of txsUtxos.inputs) {
+                for (const asset of inputUtxo.amount) {
+                  if (asset.unit.startsWith(source.policyId)) {
+                    mintedOrBurnedAssetsOfPolicy.set(
+                      asset.unit,
+                      -parseInt(asset.quantity)
+                    );
+                  }
                 }
-              } else {
-                logger.info('Latest identifier not found', {
-                  latestIdentifier: latestIdentifier,
-                });
+              }
+              for (const outputUtxo of txsUtxos.outputs) {
+                for (const asset of outputUtxo.amount) {
+                  if (asset.unit.startsWith(source.policyId)) {
+                    if (mintedOrBurnedAssetsOfPolicy.has(asset.unit)) {
+                      mintedOrBurnedAssetsOfPolicy.set(
+                        asset.unit,
+                        mintedOrBurnedAssetsOfPolicy.get(asset.unit)! +
+                          parseInt(asset.quantity)
+                      );
+                    } else {
+                      mintedOrBurnedAssetsOfPolicy.set(
+                        asset.unit,
+                        parseInt(asset.quantity)
+                      );
+                    }
+                  }
+                }
+              }
+              for (const [
+                asset,
+                quantity,
+              ] of mintedOrBurnedAssetsOfPolicy.entries()) {
+                if (quantity > 0) {
+                  //mint
+                  let registryData = undefined;
+                  try {
+                    registryData = await blockfrost.assetsById(asset);
+                  } catch (error) {
+                    logger.error('Error getting registry data', {
+                      error: error,
+                      asset: asset,
+                    });
+                    continue;
+                  }
+
+                  const onchainMetadata = registryData.onchain_metadata;
+                  const parsedMetadata =
+                    metadataSchema.safeParse(onchainMetadata);
+
+                  //if the metadata is not valid or the token has no holder -> is burned, we skip it
+                  if (!parsedMetadata.success) {
+                    continue;
+                  }
+                  const paymentType =
+                    parsedMetadata.data.agentPricing.pricingType == 'Free'
+                      ? $Enums.PaymentType.None
+                      : $Enums.PaymentType.Web3CardanoV1;
+
+                  //check endpoint
+                  const endpoint = metadataStringConvert(
+                    parsedMetadata.data.api_base_url
+                  )!;
+                  const isAvailable =
+                    await healthCheckService.checkAndVerifyEndpoint({
+                      api_url: endpoint,
+                    });
+                  const status =
+                    isAvailable.returnedAgentIdentifier != null
+                      ? isAvailable.returnedAgentIdentifier == asset
+                        ? isAvailable.status
+                        : $Enums.Status.Invalid
+                      : isAvailable.status;
+                  const capability_name = metadataStringConvert(
+                    parsedMetadata.data.capability?.name
+                  )!;
+                  const capability_version = metadataStringConvert(
+                    parsedMetadata.data.capability?.version
+                  )!;
+                  const sharedQuery = {
+                    status: status,
+                    name: metadataStringConvert(parsedMetadata.data.name)!,
+                    description: metadataStringConvert(
+                      parsedMetadata.data.description
+                    ),
+                    apiBaseUrl: metadataStringConvert(
+                      parsedMetadata.data.api_base_url
+                    )!,
+                    authorName: metadataStringConvert(
+                      parsedMetadata.data.author?.name
+                    ),
+                    authorOrganization: metadataStringConvert(
+                      parsedMetadata.data.author?.organization
+                    ),
+                    authorContactEmail: metadataStringConvert(
+                      parsedMetadata.data.author?.contact_email
+                    ),
+                    authorContactOther: metadataStringConvert(
+                      parsedMetadata.data.author?.contact_other
+                    ),
+                    image: metadataStringConvert(parsedMetadata.data.image)!,
+                    privacyPolicy: metadataStringConvert(
+                      parsedMetadata.data.legal?.privacy_policy
+                    ),
+                    termsAndCondition: metadataStringConvert(
+                      parsedMetadata.data.legal?.terms
+                    ),
+                    otherLegal: metadataStringConvert(
+                      parsedMetadata.data.legal?.other
+                    ),
+                    ExampleOutput:
+                      parsedMetadata.data.example_output &&
+                      parsedMetadata.data.example_output.length > 0
+                        ? {
+                            createMany: {
+                              data: parsedMetadata.data.example_output.map(
+                                (example) => ({
+                                  name: metadataStringConvert(example.name)!,
+                                  mimeType: metadataStringConvert(
+                                    example.mime_type
+                                  )!,
+                                  url: metadataStringConvert(example.url)!,
+                                })
+                              ),
+                            },
+                          }
+                        : undefined,
+                    tags: parsedMetadata.data.tags,
+                    metadataVersion: DEFAULTS.METADATA_VERSION,
+                    AgentPricing: {
+                      create:
+                        parsedMetadata.data.agentPricing.pricingType == 'Free'
+                          ? {
+                              pricingType: PricingType.Free,
+                            }
+                          : {
+                              pricingType: PricingType.Fixed,
+                              FixedPricing: {
+                                create: {
+                                  Amounts: {
+                                    createMany: {
+                                      data: parsedMetadata.data.agentPricing.fixedPricing.map(
+                                        (price) => ({
+                                          amount: price.amount,
+                                          unit: metadataStringConvert(
+                                            price.unit
+                                          )!,
+                                        })
+                                      ),
+                                    },
+                                  },
+                                },
+                              },
+                            },
+                    },
+                    assetIdentifier: asset,
+                    paymentType: paymentType,
+                    RegistrySource: { connect: { id: source.id } },
+                    Capability:
+                      capability_name == null || capability_version == null
+                        ? undefined
+                        : {
+                            connectOrCreate: {
+                              create: {
+                                name: capability_name,
+                                version: capability_version,
+                              },
+                              where: {
+                                name_version: {
+                                  name: capability_name,
+                                  version: capability_version,
+                                },
+                              },
+                            },
+                          },
+                  };
+
+                  await prisma.registryEntry.upsert({
+                    where: { assetIdentifier: asset },
+                    update: {
+                      lastUptimeCheck: new Date(),
+                      uptimeCount: {
+                        increment: status == $Enums.Status.Online ? 1 : 0,
+                      },
+                      uptimeCheckCount: { increment: 1 },
+                      ...sharedQuery,
+                    },
+                    create: {
+                      lastUptimeCheck: new Date(),
+                      uptimeCount: status == $Enums.Status.Online ? 1 : 0,
+                      uptimeCheckCount: 1,
+                      ...sharedQuery,
+                    },
+                  });
+                }
+
+                if (quantity < 0) {
+                  //burn
+                  await prisma.$transaction(async (tx) => {
+                    const existingEntry = await tx.registryEntry.findUnique({
+                      where: { assetIdentifier: asset },
+                    });
+                    if (existingEntry) {
+                      await tx.registryEntry.update({
+                        where: { assetIdentifier: asset },
+                        data: { status: $Enums.Status.Deregistered },
+                      });
+                    }
+                  });
+                }
               }
             }
 
-            const updatedTMP = await updateCardanoAssets(
-              assetsToProcess,
-              source
-            );
-            if (updatedTMP) {
-              latestEntries.push(...updatedTMP);
-            }
-            if (latestAssets.length > 0)
-              latestIdentifier = latestAssets[latestAssets.length - 1].asset;
-
-            if (latestAssets.length < 100) {
+            cursorTxHash = txs[txs.length - 1].tx_hash;
+            await prisma.registrySource.update({
+              where: { id: source.id },
+              data: { lastCheckedPage: page, lastTxId: cursorTxHash },
+            });
+            if (txs.length !== 100) {
               break;
             }
-
-            latestAssets = await blockfrost.assetsPolicyById(source.policyId!, {
-              page: pageOffset,
-              count: 100,
-              order: 'asc',
-            });
-            pageOffset = pageOffset + 1;
+            page = page + 1;
+            txs = await getScriptsRedeemers(
+              source.network,
+              source.RegistrySourceConfig.rpcProviderApiKey,
+              source.policyId,
+              page
+            );
           }
-          await prisma.registrySource.update({
-            where: { id: source.id },
-            data: {
-              latestPage: pageOffset - 1,
-              latestIdentifier: latestIdentifier,
-            },
-          });
         } catch (error) {
           logger.error('Error updating cardano registry entries', {
             error: error,
@@ -472,282 +607,6 @@ export async function updateLatestCardanoRegistryEntries(
   }
 }
 
-export const updateCardanoAssets = async (
-  latestAssets: { asset: string; quantity: string }[],
-  source: {
-    id: string;
-    policyId: string;
-    RegistrySourceConfig: { rpcProviderApiKey: string };
-    network: $Enums.Network | null;
-  }
-) => {
-  logger.info(`updating ${latestAssets.length} cardano assets`);
-  //note that the order of the entries is not guaranteed at this point
-  const resultingUpdates = await Promise.all(
-    latestAssets.map(async (asset) => {
-      if (source.network == null) throw new Error('Source network is not set');
-      if (source.RegistrySourceConfig.rpcProviderApiKey == null)
-        throw new Error('Source api key is not set');
-
-      //we will allow only unique tokens (integer quantities) via smart contract, therefore we do not care about large numbers
-      const quantity = parseInt(asset.quantity);
-      if (quantity == 0) {
-        //TOKEN is deregistered we will update the status and return null
-        await prisma.registryEntry.upsert({
-          where: {
-            assetIdentifier: asset.asset,
-          },
-          update: { status: $Enums.Status.Deregistered },
-          create: {
-            status: $Enums.Status.Deregistered,
-            Capability: {
-              connectOrCreate: {
-                create: { name: '', version: '' },
-                where: { name_version: { name: '', version: '' } },
-              },
-            },
-            AgentPricing: {
-              create: {
-                pricingType: PricingType.Fixed,
-              },
-            },
-            metadataVersion: -1,
-            assetIdentifier: asset.asset,
-            RegistrySource: { connect: { id: source.id } },
-            name: '?',
-            description: '?',
-            apiBaseUrl: '?_' + cuid2.createId(),
-            image: '?',
-            lastUptimeCheck: new Date(),
-          },
-        });
-        return null;
-      }
-
-      const blockfrost = new BlockFrostAPI({
-        projectId: source.RegistrySourceConfig.rpcProviderApiKey!,
-        network:
-          source.network == $Enums.Network.Mainnet ? 'mainnet' : 'preprod',
-      });
-
-      const registryData = await blockfrost.assetsById(asset.asset);
-
-      const onchainMetadata = registryData.onchain_metadata;
-      const parsedMetadata = metadataSchema.safeParse(onchainMetadata);
-
-      //if the metadata is not valid or the token has no holder -> is burned, we skip it
-      if (!parsedMetadata.success) {
-        return null;
-      }
-      const paymentType =
-        parsedMetadata.data.agentPricing.pricingType == 'Free'
-          ? $Enums.PaymentType.None
-          : $Enums.PaymentType.Web3CardanoV1;
-
-      //check endpoint
-      const endpoint = metadataStringConvert(parsedMetadata.data.api_base_url)!;
-      const isAvailable = await healthCheckService.checkAndVerifyEndpoint({
-        api_url: endpoint,
-      });
-      const status =
-        isAvailable.returnedAgentIdentifier != null
-          ? isAvailable.returnedAgentIdentifier == asset.asset
-            ? isAvailable.status
-            : $Enums.Status.Invalid
-          : isAvailable.status;
-
-      return await prisma.$transaction(
-        async (tx) => {
-          /*  We do not need to ensure uniqueness of the api url as we require each agent to send its registry identifier, when requesting a payment  */
-
-          const existingEntry = await tx.registryEntry.findUnique({
-            where: {
-              assetIdentifier: asset.asset,
-            },
-          });
-
-          let newEntry;
-          if (existingEntry) {
-            //TODO: once we have dynamic pricing, update the pricing here
-
-            newEntry = await tx.registryEntry.update({
-              include: {
-                RegistrySource: true,
-                Capability: true,
-                AgentPricing: {
-                  include: { FixedPricing: { include: { Amounts: true } } },
-                },
-                ExampleOutput: true,
-              },
-              where: {
-                assetIdentifier: asset.asset,
-              },
-              data: {
-                lastUptimeCheck: new Date(),
-                uptimeCount: {
-                  increment: status == $Enums.Status.Online ? 1 : 0,
-                },
-                uptimeCheckCount: { increment: 1 },
-                status: status,
-                AgentPricing: {
-                  create:
-                    parsedMetadata.data.agentPricing.pricingType == 'Free'
-                      ? {
-                          pricingType: PricingType.Free,
-                        }
-                      : {
-                          pricingType: PricingType.Fixed,
-                          FixedPricing: {
-                            create: {
-                              Amounts: {
-                                createMany: {
-                                  data: parsedMetadata.data.agentPricing.fixedPricing.map(
-                                    (price) => ({
-                                      amount: price.amount,
-                                      unit: metadataStringConvert(price.unit)!,
-                                    })
-                                  ),
-                                },
-                              },
-                            },
-                          },
-                        },
-                },
-              },
-            });
-          } else {
-            const capability_name = metadataStringConvert(
-              parsedMetadata.data.capability?.name
-            )!;
-            const capability_version = metadataStringConvert(
-              parsedMetadata.data.capability?.version
-            )!;
-
-            newEntry = await tx.registryEntry.create({
-              include: {
-                RegistrySource: true,
-                Capability: true,
-                AgentPricing: {
-                  include: { FixedPricing: { include: { Amounts: true } } },
-                },
-                ExampleOutput: true,
-              },
-              data: {
-                lastUptimeCheck: new Date(),
-                uptimeCount: status == $Enums.Status.Online ? 1 : 0,
-                uptimeCheckCount: 1,
-                status: status,
-                name: metadataStringConvert(parsedMetadata.data.name)!,
-                description: metadataStringConvert(
-                  parsedMetadata.data.description
-                ),
-                apiBaseUrl: metadataStringConvert(
-                  parsedMetadata.data.api_base_url
-                )!,
-                authorName: metadataStringConvert(
-                  parsedMetadata.data.author?.name
-                ),
-                authorOrganization: metadataStringConvert(
-                  parsedMetadata.data.author?.organization
-                ),
-                authorContactEmail: metadataStringConvert(
-                  parsedMetadata.data.author?.contact_email
-                ),
-                authorContactOther: metadataStringConvert(
-                  parsedMetadata.data.author?.contact_other
-                ),
-                image: metadataStringConvert(parsedMetadata.data.image)!,
-                privacyPolicy: metadataStringConvert(
-                  parsedMetadata.data.legal?.privacy_policy
-                ),
-                termsAndCondition: metadataStringConvert(
-                  parsedMetadata.data.legal?.terms
-                ),
-                otherLegal: metadataStringConvert(
-                  parsedMetadata.data.legal?.other
-                ),
-                ExampleOutput:
-                  parsedMetadata.data.example_output &&
-                  parsedMetadata.data.example_output.length > 0
-                    ? {
-                        createMany: {
-                          data: parsedMetadata.data.example_output.map(
-                            (example) => ({
-                              name: metadataStringConvert(example.name)!,
-                              mimeType: metadataStringConvert(
-                                example.mime_type
-                              )!,
-                              url: metadataStringConvert(example.url)!,
-                            })
-                          ),
-                        },
-                      }
-                    : undefined,
-                tags: parsedMetadata.data.tags,
-                metadataVersion: DEFAULTS.METADATA_VERSION,
-                AgentPricing: {
-                  create:
-                    parsedMetadata.data.agentPricing.pricingType == 'Free'
-                      ? {
-                          pricingType: PricingType.Free,
-                        }
-                      : {
-                          pricingType: PricingType.Fixed,
-                          FixedPricing: {
-                            create: {
-                              Amounts: {
-                                createMany: {
-                                  data: parsedMetadata.data.agentPricing.fixedPricing.map(
-                                    (price) => ({
-                                      amount: price.amount,
-                                      unit: metadataStringConvert(price.unit)!,
-                                    })
-                                  ),
-                                },
-                              },
-                            },
-                          },
-                        },
-                },
-                assetIdentifier: asset.asset,
-                paymentType: paymentType,
-                RegistrySource: { connect: { id: source.id } },
-                Capability:
-                  capability_name == null || capability_version == null
-                    ? undefined
-                    : {
-                        connectOrCreate: {
-                          create: {
-                            name: capability_name,
-                            version: capability_version,
-                          },
-                          where: {
-                            name_version: {
-                              name: capability_name,
-                              version: capability_version,
-                            },
-                          },
-                        },
-                      },
-              },
-            });
-          }
-          return newEntry;
-        },
-        { maxWait: 50000, timeout: 10000 }
-      );
-    })
-  );
-
-  //filter out nulls -> tokens not following the metadata standard and burned tokens
-  const resultingUpdatesFiltered = resultingUpdates.filter((x) => x != null);
-  //sort entries by creation date
-  return resultingUpdatesFiltered.sort(
-    (a, b) => a.createdAt.getTime() - b.createdAt.getTime()
-  );
-};
-
 export const cardanoRegistryService = {
   updateLatestCardanoRegistryEntries,
-  updateCardanoAssets,
 };
