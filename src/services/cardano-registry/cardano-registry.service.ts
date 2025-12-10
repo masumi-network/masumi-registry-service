@@ -576,13 +576,13 @@ export async function updateLatestCardanoRegistryEntries() {
                   });
                 }
               }
+              await prisma.registrySource.update({
+                where: { id: source.id },
+                data: { lastCheckedPage: page, lastTxId: tx.tx_hash },
+              });
             }
 
             cursorTxHash = txs[txs.length - 1].tx_hash;
-            await prisma.registrySource.update({
-              where: { id: source.id },
-              data: { lastCheckedPage: page, lastTxId: cursorTxHash },
-            });
             if (txs.length !== 100) {
               break;
             }
