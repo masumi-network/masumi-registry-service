@@ -28,7 +28,7 @@
   },
   "dependencies": {
     "@asteasolutions/zod-to-openapi": "^7.3.0",
-    "@blockfrost/blockfrost-js": "^6.0.0",
+    "@blockfrost/blockfrost-js": "^6.1.0",
     "@jest/types": "^29.6.3",
     "@meshsdk/core": "^1.8.14",
     "@paralleldrive/cuid2": "^2.2.2",
