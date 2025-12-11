@@ -131,18 +131,11 @@ function validateSnapshotEntry(entry: unknown): asserts entry is SnapshotEntry {
   }
 
   const rs = e.registrySource as Record<string, unknown>;
-  if (rs.type !== 'Web3CardanoV1') {
-    throw new Error('registrySource.type must be "Web3CardanoV1"');
+
+  if (typeof rs.lastCheckedPage !== 'number' || rs.lastCheckedPage < 1) {
+    throw new Error('registrySource.lastCheckedPage must be a number >= 1');
   }
-  if (
-    rs.network !== null &&
-    rs.network !== 'Preprod' &&
-    rs.network !== 'Mainnet'
-  ) {
-    throw new Error(
-      'registrySource.network must be null, "Preprod", or "Mainnet"'
-    );
-  }
+
   if (typeof rs.policyId !== 'string' || rs.policyId.length === 0) {
     throw new Error('registrySource.policyId must be a non-empty string');
   }

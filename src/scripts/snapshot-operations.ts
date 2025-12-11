@@ -11,7 +11,31 @@ import type {
 import { SNAPSHOT_VERSION } from '../utils/snapshot/snapshot-types';
 import { validateSnapshot } from '../utils/snapshot/snapshot-validator';
 
-export async function exportSnapshot(options: ExportOptions): Promise<void> {
+export interface ExportResult {
+  success: boolean;
+  outputPath?: string;
+  totalEntries?: number;
+  error?: string;
+}
+
+export interface ImportResult {
+  success: boolean;
+  stats?: {
+    imported: number;
+    skipped: number;
+    errors: number;
+    total: number;
+  };
+  errorDetails?: Array<{
+    assetIdentifier: string;
+    error: string;
+  }>;
+  error?: string;
+}
+
+export async function exportSnapshot(
+  options: ExportOptions
+): Promise<ExportResult> {
   try {
     logger.info('Starting snapshot export', { options });
 
@@ -35,13 +59,7 @@ export async function exportSnapshot(options: ExportOptions): Promise<void> {
         },
         Capability: true,
         ExampleOutput: true,
-        RegistrySource: {
-          select: {
-            type: true,
-            network: true,
-            policyId: true,
-          },
-        },
+        RegistrySource: true,
       },
     });
 
@@ -73,8 +91,7 @@ export async function exportSnapshot(options: ExportOptions): Promise<void> {
 
         // Registry source (for matching during import)
         registrySource: {
-          type: entry.RegistrySource.type,
-          network: entry.RegistrySource.network,
+          lastCheckedPage: entry.RegistrySource.lastCheckedPage,
           policyId: entry.RegistrySource.policyId,
         },
 
@@ -104,22 +121,34 @@ export async function exportSnapshot(options: ExportOptions): Promise<void> {
     };
 
     const outputPath = options.output || 'snapshots/registry-snapshot.json';
+
+    // Ensure directory exists
+    const dir = outputPath.substring(0, outputPath.lastIndexOf('/'));
+    if (dir && !fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+
     fs.writeFileSync(outputPath, JSON.stringify(snapshot, null, 2));
 
-    logger.info(
-      `✅ Exported ${snapshot.totalEntries} entries to ${outputPath}`
-    );
-    console.log(
-      `✅ Exported ${snapshot.totalEntries} entries to ${outputPath}`
-    );
+    logger.info(`Exported ${snapshot.totalEntries} entries to ${outputPath}`);
+
+    return {
+      success: true,
+      outputPath,
+      totalEntries: snapshot.totalEntries,
+    };
   } catch (error) {
     logger.error('Error exporting snapshot', { error });
-    console.error('❌ Error exporting snapshot:', error);
-    throw error;
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
   }
 }
 
-export async function importSnapshot(options: ImportOptions): Promise<void> {
+export async function importSnapshot(
+  options: ImportOptions
+): Promise<ImportResult> {
   try {
     logger.info('Starting snapshot import', { options });
 
@@ -130,14 +159,12 @@ export async function importSnapshot(options: ImportOptions): Promise<void> {
     // Validate snapshot format
     validateSnapshot(snapshot);
 
-    console.log(
-      `📦 Importing ${snapshot.totalEntries} entries from ${options.input}`
-    );
     logger.info(`Importing ${snapshot.totalEntries} entries`);
 
     let imported = 0;
     let skipped = 0;
     let errors = 0;
+    const errorDetails: Array<{ assetIdentifier: string; error: string }> = [];
 
     // Process each entry
     for (const entry of snapshot.entries) {
@@ -149,43 +176,40 @@ export async function importSnapshot(options: ImportOptions): Promise<void> {
 
         if (existing) {
           if (options.skipExisting) {
-            console.log(`⏭️  Skipping existing: ${entry.assetIdentifier}`);
+            logger.debug(`Skipping existing: ${entry.assetIdentifier}`);
             skipped++;
             continue;
           } else {
-            console.log(`❌ Duplicate found: ${entry.assetIdentifier}`);
+            const error = `Duplicate found: ${entry.assetIdentifier}`;
+            logger.warn(error);
             errors++;
+            errorDetails.push({
+              assetIdentifier: entry.assetIdentifier,
+              error,
+            });
             continue;
           }
         }
 
-        // Find RegistrySource
-        const registrySource = await prisma.registrySource.findUnique({
-          where: {
-            type_policyId: {
-              type: entry.registrySource.type,
-              policyId: entry.registrySource.policyId,
-            },
-          },
+        // Find RegistrySource by policyId
+        const registrySource = await prisma.registrySource.findFirst({
+          where: { policyId: entry.registrySource.policyId },
         });
 
         if (!registrySource) {
-          console.log(
-            `❌ RegistrySource not found for ${entry.assetIdentifier}`
-          );
-          console.log(
-            `   Type: ${entry.registrySource.type}, PolicyId: ${entry.registrySource.policyId}`
-          );
-          console.log(
-            `   Please create this RegistrySource first using: npm run prisma:seed`
-          );
+          const error = `RegistrySource not found for policyId: ${entry.registrySource.policyId}`;
+          logger.error(error, { assetIdentifier: entry.assetIdentifier });
           errors++;
+          errorDetails.push({
+            assetIdentifier: entry.assetIdentifier,
+            error,
+          });
           continue;
         }
 
         // Dry run mode - just preview
         if (options.dryRun) {
-          console.log(`✓ Would import: ${entry.assetIdentifier}`);
+          logger.debug(`Would import: ${entry.assetIdentifier}`);
           imported++;
           continue;
         }
@@ -193,24 +217,21 @@ export async function importSnapshot(options: ImportOptions): Promise<void> {
         // Import in transaction
         await importEntry(entry, registrySource.id);
 
-        console.log(`✅ Imported: ${entry.assetIdentifier}`);
+        logger.debug(`Imported: ${entry.assetIdentifier}`);
         imported++;
       } catch (error) {
-        console.error(`❌ Error importing ${entry.assetIdentifier}:`, error);
+        const errorMsg = error instanceof Error ? error.message : String(error);
         logger.error('Error importing entry', {
           assetIdentifier: entry.assetIdentifier,
-          error,
+          error: errorMsg,
         });
         errors++;
+        errorDetails.push({
+          assetIdentifier: entry.assetIdentifier,
+          error: errorMsg,
+        });
       }
     }
-
-    // Print summary
-    console.log(`\n📊 Import Summary:`);
-    console.log(`   ✅ Imported: ${imported}`);
-    console.log(`   ⏭️  Skipped: ${skipped}`);
-    console.log(`   ❌ Errors: ${errors}`);
-    console.log(`   📦 Total: ${snapshot.totalEntries}`);
 
     logger.info('Import completed', {
       imported,
@@ -218,10 +239,24 @@ export async function importSnapshot(options: ImportOptions): Promise<void> {
       errors,
       total: snapshot.totalEntries,
     });
+
+    return {
+      success: true,
+      stats: {
+        imported,
+        skipped,
+        errors,
+        total: snapshot.totalEntries,
+      },
+      errorDetails: errorDetails.length > 0 ? errorDetails : undefined,
+    };
   } catch (error) {
-    logger.error('Error importing snapshot', { error });
-    console.error('❌ Error importing snapshot:', error);
-    throw error;
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    logger.error('Error importing snapshot', { error: errorMsg });
+    return {
+      success: false,
+      error: errorMsg,
+    };
   }
 }
 

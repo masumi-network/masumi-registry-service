@@ -1,9 +1,4 @@
-import {
-  Network,
-  PaymentType,
-  PricingType,
-  RegistryEntryType,
-} from '@prisma/client';
+import { Network, PaymentType, PricingType } from '@prisma/client';
 
 export const SNAPSHOT_VERSION = 1;
 
@@ -38,8 +33,7 @@ export interface SnapshotEntry {
 }
 
 export interface SnapshotRegistrySource {
-  type: RegistryEntryType;
-  network: Network | null;
+  lastCheckedPage: number;
   policyId: string;
 }
 
@@ -75,11 +69,4 @@ export interface ImportOptions {
   input: string;
   skipExisting?: boolean;
   dryRun?: boolean;
-}
-
-export interface ImportStats {
-  imported: number;
-  skipped: number;
-  errors: number;
-  total: number;
 }

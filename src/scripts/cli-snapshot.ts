@@ -30,22 +30,37 @@ program
           options.network.charAt(0).toUpperCase() +
           options.network.slice(1).toLowerCase();
         if (network !== 'Preprod' && network !== 'Mainnet') {
-          console.error('❌ Invalid network. Must be "preprod" or "mainnet"');
+          const error = {
+            error: 'Invalid network. Must be "preprod" or "mainnet"',
+          };
+          console.error(JSON.stringify(error, null, 2));
+          await cleanupDB();
           process.exit(1);
         }
         options.network = network as Network;
       }
 
-      await exportSnapshot({
+      const result = await exportSnapshot({
         network: options.network,
         output: options.output,
         includeInvalid: options.includeInvalid,
       });
 
       await cleanupDB();
-      process.exit(0);
+
+      if (result.success) {
+        console.log(JSON.stringify(result, null, 2));
+        process.exit(0);
+      } else {
+        console.error(JSON.stringify(result, null, 2));
+        process.exit(1);
+      }
     } catch (error) {
-      console.error('❌ Export failed:', error);
+      const errorResponse = {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+      console.error(JSON.stringify(errorResponse, null, 2));
       await cleanupDB();
       process.exit(1);
     }
@@ -61,16 +76,27 @@ program
     try {
       await initDB();
 
-      await importSnapshot({
+      const result = await importSnapshot({
         input: options.input,
         skipExisting: options.skipExisting,
         dryRun: options.dryRun,
       });
 
       await cleanupDB();
-      process.exit(0);
+
+      if (result.success) {
+        console.log(JSON.stringify(result, null, 2));
+        process.exit(0);
+      } else {
+        console.error(JSON.stringify(result, null, 2));
+        process.exit(1);
+      }
     } catch (error) {
-      console.error('❌ Import failed:', error);
+      const errorResponse = {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+      console.error(JSON.stringify(errorResponse, null, 2));
       await cleanupDB();
       process.exit(1);
     }
