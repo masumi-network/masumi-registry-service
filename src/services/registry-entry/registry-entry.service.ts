@@ -1,6 +1,6 @@
 import { registryEntryRepository } from '@/repositories/registry-entry';
 import { queryRegistrySchemaInput } from '@/routes/api/registry-entry';
-import { $Enums, Status, PaymentType } from '@prisma/client';
+import { $Enums, Status } from '@prisma/client';
 import { z } from 'zod';
 import { cardanoRegistryService } from '@/services/cardano-registry';
 import { healthCheckService } from '@/services/health-check';
@@ -8,10 +8,10 @@ import { healthCheckService } from '@/services/health-check';
 function getFilterParams(
   filter: z.infer<typeof queryRegistrySchemaInput>['filter']
 ) {
-  const allowedPaymentTypes: $Enums.PaymentType[] =
+  const allowedPaymentTypes: $Enums.PaymentType[] | undefined =
     filter && filter.paymentTypes && filter.paymentTypes.length > 0
       ? filter.paymentTypes
-      : [PaymentType.Web3CardanoV1];
+      : undefined;
 
   const allowedStatuses: $Enums.Status[] =
     filter && filter.status && filter.status.length > 0

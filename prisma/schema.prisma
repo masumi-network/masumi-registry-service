@@ -171,16 +171,16 @@ model RegistrySource {
   createdAt              DateTime             @default(now())
   updatedAt              DateTime             @updatedAt
   type                   RegistryEntryType
-  network                Network?
+  network                Network
   url                    String?
   policyId               String
   RegistrySourceConfig   RegistrySourceConfig @relation(fields: [registrySourceConfigId], references: [id])
   registrySourceConfigId String
 
-  note             String?
-  latestPage       Int             @default(1) //# blockfrost starts at page 1
-  latestIdentifier String?
-  RegistryEntry    RegistryEntry[]
+  note            String?
+  lastTxId        String?
+  lastCheckedPage Int             @default(1) //blockfrost starts at page 1
+  RegistryEntry   RegistryEntry[]
 
   @@unique([type, policyId])
 }

@@ -5,7 +5,7 @@ async function getRegistryEntry(
   capability:
     | { name: string | undefined; version: string | undefined }
     | undefined,
-  allowedPaymentTypes: PaymentType[],
+  allowedPaymentTypes: PaymentType[] | undefined,
   allowedStatuses: Status[],
   currentRegistryPolicyId: string | undefined,
   currentAssetIdentifier: string | undefined,
@@ -25,7 +25,9 @@ async function getRegistryEntry(
   return await prisma.registryEntry.findMany({
     where: {
       Capability: capability,
-      paymentType: { in: allowedPaymentTypes },
+      paymentType: allowedPaymentTypes
+        ? { in: allowedPaymentTypes }
+        : undefined,
       status: { in: allowedStatuses },
       assetIdentifier: currentAssetIdentifier,
       RegistrySource: {

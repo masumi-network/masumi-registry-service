@@ -1,76 +1,73 @@
 {
-    "name": "masumi-registry-service",
-    "version": "0.0.5",
-    "description": "A Registry Lookup service for MASUMI AI Nodes",
-    "main": "dist/index.js",
-    "author": "NMKR",
-    "license": "MIT",
-    "type": "module",
-    "prisma": {
-        "seed": "tsx ./prisma/seed.ts"
-    },
-    "scripts": {
-        "prepare": "husky",
-        "lint": "eslint --fix --quiet --config eslint.config.mjs",
-        "format": "prettier --log-level silent --write src/**/*.ts",
-        "test": "jest",
-        "test:watch": "jest --watch",
-        "test:coverage": "jest --coverage",
-        "prisma:generate": "npx prisma generate",
-        "prisma:migrate": "npx prisma migrate deploy",
-        "prisma:migrate:dev": "npx prisma migrate dev",
-        "prisma:seed": "npx prisma db seed",
-        "snapshot:export": "tsx ./src/scripts/cli-snapshot.ts export",
-        "snapshot:import": "tsx ./src/scripts/cli-snapshot.ts import",
-        "dev": "tsx watch ./src/index.ts",
-        "build": "npx prisma generate && npx pkgroll",
-        "start": "NODE_ENV=production && node ./dist/index.js",
-        "swagger-json": "export DATABASE_URL=set-mock-env-for-generation && tsx ./src/utils/swagger-generator/cli.ts",
-        "knip": "knip"
-    },
-    "dependencies": {
-        "@asteasolutions/zod-to-openapi": "^7.3.0",
-        "@blockfrost/blockfrost-js": "^6.0.0",
-        "@jest/types": "^29.6.3",
-        "@meshsdk/core": "^1.8.14",
-        "@paralleldrive/cuid2": "^2.2.2",
-        "@prisma/client": "^6.6.0",
-        "async-mutex": "^0.5.0",
-        "commander": "^14.0.2",
-        "dotenv": "^16.4.7",
-        "express": "^5.1.0",
-        "express-zod-api": "^22.13.2",
-        "http-errors": "^2.0.0",
-        "swagger-ui-express": "^5.0.1",
-        "winston": "^3.17.0",
-        "zod": "^3.24.2"
-    },
-    "devDependencies": {
-        "@commitlint/cli": "^19.8.0",
-        "@commitlint/config-conventional": "^19.8.0",
-        "@eslint/js": "^9.24.0",
-        "@types/express": "^5.0.1",
-        "@types/jest": "^29.5.14",
-        "@types/node": "^18.19.86",
-        "@types/swagger-ui-express": "^4.1.8",
-        "eslint": "^9.24.0",
-        "globals": "^16.0.0",
-        "husky": "^9.1.7",
-        "jest": "^29.7.0",
-        "knip": "^5.50.1",
-        "lint-staged": "^15.5.0",
-        "pkgroll": "^2.12.1",
-        "prettier": "^3.5.3",
-        "prisma": "^6.6.0",
-        "ts-jest": "^29.3.1",
-        "tsx": "^4.19.3",
-        "typescript": "^5.8.3",
-        "typescript-eslint": "^8.29.1"
-    },
-    "lint-staged": {
-        "*.{js,ts}": [
-            "npm run lint",
-            "npm run format"
-        ]
-    }
+  "name": "masumi-registry-service",
+  "version": "0.0.5",
+  "description": "A Registry Lookup service for MASUMI AI Nodes",
+  "main": "dist/index.js",
+  "author": "NMKR",
+  "license": "MIT",
+  "type": "module",
+  "prisma": {
+    "seed": "tsx ./prisma/seed.ts"
+  },
+  "scripts": {
+    "prepare": "husky",
+    "lint": "eslint --fix --quiet --config eslint.config.mjs",
+    "format": "prettier --log-level silent --write src/**/*.ts",
+    "test": "export DATABASE_URL=http://set-mock-env-for-generation.com && jest",
+    "test:watch": "export DATABASE_URL=http://set-mock-env-for-generation.com && jest --watch",
+    "test:coverage": "export DATABASE_URL=http://set-mock-env-for-generation.com && jest --coverage",
+    "prisma:generate": "npx prisma generate",
+    "prisma:migrate": "npx prisma migrate deploy",
+    "prisma:migrate:dev": "npx prisma migrate dev",
+    "prisma:seed": "npx prisma db seed",
+    "dev": "tsx watch ./src/index.ts",
+    "build": "npx prisma generate && npx pkgroll && mkdir -p dist/public && cp -r public/* dist/public/",
+    "start": "NODE_ENV=production && node ./dist/index.js",
+    "swagger-json": "export DATABASE_URL=http://set-mock-env-for-generation.com && tsx ./src/utils/swagger-generator/cli.ts",
+    "knip": "knip"
+  },
+  "dependencies": {
+    "@asteasolutions/zod-to-openapi": "^7.3.0",
+    "@blockfrost/blockfrost-js": "^6.1.0",
+    "@jest/types": "^29.6.3",
+    "@meshsdk/core": "^1.8.14",
+    "@paralleldrive/cuid2": "^2.2.2",
+    "@prisma/client": "^6.18.0",
+    "async-mutex": "^0.5.0",
+    "dotenv": "^16.4.7",
+    "express": "^5.1.0",
+    "express-zod-api": "^22.13.2",
+    "http-errors": "^2.0.0",
+    "swagger-ui-express": "^5.0.1",
+    "winston": "^3.17.0",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^19.8.0",
+    "@commitlint/config-conventional": "^19.8.0",
+    "@eslint/js": "^9.24.0",
+    "@types/express": "^5.0.1",
+    "@types/jest": "^29.5.14",
+    "@types/node": "^18.19.86",
+    "@types/swagger-ui-express": "^4.1.8",
+    "eslint": "^9.24.0",
+    "globals": "^16.0.0",
+    "husky": "^9.1.7",
+    "jest": "^29.7.0",
+    "knip": "^5.50.1",
+    "lint-staged": "^15.5.0",
+    "pkgroll": "^2.12.1",
+    "prettier": "^3.5.3",
+    "prisma": "^6.18.0",
+    "ts-jest": "^29.3.1",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.29.1"
+  },
+  "lint-staged": {
+    "*.{js,ts}": [
+      "npm run lint",
+      "npm run format"
+    ]
+  }
 }
