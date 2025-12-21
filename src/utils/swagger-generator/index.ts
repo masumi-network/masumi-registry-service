@@ -1,5 +1,5 @@
 import { extendZodWithOpenApi } from '@asteasolutions/zod-to-openapi';
-import { z } from 'zod';
+import { z } from '@/utils/zod-openapi';
 import {
   OpenAPIRegistry,
   OpenApiGeneratorV3,
@@ -9,41 +9,40 @@ import { healthResponseSchema } from '@/routes/api/health';
 import {
   queryRegistrySchemaInput,
   queryRegistrySchemaOutput,
-} from '@/routes/api/registry-entry';
+  registryDiffSchemaInput,
+} from '@/routes/api/registry-entry/schemas';
 import {
   capabilitySchemaInput,
   capabilitySchemaOutput,
 } from '@/routes/api/capability';
 import {
-  addAPIKeySchemaOutput,
+  apiKeySchemaOutput,
   addAPIKeySchemaInput,
   getAPIKeySchemaInput,
   getAPIKeySchemaOutput,
-  updateAPIKeySchemaOutput,
   updateAPIKeySchemaInput,
-  deleteAPIKeySchemaOutput,
   deleteAPIKeySchemaInput,
 } from '@/routes/api/api-key';
 import {
   getRegistrySourceSchemaInput,
   getRegistrySourceSchemaOutput,
   addRegistrySourceSchemaInput,
-  addRegistrySourceSchemaOutput,
+  registrySourceSchemaOutput,
   updateRegistrySourceSchemaInput,
   deleteRegistrySourceSchemaInput,
-  deleteRegistrySourceSchemaOutput,
-  updateRegistrySourceSchemaOutput,
 } from '@/routes/api/registry-source';
 import {
   queryPaymentInformationInput,
   queryPaymentInformationSchemaOutput,
 } from '@/routes/api/payment-information';
-import { PaymentType } from '@prisma/client';
-import { Status } from '@prisma/client';
 import {
-  getAPIKeyStatusSchemaInput,
-  getAPIKeyStatusSchemaOutput,
-} from '@/routes/api/api-key-status';
+  PaymentType,
+  RegistryEntryType,
+  Status,
+  PricingType,
+  Network,
+} from '@prisma/client';
+import { getAPIKeyStatusSchemaInput } from '@/routes/api/api-key-status';
 
 extendZodWithOpenApi(z);
 
@@ -55,6 +54,74 @@ export function generateOpenAPI() {
     name: 'token',
     description: 'API key authentication via header (token)',
   });
+
+  const registryEntriesResponseExample = {
+    data: {
+      entries: [
+        {
+          name: 'Example API',
+          description: 'Example API description',
+          status: Status.Online,
+          RegistrySource: {
+            id: 'unique_cuid_v2',
+            policyId: 'policy_id',
+            type: RegistryEntryType.Web3CardanoV1,
+            url: 'https://example.com/api/',
+          },
+          Capability: {
+            name: 'Example Capability',
+            version: '1.0.0',
+          },
+          AgentPricing: {
+            pricingType: PricingType.Fixed,
+            FixedPricing: {
+              Amounts: [{ amount: '100', unit: 'USDC' }],
+            },
+          },
+          authorName: null,
+          authorContactEmail: null,
+          authorContactOther: null,
+          image: 'testimage.de',
+          otherLegal: null,
+          privacyPolicy: null,
+          tags: [],
+          termsAndCondition: 'If the answer is 42 what was the question',
+          uptimeCheckCount: 10,
+          uptimeCount: 8,
+          lastUptimeCheck: new Date(0),
+          apiBaseUrl: 'https://example.com/api/',
+          authorOrganization: 'MASUMI',
+          paymentType: PaymentType.Web3CardanoV1,
+          agentIdentifier:
+            '222222222222222222222222222222222222222222222222222222222222222222',
+          id: 'unique_cuid_v2',
+          ExampleOutput: [
+            {
+              name: 'Example Output',
+              mimeType: 'image/png',
+              url: 'https://example.com/image.png',
+            },
+          ],
+        },
+      ],
+    },
+    status: 'success',
+  };
+
+  const registrySourceResponseExample = {
+    data: {
+      id: 'unique-cuid-v2-auto-generated',
+      type: RegistryEntryType.Web3CardanoV1,
+      network: Network.Preprod,
+      url: 'https://example.com/api/',
+      policyId: 'policy_id',
+      note: 'optional_note',
+      rpcProviderApiKey: 'apikey',
+      latestPage: 1,
+      latestIdentifier: null,
+    },
+    status: 'success',
+  };
 
   registry.registerPath({
     method: 'get',
@@ -200,6 +267,7 @@ export function generateOpenAPI() {
                 network: 'Preprod',
                 filter: {
                   policyId: 'policy_id',
+                  tags: ['tag1', 'tag2'],
                   assetIdentifier: 'asset_identifier',
                   paymentTypes: [PaymentType.Web3CardanoV1],
                   status: [Status.Online, Status.Offline],
@@ -208,7 +276,6 @@ export function generateOpenAPI() {
                     version: 'Optional version',
                   },
                 },
-                minRegistryDate: new Date(0).toISOString(),
                 minHealthCheckDate: new Date(0).toISOString(),
               },
             }),
@@ -225,59 +292,7 @@ export function generateOpenAPI() {
             schema: z
               .object({ data: queryRegistrySchemaOutput, status: z.string() })
               .openapi({
-                example: {
-                  data: {
-                    entries: [
-                      {
-                        name: 'Example API',
-                        description: 'Example API description',
-                        status: 'Online',
-                        RegistrySource: {
-                          id: 'unique_cuid_v2',
-                          policyId: 'policy_id',
-                          type: 'Web3CardanoV1',
-                          url: 'https://example.com/api/',
-                        },
-                        Capability: {
-                          name: 'Example Capability',
-                          version: '1.0.0',
-                        },
-                        AgentPricing: {
-                          pricingType: 'Fixed',
-                          FixedPricing: {
-                            Amounts: [{ amount: '100', unit: 'USDC' }],
-                          },
-                        },
-                        authorName: null,
-                        image: 'testimage.de',
-                        otherLegal: null,
-                        privacyPolicy: null,
-                        tags: null,
-                        termsAndCondition:
-                          'If the answer is 42 what was the question',
-                        uptimeCheckCount: 10,
-                        uptimeCount: 8,
-                        lastUptimeCheck: new Date(0),
-                        apiBaseUrl: 'https://example.com/api/',
-                        authorOrganization: 'MASUMI',
-                        paymentType: 'Web3CardanoV1',
-                        agentIdentifier:
-                          '222222222222222222222222222222222222222222222222222222222222222222',
-                        id: 'unique_cuid_v2',
-                        authorContactEmail: null,
-                        authorContactOther: null,
-                        ExampleOutput: [
-                          {
-                            name: 'Example Output',
-                            mimeType: 'image/png',
-                            url: 'https://example.com/image.png',
-                          },
-                        ],
-                      },
-                    ],
-                  },
-                  status: 'success',
-                },
+                example: registryEntriesResponseExample,
               }),
           },
         },
@@ -376,19 +391,64 @@ export function generateOpenAPI() {
           'application/json': {
             schema: z
               .object({
-                data: addRegistrySourceSchemaOutput,
+                data: registrySourceSchemaOutput,
                 status: z.string(),
               })
               .openapi({
-                example: {
-                  data: {
-                    id: 'unique-cuid-v2-auto-generated',
-                  },
-                  status: 'success',
-                },
+                example: registrySourceResponseExample,
               }),
           },
         },
+      },
+    },
+  });
+
+  registry.registerPath({
+    method: 'post',
+    path: '/registry-diff/',
+    description:
+      'Query registry entries whose status was updated after the provided timestamp. Supports pagination.',
+    summary: 'REQUIRES API KEY Authentication (+user)',
+    tags: ['registry-entry'],
+    request: {
+      body: {
+        description: '',
+        content: {
+          'application/json': {
+            schema: registryDiffSchemaInput.openapi({
+              example: {
+                limit: 10,
+                cursorId: 'last_paginated_item',
+                network: 'Preprod',
+                statusUpdatedAfter: new Date(0).toISOString(),
+              },
+            }),
+          },
+        },
+      },
+    },
+    security: [{ [apiKeyAuth.name]: [] }],
+    responses: {
+      200: {
+        description: 'Registry entries with updated status',
+        content: {
+          'application/json': {
+            schema: z
+              .object({ data: queryRegistrySchemaOutput, status: z.string() })
+              .openapi({
+                example: registryEntriesResponseExample,
+              }),
+          },
+        },
+      },
+      400: {
+        description: 'Bad Request (possible parameters missing or invalid)',
+      },
+      401: {
+        description: 'Unauthorized',
+      },
+      500: {
+        description: 'Internal Server Error',
       },
     },
   });
@@ -422,16 +482,11 @@ export function generateOpenAPI() {
           'application/json': {
             schema: z
               .object({
-                data: updateRegistrySourceSchemaOutput,
+                data: registrySourceSchemaOutput,
                 status: z.string(),
               })
               .openapi({
-                example: {
-                  data: {
-                    id: 'unique-cuid-v2-auto-generated',
-                  },
-                  status: 'success',
-                },
+                example: registrySourceResponseExample,
               }),
           },
         },
@@ -466,16 +521,11 @@ export function generateOpenAPI() {
           'application/json': {
             schema: z
               .object({
-                data: deleteRegistrySourceSchemaOutput,
+                data: registrySourceSchemaOutput,
                 status: z.string(),
               })
               .openapi({
-                example: {
-                  data: {
-                    id: 'unique-cuid-v2-auto-generated',
-                  },
-                  status: 'success',
-                },
+                example: registrySourceResponseExample,
               }),
           },
         },
@@ -553,10 +603,11 @@ export function generateOpenAPI() {
         content: {
           'application/json': {
             schema: z
-              .object({ data: getAPIKeyStatusSchemaOutput, status: z.string() })
+              .object({ data: apiKeySchemaOutput, status: z.string() })
               .openapi({
                 example: {
                   data: {
+                    id: 'unique-cuid-v2-auto-generated',
                     token: 'masumi-registry-api-key-secret',
                     permission: 'Admin',
                     usageLimited: true,
@@ -601,6 +652,7 @@ export function generateOpenAPI() {
                   data: {
                     apiKeys: [
                       {
+                        id: 'unique-cuid-v2-auto-generated',
                         token: 'masumi-registry-api-key-secret',
                         permission: 'Admin',
                         usageLimited: true,
@@ -657,7 +709,7 @@ export function generateOpenAPI() {
         content: {
           'application/json': {
             schema: z
-              .object({ data: addAPIKeySchemaOutput, status: z.string() })
+              .object({ data: apiKeySchemaOutput, status: z.string() })
               .openapi({
                 example: {
                   data: {
@@ -716,10 +768,11 @@ export function generateOpenAPI() {
         content: {
           'application/json': {
             schema: z
-              .object({ data: updateAPIKeySchemaOutput, status: z.string() })
+              .object({ data: apiKeySchemaOutput, status: z.string() })
               .openapi({
                 example: {
                   data: {
+                    id: 'unique-cuid-v2-auto-generated',
                     token: 'masumi-registry-api-key-secret',
                     permission: 'User',
                     usageLimited: true,
@@ -772,11 +825,17 @@ export function generateOpenAPI() {
         content: {
           'application/json': {
             schema: z
-              .object({ data: deleteAPIKeySchemaOutput, status: z.string() })
+              .object({ data: apiKeySchemaOutput, status: z.string() })
               .openapi({
                 example: {
                   data: {
+                    id: 'unique-cuid-v2-auto-generated',
                     token: 'deleted-masumi-registry-api-key-secret',
+                    permission: 'User',
+                    usageLimited: true,
+                    maxUsageCredits: 1000000,
+                    accumulatedUsageCredits: 0,
+                    status: 'Active',
                   },
                   status: 'success',
                 },
