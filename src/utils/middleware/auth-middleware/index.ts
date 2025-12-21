@@ -1,7 +1,7 @@
 import { Middleware } from 'express-zod-api';
 import createHttpError from 'http-errors';
 import { prisma } from '@/utils/db';
-import { z } from 'zod';
+import { z } from '@/utils/zod-openapi';
 import { $Enums } from '@prisma/client';
 import { hashToken } from '@/utils/crypto';
 

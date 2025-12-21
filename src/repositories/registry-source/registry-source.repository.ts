@@ -4,7 +4,7 @@ import {
 } from '@/routes/api/registry-source';
 import { prisma } from '@/utils/db';
 import { RPCProvider } from '@prisma/client';
-import { z } from 'zod';
+import { z } from '@/utils/zod-openapi';
 
 async function getRegistrySource(
   cursorId: string | undefined,
@@ -27,7 +27,7 @@ async function addRegistrySource(
       policyId: input.policyId,
       note: input.note,
       network: input.network,
-      latestPage: 1,
+      lastCheckedPage: 1,
       RegistrySourceConfig: {
         create: {
           rpcProviderApiKey: input.rpcProviderApiKey,
@@ -53,7 +53,10 @@ async function updateRegistrySource(
 }
 
 async function deleteRegistrySource(id: string) {
-  return await prisma.registrySource.delete({ where: { id } });
+  return await prisma.registrySource.delete({
+    where: { id },
+    include: { RegistrySourceConfig: true },
+  });
 }
 
 export const registrySourceRepository = {

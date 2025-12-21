@@ -74,6 +74,7 @@ model RegistryEntry {
   uptimeCount      Int            @default(0)
   uptimeCheckCount Int            @default(0)
   status           Status
+  statusUpdatedAt  DateTime?
   RegistrySource   RegistrySource @relation(fields: [registrySourceId], references: [id], onDelete: Cascade)
 
   paymentType    PaymentType @default(Web3CardanoV1)

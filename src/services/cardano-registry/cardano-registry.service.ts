@@ -1,7 +1,7 @@
 import { $Enums, PricingType } from '@prisma/client';
 import { Mutex, tryAcquire, MutexInterface } from 'async-mutex';
 import { prisma } from '@/utils/db';
-import { z } from 'zod';
+import { z } from '@/utils/zod-openapi';
 import { metadataStringConvert } from '@/utils/metadata-string-convert';
 import { healthCheckService } from '@/services/health-check';
 import { logger } from '@/utils/logger';

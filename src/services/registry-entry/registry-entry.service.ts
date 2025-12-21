@@ -1,7 +1,10 @@
 import { registryEntryRepository } from '@/repositories/registry-entry';
-import { queryRegistrySchemaInput } from '@/routes/api/registry-entry';
+import {
+  queryRegistrySchemaInput,
+  registryDiffSchemaInput,
+} from '@/routes/api/registry-entry/schemas';
 import { $Enums, Status } from '@prisma/client';
-import { z } from 'zod';
+import { z } from '@/utils/zod-openapi';
 import { cardanoRegistryService } from '@/services/cardano-registry';
 import { healthCheckService } from '@/services/health-check';
 
@@ -28,9 +31,7 @@ function getFilterParams(
 async function getRegistryEntries(
   input: z.infer<typeof queryRegistrySchemaInput>
 ) {
-  await cardanoRegistryService.updateLatestCardanoRegistryEntries(
-    input.minRegistryDate
-  );
+  await cardanoRegistryService.updateLatestCardanoRegistryEntries();
 
   const healthCheckedEntries = [];
   let currentCursorId = input.cursorId;
@@ -47,7 +48,7 @@ async function getRegistryEntries(
       input.filter?.assetIdentifier,
       input.filter?.tags,
       currentCursorId,
-      input.limit,
+      input.limit * 2,
       input.network
     );
 
@@ -67,4 +68,18 @@ async function getRegistryEntries(
   return healthCheckedEntries;
 }
 
-export const registryEntryService = { getRegistryEntries };
+async function getRegistryDiffEntries(
+  input: z.infer<typeof registryDiffSchemaInput>
+) {
+  return registryEntryRepository.getRegistryDiffEntries(
+    input.statusUpdatedAfter,
+    input.cursorId,
+    input.limit,
+    input.network
+  );
+}
+
+export const registryEntryService = {
+  getRegistryEntries,
+  getRegistryDiffEntries,
+};
