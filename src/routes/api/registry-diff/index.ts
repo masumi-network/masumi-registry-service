@@ -3,23 +3,23 @@ import { z } from '@/utils/zod-openapi';
 import { tokenCreditService } from '@/services/token-credit';
 import { registryEntryService } from '@/services/registry-entry';
 import {
-  queryRegistrySchemaInput,
+  registryDiffSchemaInput,
   queryRegistrySchemaOutput,
   serializeRegistryEntries,
-} from './schemas';
+} from '@/routes/api/registry-entry/schemas';
 
-export const queryRegistryEntryPost = authenticatedEndpointFactory.build<
+export const registryDiffPost = authenticatedEndpointFactory.build<
   typeof queryRegistrySchemaOutput,
-  typeof queryRegistrySchemaInput
+  typeof registryDiffSchemaInput
 >({
   method: 'post',
-  input: queryRegistrySchemaInput,
+  input: registryDiffSchemaInput,
   output: queryRegistrySchemaOutput,
   handler: async ({
     input,
     options,
   }: {
-    input: z.infer<typeof queryRegistrySchemaInput>;
+    input: z.infer<typeof registryDiffSchemaInput>;
     options: {
       id: string;
       accumulatedUsageCredits: number;
@@ -31,9 +31,9 @@ export const queryRegistryEntryPost = authenticatedEndpointFactory.build<
     await tokenCreditService.handleTokenCredits(
       options,
       tokenCost,
-      'query for: ' + input.filter?.capability?.name
+      'registry diff since: ' + input.statusUpdatedAfter.toISOString()
     );
-    const data = await registryEntryService.getRegistryEntries(input);
+    const data = await registryEntryService.getRegistryDiffEntries(input);
 
     const entries = serializeRegistryEntries(data, input.limit);
     return queryRegistrySchemaOutput.parse({ entries });

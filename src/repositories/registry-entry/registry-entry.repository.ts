@@ -53,8 +53,55 @@ async function getRegistryEntry(
     ],
     cursor: currentCursorId ? { id: currentCursorId } : undefined,
     //over-fetching to account for health check failures
-    take: limit * 2,
+    take: limit,
   });
 }
 
-export const registryEntryRepository = { getRegistryEntry };
+async function getRegistryDiffEntries(
+  statusUpdatedAfter: Date,
+  currentCursorId: string | undefined,
+  limit: number,
+  network: Network
+) {
+  const networkExists = await prisma.registrySource.findFirst({
+    where: {
+      network: network,
+    },
+  });
+  if (!networkExists) {
+    throw new Error('Network not found');
+  }
+
+  return await prisma.registryEntry.findMany({
+    where: {
+      statusUpdatedAt: {
+        gt: statusUpdatedAfter,
+      },
+      RegistrySource: {
+        network: network,
+      },
+    },
+    include: {
+      Capability: true,
+      RegistrySource: true,
+      AgentPricing: {
+        include: { FixedPricing: { include: { Amounts: true } } },
+      },
+    },
+    orderBy: [
+      {
+        statusUpdatedAt: 'desc',
+      },
+      {
+        id: 'desc',
+      },
+    ],
+    cursor: currentCursorId ? { id: currentCursorId } : undefined,
+    take: limit,
+  });
+}
+
+export const registryEntryRepository = {
+  getRegistryEntry,
+  getRegistryDiffEntries,
+};

@@ -19,7 +19,632 @@
                 "description": "API key authentication via header (token)"
             }
         },
-        "schemas": {},
+        "schemas": {
+            "PaymentInformation": {
+                "type": "object",
+                "properties": {
+                    "RegistrySource": {
+                        "type": "object",
+                        "properties": {
+                            "type": {
+                                "type": "string",
+                                "enum": [
+                                    "Web3CardanoV1"
+                                ]
+                            },
+                            "policyId": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "url": {
+                                "type": "string",
+                                "nullable": true
+                            }
+                        },
+                        "required": [
+                            "type",
+                            "policyId",
+                            "url"
+                        ]
+                    },
+                    "sellerWallet": {
+                        "type": "object",
+                        "properties": {
+                            "address": {
+                                "type": "string"
+                            },
+                            "vkey": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "address",
+                            "vkey"
+                        ]
+                    },
+                    "Capability": {
+                        "type": "object",
+                        "nullable": true,
+                        "properties": {
+                            "name": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "version": {
+                                "type": "string",
+                                "nullable": true
+                            }
+                        },
+                        "required": [
+                            "name",
+                            "version"
+                        ]
+                    },
+                    "AgentPricing": {
+                        "anyOf": [
+                            {
+                                "type": "object",
+                                "properties": {
+                                    "pricingType": {
+                                        "type": "string",
+                                        "enum": [
+                                            "Fixed"
+                                        ]
+                                    },
+                                    "FixedPricing": {
+                                        "type": "object",
+                                        "properties": {
+                                            "Amounts": {
+                                                "type": "array",
+                                                "items": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "amount": {
+                                                            "type": "string"
+                                                        },
+                                                        "unit": {
+                                                            "type": "string"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "amount",
+                                                        "unit"
+                                                    ]
+                                                }
+                                            }
+                                        },
+                                        "required": [
+                                            "Amounts"
+                                        ]
+                                    }
+                                },
+                                "required": [
+                                    "pricingType",
+                                    "FixedPricing"
+                                ]
+                            },
+                            {
+                                "type": "object",
+                                "properties": {
+                                    "pricingType": {
+                                        "type": "string",
+                                        "enum": [
+                                            "Free"
+                                        ]
+                                    }
+                                },
+                                "required": [
+                                    "pricingType"
+                                ]
+                            }
+                        ]
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "Online",
+                            "Offline",
+                            "Deregistered",
+                            "Invalid"
+                        ]
+                    },
+                    "id": {
+                        "type": "string"
+                    },
+                    "lastUptimeCheck": {
+                        "type": "string"
+                    },
+                    "uptimeCount": {
+                        "type": "number"
+                    },
+                    "uptimeCheckCount": {
+                        "type": "number"
+                    },
+                    "apiBaseUrl": {
+                        "type": "string"
+                    },
+                    "authorName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "authorOrganization": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "authorContactEmail": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "authorContactOther": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "image": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "privacyPolicy": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "termsAndCondition": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "otherLegal": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "tags": {
+                        "type": "array",
+                        "nullable": true,
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "paymentType": {
+                        "type": "string",
+                        "enum": [
+                            "Web3CardanoV1",
+                            "None"
+                        ]
+                    },
+                    "agentIdentifier": {
+                        "type": "string"
+                    },
+                    "ExampleOutput": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "name": {
+                                    "type": "string"
+                                },
+                                "mimeType": {
+                                    "type": "string"
+                                },
+                                "url": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": [
+                                "name",
+                                "mimeType",
+                                "url"
+                            ]
+                        }
+                    }
+                },
+                "required": [
+                    "RegistrySource",
+                    "sellerWallet",
+                    "Capability",
+                    "AgentPricing",
+                    "name",
+                    "description",
+                    "status",
+                    "id",
+                    "lastUptimeCheck",
+                    "uptimeCount",
+                    "uptimeCheckCount",
+                    "apiBaseUrl",
+                    "authorName",
+                    "authorOrganization",
+                    "authorContactEmail",
+                    "authorContactOther",
+                    "image",
+                    "privacyPolicy",
+                    "termsAndCondition",
+                    "otherLegal",
+                    "tags",
+                    "paymentType",
+                    "agentIdentifier",
+                    "ExampleOutput"
+                ]
+            },
+            "RegistryEntry": {
+                "type": "object",
+                "properties": {
+                    "RegistrySource": {
+                        "type": "object",
+                        "properties": {
+                            "id": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": [
+                                    "Web3CardanoV1"
+                                ]
+                            },
+                            "policyId": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "url": {
+                                "type": "string",
+                                "nullable": true
+                            }
+                        },
+                        "required": [
+                            "id",
+                            "type",
+                            "policyId",
+                            "url"
+                        ]
+                    },
+                    "Capability": {
+                        "type": "object",
+                        "nullable": true,
+                        "properties": {
+                            "name": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "version": {
+                                "type": "string",
+                                "nullable": true
+                            }
+                        },
+                        "required": [
+                            "name",
+                            "version"
+                        ]
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "Online",
+                            "Offline",
+                            "Deregistered",
+                            "Invalid"
+                        ]
+                    },
+                    "id": {
+                        "type": "string"
+                    },
+                    "lastUptimeCheck": {
+                        "type": "string"
+                    },
+                    "uptimeCount": {
+                        "type": "number"
+                    },
+                    "uptimeCheckCount": {
+                        "type": "number"
+                    },
+                    "apiBaseUrl": {
+                        "type": "string"
+                    },
+                    "authorName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "authorOrganization": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "authorContactEmail": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "authorContactOther": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "image": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "privacyPolicy": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "termsAndCondition": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "otherLegal": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "tags": {
+                        "type": "array",
+                        "nullable": true,
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "agentIdentifier": {
+                        "type": "string"
+                    },
+                    "paymentType": {
+                        "type": "string",
+                        "enum": [
+                            "Web3CardanoV1",
+                            "None"
+                        ]
+                    },
+                    "AgentPricing": {
+                        "anyOf": [
+                            {
+                                "type": "object",
+                                "properties": {
+                                    "pricingType": {
+                                        "type": "string",
+                                        "enum": [
+                                            "Fixed"
+                                        ]
+                                    },
+                                    "FixedPricing": {
+                                        "type": "object",
+                                        "properties": {
+                                            "Amounts": {
+                                                "type": "array",
+                                                "items": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "amount": {
+                                                            "type": "string"
+                                                        },
+                                                        "unit": {
+                                                            "type": "string"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "amount",
+                                                        "unit"
+                                                    ]
+                                                }
+                                            }
+                                        },
+                                        "required": [
+                                            "Amounts"
+                                        ]
+                                    }
+                                },
+                                "required": [
+                                    "pricingType",
+                                    "FixedPricing"
+                                ]
+                            },
+                            {
+                                "type": "object",
+                                "properties": {
+                                    "pricingType": {
+                                        "type": "string",
+                                        "enum": [
+                                            "Free"
+                                        ]
+                                    }
+                                },
+                                "required": [
+                                    "pricingType"
+                                ]
+                            }
+                        ]
+                    },
+                    "ExampleOutput": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "name": {
+                                    "type": "string"
+                                },
+                                "mimeType": {
+                                    "type": "string"
+                                },
+                                "url": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": [
+                                "name",
+                                "mimeType",
+                                "url"
+                            ]
+                        }
+                    }
+                },
+                "required": [
+                    "RegistrySource",
+                    "Capability",
+                    "name",
+                    "description",
+                    "status",
+                    "id",
+                    "lastUptimeCheck",
+                    "uptimeCount",
+                    "uptimeCheckCount",
+                    "apiBaseUrl",
+                    "authorName",
+                    "authorOrganization",
+                    "authorContactEmail",
+                    "authorContactOther",
+                    "image",
+                    "privacyPolicy",
+                    "termsAndCondition",
+                    "otherLegal",
+                    "tags",
+                    "agentIdentifier",
+                    "paymentType",
+                    "AgentPricing",
+                    "ExampleOutput"
+                ]
+            },
+            "RegistrySource": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "Web3CardanoV1"
+                        ]
+                    },
+                    "url": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "policyId": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "note": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "latestPage": {
+                        "type": "integer",
+                        "nullable": true,
+                        "minimum": 0,
+                        "maximum": 1000000
+                    },
+                    "latestIdentifier": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "rpcProviderApiKey": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "network": {
+                        "type": "string",
+                        "nullable": true,
+                        "enum": [
+                            "Preprod",
+                            "Mainnet"
+                        ]
+                    }
+                },
+                "required": [
+                    "id",
+                    "type",
+                    "url",
+                    "policyId",
+                    "note",
+                    "latestPage",
+                    "latestIdentifier",
+                    "rpcProviderApiKey",
+                    "network"
+                ]
+            },
+            "Capability": {
+                "type": "object",
+                "properties": {
+                    "capabilities": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "id": {
+                                    "type": "string"
+                                },
+                                "name": {
+                                    "type": "string"
+                                },
+                                "version": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": [
+                                "id",
+                                "name",
+                                "version"
+                            ]
+                        }
+                    }
+                },
+                "required": [
+                    "capabilities"
+                ]
+            },
+            "APIKey": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "token": {
+                        "type": "string"
+                    },
+                    "permission": {
+                        "type": "string",
+                        "enum": [
+                            "User",
+                            "Admin"
+                        ]
+                    },
+                    "usageLimited": {
+                        "type": "boolean"
+                    },
+                    "maxUsageCredits": {
+                        "type": "integer",
+                        "nullable": true,
+                        "minimum": 0,
+                        "maximum": 1000000
+                    },
+                    "accumulatedUsageCredits": {
+                        "type": "integer",
+                        "nullable": true,
+                        "minimum": 0,
+                        "maximum": 1000000
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "Active",
+                            "Revoked"
+                        ]
+                    }
+                },
+                "required": [
+                    "id",
+                    "token",
+                    "permission",
+                    "usageLimited",
+                    "maxUsageCredits",
+                    "accumulatedUsageCredits",
+                    "status"
+                ]
+            }
+        },
         "parameters": {}
     },
     "paths": {
@@ -104,253 +729,7 @@
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "type": "object",
-                                            "properties": {
-                                                "RegistrySource": {
-                                                    "type": "object",
-                                                    "properties": {
-                                                        "type": {
-                                                            "type": "string",
-                                                            "enum": [
-                                                                "Web3CardanoV1"
-                                                            ]
-                                                        },
-                                                        "policyId": {
-                                                            "type": "string",
-                                                            "nullable": true
-                                                        },
-                                                        "url": {
-                                                            "type": "string",
-                                                            "nullable": true
-                                                        }
-                                                    },
-                                                    "required": [
-                                                        "type",
-                                                        "policyId",
-                                                        "url"
-                                                    ]
-                                                },
-                                                "sellerWallet": {
-                                                    "type": "object",
-                                                    "properties": {
-                                                        "address": {
-                                                            "type": "string"
-                                                        },
-                                                        "vkey": {
-                                                            "type": "string"
-                                                        }
-                                                    },
-                                                    "required": [
-                                                        "address",
-                                                        "vkey"
-                                                    ]
-                                                },
-                                                "Capability": {
-                                                    "type": "object",
-                                                    "nullable": true,
-                                                    "properties": {
-                                                        "name": {
-                                                            "type": "string",
-                                                            "nullable": true
-                                                        },
-                                                        "version": {
-                                                            "type": "string",
-                                                            "nullable": true
-                                                        }
-                                                    },
-                                                    "required": [
-                                                        "name",
-                                                        "version"
-                                                    ]
-                                                },
-                                                "AgentPricing": {
-                                                    "anyOf": [
-                                                        {
-                                                            "type": "object",
-                                                            "properties": {
-                                                                "pricingType": {
-                                                                    "type": "string",
-                                                                    "enum": [
-                                                                        "Fixed"
-                                                                    ]
-                                                                },
-                                                                "FixedPricing": {
-                                                                    "type": "object",
-                                                                    "properties": {
-                                                                        "Amounts": {
-                                                                            "type": "array",
-                                                                            "items": {
-                                                                                "type": "object",
-                                                                                "properties": {
-                                                                                    "amount": {
-                                                                                        "type": "string"
-                                                                                    },
-                                                                                    "unit": {
-                                                                                        "type": "string"
-                                                                                    }
-                                                                                },
-                                                                                "required": [
-                                                                                    "amount",
-                                                                                    "unit"
-                                                                                ]
-                                                                            }
-                                                                        }
-                                                                    },
-                                                                    "required": [
-                                                                        "Amounts"
-                                                                    ]
-                                                                }
-                                                            },
-                                                            "required": [
-                                                                "pricingType",
-                                                                "FixedPricing"
-                                                            ]
-                                                        },
-                                                        {
-                                                            "type": "object",
-                                                            "properties": {
-                                                                "pricingType": {
-                                                                    "type": "string",
-                                                                    "enum": [
-                                                                        "Free"
-                                                                    ]
-                                                                }
-                                                            },
-                                                            "required": [
-                                                                "pricingType"
-                                                            ]
-                                                        }
-                                                    ]
-                                                },
-                                                "name": {
-                                                    "type": "string"
-                                                },
-                                                "description": {
-                                                    "type": "string",
-                                                    "nullable": true
-                                                },
-                                                "status": {
-                                                    "type": "string",
-                                                    "enum": [
-                                                        "Online",
-                                                        "Offline",
-                                                        "Deregistered",
-                                                        "Invalid"
-                                                    ]
-                                                },
-                                                "id": {
-                                                    "type": "string"
-                                                },
-                                                "lastUptimeCheck": {
-                                                    "type": "string"
-                                                },
-                                                "uptimeCount": {
-                                                    "type": "number"
-                                                },
-                                                "uptimeCheckCount": {
-                                                    "type": "number"
-                                                },
-                                                "apiBaseUrl": {
-                                                    "type": "string"
-                                                },
-                                                "authorName": {
-                                                    "type": "string",
-                                                    "nullable": true
-                                                },
-                                                "authorOrganization": {
-                                                    "type": "string",
-                                                    "nullable": true
-                                                },
-                                                "authorContactEmail": {
-                                                    "type": "string",
-                                                    "nullable": true
-                                                },
-                                                "authorContactOther": {
-                                                    "type": "string",
-                                                    "nullable": true
-                                                },
-                                                "image": {
-                                                    "type": "string",
-                                                    "nullable": true
-                                                },
-                                                "privacyPolicy": {
-                                                    "type": "string",
-                                                    "nullable": true
-                                                },
-                                                "termsAndCondition": {
-                                                    "type": "string",
-                                                    "nullable": true
-                                                },
-                                                "otherLegal": {
-                                                    "type": "string",
-                                                    "nullable": true
-                                                },
-                                                "tags": {
-                                                    "type": "array",
-                                                    "nullable": true,
-                                                    "items": {
-                                                        "type": "string"
-                                                    }
-                                                },
-                                                "paymentType": {
-                                                    "type": "string",
-                                                    "enum": [
-                                                        "Web3CardanoV1",
-                                                        "None"
-                                                    ]
-                                                },
-                                                "agentIdentifier": {
-                                                    "type": "string"
-                                                },
-                                                "ExampleOutput": {
-                                                    "type": "array",
-                                                    "items": {
-                                                        "type": "object",
-                                                        "properties": {
-                                                            "name": {
-                                                                "type": "string"
-                                                            },
-                                                            "mimeType": {
-                                                                "type": "string"
-                                                            },
-                                                            "url": {
-                                                                "type": "string"
-                                                            }
-                                                        },
-                                                        "required": [
-                                                            "name",
-                                                            "mimeType",
-                                                            "url"
-                                                        ]
-                                                    }
-                                                }
-                                            },
-                                            "required": [
-                                                "RegistrySource",
-                                                "sellerWallet",
-                                                "Capability",
-                                                "AgentPricing",
-                                                "name",
-                                                "description",
-                                                "status",
-                                                "id",
-                                                "lastUptimeCheck",
-                                                "uptimeCount",
-                                                "uptimeCheckCount",
-                                                "apiBaseUrl",
-                                                "authorName",
-                                                "authorOrganization",
-                                                "authorContactEmail",
-                                                "authorContactOther",
-                                                "image",
-                                                "privacyPolicy",
-                                                "termsAndCondition",
-                                                "otherLegal",
-                                                "tags",
-                                                "paymentType",
-                                                "agentIdentifier",
-                                                "ExampleOutput"
-                                            ]
+                                            "$ref": "#/components/schemas/PaymentInformation"
                                         },
                                         "status": {
                                             "type": "string"
@@ -536,22 +915,6 @@
                                             }
                                         }
                                     },
-                                    "minRegistryDate": {
-                                        "anyOf": [
-                                            {
-                                                "type": "string",
-                                                "format": "date"
-                                            },
-                                            {
-                                                "type": "string",
-                                                "format": "date-time"
-                                            },
-                                            {
-                                                "type": "string",
-                                                "format": "date-time"
-                                            }
-                                        ]
-                                    },
                                     "minHealthCheckDate": {
                                         "anyOf": [
                                             {
@@ -578,6 +941,10 @@
                                     "network": "Preprod",
                                     "filter": {
                                         "policyId": "policy_id",
+                                        "tags": [
+                                            "tag1",
+                                            "tag2"
+                                        ],
                                         "assetIdentifier": "asset_identifier",
                                         "paymentTypes": [
                                             "Web3CardanoV1"
@@ -591,7 +958,6 @@
                                             "version": "Optional version"
                                         }
                                     },
-                                    "minRegistryDate": "1970-01-01T00:00:00.000Z",
                                     "minHealthCheckDate": "1970-01-01T00:00:00.000Z"
                                 }
                             }
@@ -612,241 +978,7 @@
                                                 "entries": {
                                                     "type": "array",
                                                     "items": {
-                                                        "type": "object",
-                                                        "properties": {
-                                                            "RegistrySource": {
-                                                                "type": "object",
-                                                                "properties": {
-                                                                    "id": {
-                                                                        "type": "string"
-                                                                    },
-                                                                    "type": {
-                                                                        "type": "string",
-                                                                        "enum": [
-                                                                            "Web3CardanoV1"
-                                                                        ]
-                                                                    },
-                                                                    "policyId": {
-                                                                        "type": "string",
-                                                                        "nullable": true
-                                                                    },
-                                                                    "url": {
-                                                                        "type": "string",
-                                                                        "nullable": true
-                                                                    }
-                                                                },
-                                                                "required": [
-                                                                    "id",
-                                                                    "type",
-                                                                    "policyId",
-                                                                    "url"
-                                                                ]
-                                                            },
-                                                            "Capability": {
-                                                                "type": "object",
-                                                                "nullable": true,
-                                                                "properties": {
-                                                                    "name": {
-                                                                        "type": "string",
-                                                                        "nullable": true
-                                                                    },
-                                                                    "version": {
-                                                                        "type": "string",
-                                                                        "nullable": true
-                                                                    }
-                                                                },
-                                                                "required": [
-                                                                    "name",
-                                                                    "version"
-                                                                ]
-                                                            },
-                                                            "name": {
-                                                                "type": "string"
-                                                            },
-                                                            "description": {
-                                                                "type": "string",
-                                                                "nullable": true
-                                                            },
-                                                            "status": {
-                                                                "type": "string",
-                                                                "enum": [
-                                                                    "Online",
-                                                                    "Offline",
-                                                                    "Deregistered",
-                                                                    "Invalid"
-                                                                ]
-                                                            },
-                                                            "id": {
-                                                                "type": "string"
-                                                            },
-                                                            "lastUptimeCheck": {
-                                                                "type": "string"
-                                                            },
-                                                            "uptimeCount": {
-                                                                "type": "number"
-                                                            },
-                                                            "uptimeCheckCount": {
-                                                                "type": "number"
-                                                            },
-                                                            "apiBaseUrl": {
-                                                                "type": "string"
-                                                            },
-                                                            "authorName": {
-                                                                "type": "string",
-                                                                "nullable": true
-                                                            },
-                                                            "authorOrganization": {
-                                                                "type": "string",
-                                                                "nullable": true
-                                                            },
-                                                            "authorContactEmail": {
-                                                                "type": "string",
-                                                                "nullable": true
-                                                            },
-                                                            "authorContactOther": {
-                                                                "type": "string",
-                                                                "nullable": true
-                                                            },
-                                                            "image": {
-                                                                "type": "string",
-                                                                "nullable": true
-                                                            },
-                                                            "privacyPolicy": {
-                                                                "type": "string",
-                                                                "nullable": true
-                                                            },
-                                                            "termsAndCondition": {
-                                                                "type": "string",
-                                                                "nullable": true
-                                                            },
-                                                            "otherLegal": {
-                                                                "type": "string",
-                                                                "nullable": true
-                                                            },
-                                                            "tags": {
-                                                                "type": "array",
-                                                                "nullable": true,
-                                                                "items": {
-                                                                    "type": "string"
-                                                                }
-                                                            },
-                                                            "agentIdentifier": {
-                                                                "type": "string"
-                                                            },
-                                                            "paymentType": {
-                                                                "type": "string",
-                                                                "enum": [
-                                                                    "Web3CardanoV1",
-                                                                    "None"
-                                                                ]
-                                                            },
-                                                            "AgentPricing": {
-                                                                "anyOf": [
-                                                                    {
-                                                                        "type": "object",
-                                                                        "properties": {
-                                                                            "pricingType": {
-                                                                                "type": "string",
-                                                                                "enum": [
-                                                                                    "Fixed"
-                                                                                ]
-                                                                            },
-                                                                            "FixedPricing": {
-                                                                                "type": "object",
-                                                                                "properties": {
-                                                                                    "Amounts": {
-                                                                                        "type": "array",
-                                                                                        "items": {
-                                                                                            "type": "object",
-                                                                                            "properties": {
-                                                                                                "amount": {
-                                                                                                    "type": "string"
-                                                                                                },
-                                                                                                "unit": {
-                                                                                                    "type": "string"
-                                                                                                }
-                                                                                            },
-                                                                                            "required": [
-                                                                                                "amount",
-                                                                                                "unit"
-                                                                                            ]
-                                                                                        }
-                                                                                    }
-                                                                                },
-                                                                                "required": [
-                                                                                    "Amounts"
-                                                                                ]
-                                                                            }
-                                                                        },
-                                                                        "required": [
-                                                                            "pricingType",
-                                                                            "FixedPricing"
-                                                                        ]
-                                                                    },
-                                                                    {
-                                                                        "type": "object",
-                                                                        "properties": {
-                                                                            "pricingType": {
-                                                                                "type": "string",
-                                                                                "enum": [
-                                                                                    "Free"
-                                                                                ]
-                                                                            }
-                                                                        },
-                                                                        "required": [
-                                                                            "pricingType"
-                                                                        ]
-                                                                    }
-                                                                ]
-                                                            },
-                                                            "ExampleOutput": {
-                                                                "type": "array",
-                                                                "items": {
-                                                                    "type": "object",
-                                                                    "properties": {
-                                                                        "name": {
-                                                                            "type": "string"
-                                                                        },
-                                                                        "mimeType": {
-                                                                            "type": "string"
-                                                                        },
-                                                                        "url": {
-                                                                            "type": "string"
-                                                                        }
-                                                                    },
-                                                                    "required": [
-                                                                        "name",
-                                                                        "mimeType",
-                                                                        "url"
-                                                                    ]
-                                                                }
-                                                            }
-                                                        },
-                                                        "required": [
-                                                            "RegistrySource",
-                                                            "Capability",
-                                                            "name",
-                                                            "description",
-                                                            "status",
-                                                            "id",
-                                                            "lastUptimeCheck",
-                                                            "uptimeCount",
-                                                            "uptimeCheckCount",
-                                                            "apiBaseUrl",
-                                                            "authorName",
-                                                            "authorOrganization",
-                                                            "authorContactEmail",
-                                                            "authorContactOther",
-                                                            "image",
-                                                            "privacyPolicy",
-                                                            "termsAndCondition",
-                                                            "otherLegal",
-                                                            "tags",
-                                                            "agentIdentifier",
-                                                            "paymentType",
-                                                            "AgentPricing",
-                                                            "ExampleOutput"
-                                                        ]
+                                                        "$ref": "#/components/schemas/RegistryEntry"
                                                     }
                                                 }
                                             },
@@ -891,10 +1023,12 @@
                                                         }
                                                     },
                                                     "authorName": null,
+                                                    "authorContactEmail": null,
+                                                    "authorContactOther": null,
                                                     "image": "testimage.de",
                                                     "otherLegal": null,
                                                     "privacyPolicy": null,
-                                                    "tags": null,
+                                                    "tags": [],
                                                     "termsAndCondition": "If the answer is 42 what was the question",
                                                     "uptimeCheckCount": 10,
                                                     "uptimeCount": 8,
@@ -904,8 +1038,6 @@
                                                     "paymentType": "Web3CardanoV1",
                                                     "agentIdentifier": "222222222222222222222222222222222222222222222222222222222222222222",
                                                     "id": "unique_cuid_v2",
-                                                    "authorContactEmail": null,
-                                                    "authorContactOther": null,
                                                     "ExampleOutput": [
                                                         {
                                                             "name": "Example Output",
@@ -982,63 +1114,7 @@
                                                 "sources": {
                                                     "type": "array",
                                                     "items": {
-                                                        "type": "object",
-                                                        "properties": {
-                                                            "id": {
-                                                                "type": "string"
-                                                            },
-                                                            "type": {
-                                                                "type": "string",
-                                                                "enum": [
-                                                                    "Web3CardanoV1"
-                                                                ]
-                                                            },
-                                                            "url": {
-                                                                "type": "string",
-                                                                "nullable": true
-                                                            },
-                                                            "policyId": {
-                                                                "type": "string",
-                                                                "nullable": true
-                                                            },
-                                                            "note": {
-                                                                "type": "string",
-                                                                "nullable": true
-                                                            },
-                                                            "latestPage": {
-                                                                "type": "integer",
-                                                                "nullable": true,
-                                                                "minimum": 0,
-                                                                "maximum": 1000000
-                                                            },
-                                                            "latestIdentifier": {
-                                                                "type": "string",
-                                                                "nullable": true
-                                                            },
-                                                            "rpcProviderApiKey": {
-                                                                "type": "string",
-                                                                "nullable": true
-                                                            },
-                                                            "network": {
-                                                                "type": "string",
-                                                                "nullable": true,
-                                                                "enum": [
-                                                                    "Preprod",
-                                                                    "Mainnet"
-                                                                ]
-                                                            }
-                                                        },
-                                                        "required": [
-                                                            "id",
-                                                            "type",
-                                                            "url",
-                                                            "policyId",
-                                                            "note",
-                                                            "latestPage",
-                                                            "latestIdentifier",
-                                                            "rpcProviderApiKey",
-                                                            "network"
-                                                        ]
+                                                        "$ref": "#/components/schemas/RegistrySource"
                                                     }
                                                 }
                                             },
@@ -1114,7 +1190,6 @@
                                     },
                                     "network": {
                                         "type": "string",
-                                        "nullable": true,
                                         "enum": [
                                             "Preprod",
                                             "Mainnet"
@@ -1148,15 +1223,7 @@
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "type": "object",
-                                            "properties": {
-                                                "id": {
-                                                    "type": "string"
-                                                }
-                                            },
-                                            "required": [
-                                                "id"
-                                            ]
+                                            "$ref": "#/components/schemas/RegistrySource"
                                         },
                                         "status": {
                                             "type": "string"
@@ -1168,7 +1235,15 @@
                                     ],
                                     "example": {
                                         "data": {
-                                            "id": "unique-cuid-v2-auto-generated"
+                                            "id": "unique-cuid-v2-auto-generated",
+                                            "type": "Web3CardanoV1",
+                                            "network": "Preprod",
+                                            "url": "https://example.com/api/",
+                                            "policyId": "policy_id",
+                                            "note": "optional_note",
+                                            "rpcProviderApiKey": "apikey",
+                                            "latestPage": 1,
+                                            "latestIdentifier": null
                                         },
                                         "status": "success"
                                     }
@@ -1226,15 +1301,7 @@
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "type": "object",
-                                            "properties": {
-                                                "id": {
-                                                    "type": "string"
-                                                }
-                                            },
-                                            "required": [
-                                                "id"
-                                            ]
+                                            "$ref": "#/components/schemas/RegistrySource"
                                         },
                                         "status": {
                                             "type": "string"
@@ -1246,7 +1313,15 @@
                                     ],
                                     "example": {
                                         "data": {
-                                            "id": "unique-cuid-v2-auto-generated"
+                                            "id": "unique-cuid-v2-auto-generated",
+                                            "type": "Web3CardanoV1",
+                                            "network": "Preprod",
+                                            "url": "https://example.com/api/",
+                                            "policyId": "policy_id",
+                                            "note": "optional_note",
+                                            "rpcProviderApiKey": "apikey",
+                                            "latestPage": 1,
+                                            "latestIdentifier": null
                                         },
                                         "status": "success"
                                     }
@@ -1298,14 +1373,125 @@
                                     "type": "object",
                                     "properties": {
                                         "data": {
+                                            "$ref": "#/components/schemas/RegistrySource"
+                                        },
+                                        "status": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "data",
+                                        "status"
+                                    ],
+                                    "example": {
+                                        "data": {
+                                            "id": "unique-cuid-v2-auto-generated",
+                                            "type": "Web3CardanoV1",
+                                            "network": "Preprod",
+                                            "url": "https://example.com/api/",
+                                            "policyId": "policy_id",
+                                            "note": "optional_note",
+                                            "rpcProviderApiKey": "apikey",
+                                            "latestPage": 1,
+                                            "latestIdentifier": null
+                                        },
+                                        "status": "success"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/registry-diff/": {
+            "post": {
+                "description": "Query registry entries whose status was updated after the provided timestamp. Supports pagination.",
+                "summary": "REQUIRES API KEY Authentication (+user)",
+                "tags": [
+                    "registry-entry"
+                ],
+                "security": [
+                    {
+                        "API-Key": []
+                    }
+                ],
+                "requestBody": {
+                    "description": "",
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "network": {
+                                        "type": "string",
+                                        "enum": [
+                                            "Preprod",
+                                            "Mainnet"
+                                        ]
+                                    },
+                                    "statusUpdatedAfter": {
+                                        "anyOf": [
+                                            {
+                                                "type": "string",
+                                                "format": "date"
+                                            },
+                                            {
+                                                "type": "string",
+                                                "format": "date-time"
+                                            },
+                                            {
+                                                "type": "string",
+                                                "format": "date-time"
+                                            }
+                                        ]
+                                    },
+                                    "limit": {
+                                        "type": "integer",
+                                        "minimum": 1,
+                                        "maximum": 50,
+                                        "default": 10
+                                    },
+                                    "cursorId": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 50
+                                    }
+                                },
+                                "required": [
+                                    "network",
+                                    "statusUpdatedAfter"
+                                ],
+                                "example": {
+                                    "limit": 10,
+                                    "cursorId": "last_paginated_item",
+                                    "network": "Preprod",
+                                    "statusUpdatedAfter": "1970-01-01T00:00:00.000Z"
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Registry entries with updated status",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
                                             "type": "object",
                                             "properties": {
-                                                "id": {
-                                                    "type": "string"
+                                                "entries": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/components/schemas/RegistryEntry"
+                                                    }
                                                 }
                                             },
                                             "required": [
-                                                "id"
+                                                "entries"
                                             ]
                                         },
                                         "status": {
@@ -1318,13 +1504,72 @@
                                     ],
                                     "example": {
                                         "data": {
-                                            "id": "unique-cuid-v2-auto-generated"
+                                            "entries": [
+                                                {
+                                                    "name": "Example API",
+                                                    "description": "Example API description",
+                                                    "status": "Online",
+                                                    "RegistrySource": {
+                                                        "id": "unique_cuid_v2",
+                                                        "policyId": "policy_id",
+                                                        "type": "Web3CardanoV1",
+                                                        "url": "https://example.com/api/"
+                                                    },
+                                                    "Capability": {
+                                                        "name": "Example Capability",
+                                                        "version": "1.0.0"
+                                                    },
+                                                    "AgentPricing": {
+                                                        "pricingType": "Fixed",
+                                                        "FixedPricing": {
+                                                            "Amounts": [
+                                                                {
+                                                                    "amount": "100",
+                                                                    "unit": "USDC"
+                                                                }
+                                                            ]
+                                                        }
+                                                    },
+                                                    "authorName": null,
+                                                    "authorContactEmail": null,
+                                                    "authorContactOther": null,
+                                                    "image": "testimage.de",
+                                                    "otherLegal": null,
+                                                    "privacyPolicy": null,
+                                                    "tags": [],
+                                                    "termsAndCondition": "If the answer is 42 what was the question",
+                                                    "uptimeCheckCount": 10,
+                                                    "uptimeCount": 8,
+                                                    "lastUptimeCheck": "1970-01-01T00:00:00.000Z",
+                                                    "apiBaseUrl": "https://example.com/api/",
+                                                    "authorOrganization": "MASUMI",
+                                                    "paymentType": "Web3CardanoV1",
+                                                    "agentIdentifier": "222222222222222222222222222222222222222222222222222222222222222222",
+                                                    "id": "unique_cuid_v2",
+                                                    "ExampleOutput": [
+                                                        {
+                                                            "name": "Example Output",
+                                                            "mimeType": "image/png",
+                                                            "url": "https://example.com/image.png"
+                                                        }
+                                                    ]
+                                                }
+                                            ]
                                         },
                                         "status": "success"
                                     }
                                 }
                             }
                         }
+                    },
+                    "400": {
+                        "description": "Bad Request (possible parameters missing or invalid)"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
                     }
                 }
             }
@@ -1371,34 +1616,7 @@
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "type": "object",
-                                            "properties": {
-                                                "capabilities": {
-                                                    "type": "array",
-                                                    "items": {
-                                                        "type": "object",
-                                                        "properties": {
-                                                            "id": {
-                                                                "type": "string"
-                                                            },
-                                                            "name": {
-                                                                "type": "string"
-                                                            },
-                                                            "version": {
-                                                                "type": "string"
-                                                            }
-                                                        },
-                                                        "required": [
-                                                            "id",
-                                                            "name",
-                                                            "version"
-                                                        ]
-                                                    }
-                                                }
-                                            },
-                                            "required": [
-                                                "capabilities"
-                                            ]
+                                            "$ref": "#/components/schemas/Capability"
                                         },
                                         "status": {
                                             "type": "string"
@@ -1457,49 +1675,7 @@
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "type": "object",
-                                            "properties": {
-                                                "token": {
-                                                    "type": "string"
-                                                },
-                                                "permission": {
-                                                    "type": "string",
-                                                    "enum": [
-                                                        "User",
-                                                        "Admin"
-                                                    ]
-                                                },
-                                                "usageLimited": {
-                                                    "type": "boolean"
-                                                },
-                                                "maxUsageCredits": {
-                                                    "type": "integer",
-                                                    "nullable": true,
-                                                    "minimum": 0,
-                                                    "maximum": 1000000
-                                                },
-                                                "accumulatedUsageCredits": {
-                                                    "type": "integer",
-                                                    "nullable": true,
-                                                    "minimum": 0,
-                                                    "maximum": 1000000
-                                                },
-                                                "status": {
-                                                    "type": "string",
-                                                    "enum": [
-                                                        "Active",
-                                                        "Revoked"
-                                                    ]
-                                                }
-                                            },
-                                            "required": [
-                                                "token",
-                                                "permission",
-                                                "usageLimited",
-                                                "maxUsageCredits",
-                                                "accumulatedUsageCredits",
-                                                "status"
-                                            ]
+                                            "$ref": "#/components/schemas/APIKey"
                                         },
                                         "status": {
                                             "type": "string"
@@ -1511,6 +1687,7 @@
                                     ],
                                     "example": {
                                         "data": {
+                                            "id": "unique-cuid-v2-auto-generated",
                                             "token": "masumi-registry-api-key-secret",
                                             "permission": "Admin",
                                             "usageLimited": true,
@@ -1575,49 +1752,7 @@
                                                 "apiKeys": {
                                                     "type": "array",
                                                     "items": {
-                                                        "type": "object",
-                                                        "properties": {
-                                                            "token": {
-                                                                "type": "string"
-                                                            },
-                                                            "permission": {
-                                                                "type": "string",
-                                                                "enum": [
-                                                                    "User",
-                                                                    "Admin"
-                                                                ]
-                                                            },
-                                                            "usageLimited": {
-                                                                "type": "boolean"
-                                                            },
-                                                            "maxUsageCredits": {
-                                                                "type": "integer",
-                                                                "nullable": true,
-                                                                "minimum": 0,
-                                                                "maximum": 1000000
-                                                            },
-                                                            "accumulatedUsageCredits": {
-                                                                "type": "integer",
-                                                                "nullable": true,
-                                                                "minimum": 0,
-                                                                "maximum": 1000000
-                                                            },
-                                                            "status": {
-                                                                "type": "string",
-                                                                "enum": [
-                                                                    "Active",
-                                                                    "Revoked"
-                                                                ]
-                                                            }
-                                                        },
-                                                        "required": [
-                                                            "token",
-                                                            "permission",
-                                                            "usageLimited",
-                                                            "maxUsageCredits",
-                                                            "accumulatedUsageCredits",
-                                                            "status"
-                                                        ]
+                                                        "$ref": "#/components/schemas/APIKey"
                                                     }
                                                 }
                                             },
@@ -1637,6 +1772,7 @@
                                         "data": {
                                             "apiKeys": [
                                                 {
+                                                    "id": "unique-cuid-v2-auto-generated",
                                                     "token": "masumi-registry-api-key-secret",
                                                     "permission": "Admin",
                                                     "usageLimited": true,
@@ -1719,53 +1855,7 @@
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "type": "object",
-                                            "properties": {
-                                                "id": {
-                                                    "type": "string"
-                                                },
-                                                "token": {
-                                                    "type": "string"
-                                                },
-                                                "permission": {
-                                                    "type": "string",
-                                                    "enum": [
-                                                        "User",
-                                                        "Admin"
-                                                    ]
-                                                },
-                                                "usageLimited": {
-                                                    "type": "boolean"
-                                                },
-                                                "maxUsageCredits": {
-                                                    "type": "integer",
-                                                    "nullable": true,
-                                                    "minimum": 0,
-                                                    "maximum": 1000000
-                                                },
-                                                "accumulatedUsageCredits": {
-                                                    "type": "integer",
-                                                    "nullable": true,
-                                                    "minimum": 0,
-                                                    "maximum": 1000000
-                                                },
-                                                "status": {
-                                                    "type": "string",
-                                                    "enum": [
-                                                        "Active",
-                                                        "Revoked"
-                                                    ]
-                                                }
-                                            },
-                                            "required": [
-                                                "id",
-                                                "token",
-                                                "permission",
-                                                "usageLimited",
-                                                "maxUsageCredits",
-                                                "accumulatedUsageCredits",
-                                                "status"
-                                            ]
+                                            "$ref": "#/components/schemas/APIKey"
                                         },
                                         "status": {
                                             "type": "string"
@@ -1865,49 +1955,7 @@
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "type": "object",
-                                            "properties": {
-                                                "token": {
-                                                    "type": "string"
-                                                },
-                                                "permission": {
-                                                    "type": "string",
-                                                    "enum": [
-                                                        "User",
-                                                        "Admin"
-                                                    ]
-                                                },
-                                                "usageLimited": {
-                                                    "type": "boolean"
-                                                },
-                                                "maxUsageCredits": {
-                                                    "type": "integer",
-                                                    "nullable": true,
-                                                    "minimum": 0,
-                                                    "maximum": 1000000
-                                                },
-                                                "accumulatedUsageCredits": {
-                                                    "type": "integer",
-                                                    "nullable": true,
-                                                    "minimum": 0,
-                                                    "maximum": 1000000
-                                                },
-                                                "status": {
-                                                    "type": "string",
-                                                    "enum": [
-                                                        "Active",
-                                                        "Revoked"
-                                                    ]
-                                                }
-                                            },
-                                            "required": [
-                                                "token",
-                                                "permission",
-                                                "usageLimited",
-                                                "maxUsageCredits",
-                                                "accumulatedUsageCredits",
-                                                "status"
-                                            ]
+                                            "$ref": "#/components/schemas/APIKey"
                                         },
                                         "status": {
                                             "type": "string"
@@ -1919,6 +1967,7 @@
                                     ],
                                     "example": {
                                         "data": {
+                                            "id": "unique-cuid-v2-auto-generated",
                                             "token": "masumi-registry-api-key-secret",
                                             "permission": "User",
                                             "usageLimited": true,
@@ -1985,15 +2034,7 @@
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "type": "object",
-                                            "properties": {
-                                                "token": {
-                                                    "type": "string"
-                                                }
-                                            },
-                                            "required": [
-                                                "token"
-                                            ]
+                                            "$ref": "#/components/schemas/APIKey"
                                         },
                                         "status": {
                                             "type": "string"
@@ -2005,7 +2046,13 @@
                                     ],
                                     "example": {
                                         "data": {
-                                            "token": "deleted-masumi-registry-api-key-secret"
+                                            "id": "unique-cuid-v2-auto-generated",
+                                            "token": "deleted-masumi-registry-api-key-secret",
+                                            "permission": "User",
+                                            "usageLimited": true,
+                                            "maxUsageCredits": 1000000,
+                                            "accumulatedUsageCredits": 0,
+                                            "status": "Active"
                                         },
                                         "status": "success"
                                     }

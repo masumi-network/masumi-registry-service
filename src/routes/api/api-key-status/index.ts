@@ -1,29 +1,15 @@
 import { authenticatedEndpointFactory } from '@/utils/endpoint-factory/authenticated';
-import { z } from 'zod';
-import { APIKeyStatus, Permission } from '@prisma/client';
+import { z } from '@/utils/zod-openapi';
 import createHttpError from 'http-errors';
 import { apiKeyStatusService } from '@/services/api-key-status/';
+import { apiKeySchemaOutput } from '@/routes/api/api-key';
 
 export const getAPIKeyStatusSchemaInput = z.object({});
-
-export const getAPIKeyStatusSchemaOutput = z.object({
-  token: z.string(),
-  permission: z.nativeEnum(Permission),
-  usageLimited: z.boolean(),
-  maxUsageCredits: z
-    .number({ coerce: true })
-    .int()
-    .min(0)
-    .max(1000000)
-    .nullable(),
-  accumulatedUsageCredits: z.number({ coerce: true }).int().min(0).max(1000000),
-  status: z.nativeEnum(APIKeyStatus),
-});
 
 export const queryAPIKeyStatusEndpointGet = authenticatedEndpointFactory.build({
   method: 'get',
   input: getAPIKeyStatusSchemaInput,
-  output: getAPIKeyStatusSchemaOutput,
+  output: apiKeySchemaOutput,
   handler: async ({
     options,
   }: {

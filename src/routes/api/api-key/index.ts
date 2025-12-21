@@ -1,5 +1,5 @@
 import { adminAuthenticatedEndpointFactory } from '@/utils/endpoint-factory/admin-authenticated';
-import { z } from 'zod';
+import { z } from '@/utils/zod-openapi';
 import { APIKeyStatus, Permission } from '@prisma/client';
 import createHttpError from 'http-errors';
 import { apiKeyService } from '@/services/api-key/';
@@ -9,26 +9,29 @@ export const getAPIKeySchemaInput = z.object({
   limit: z.number({ coerce: true }).int().min(1).max(100).default(10),
 });
 
+export const apiKeySchemaOutput = z
+  .object({
+    id: z.string(),
+    token: z.string(),
+    permission: z.nativeEnum(Permission),
+    usageLimited: z.boolean(),
+    maxUsageCredits: z
+      .number({ coerce: true })
+      .int()
+      .min(0)
+      .max(1000000)
+      .nullable(),
+    accumulatedUsageCredits: z
+      .number({ coerce: true })
+      .int()
+      .min(0)
+      .max(1000000),
+    status: z.nativeEnum(APIKeyStatus),
+  })
+  .openapi('APIKey');
+
 export const getAPIKeySchemaOutput = z.object({
-  apiKeys: z.array(
-    z.object({
-      token: z.string(),
-      permission: z.nativeEnum(Permission),
-      usageLimited: z.boolean(),
-      maxUsageCredits: z
-        .number({ coerce: true })
-        .int()
-        .min(0)
-        .max(1000000)
-        .nullable(),
-      accumulatedUsageCredits: z
-        .number({ coerce: true })
-        .int()
-        .min(0)
-        .max(1000000),
-      status: z.nativeEnum(APIKeyStatus),
-    })
-  ),
+  apiKeys: z.array(apiKeySchemaOutput),
 });
 
 export const queryAPIKeyEndpointGet = adminAuthenticatedEndpointFactory.build({
@@ -59,25 +62,10 @@ export const addAPIKeySchemaInput = z.object({
   permission: z.nativeEnum(Permission).default(Permission.User),
 });
 
-export const addAPIKeySchemaOutput = z.object({
-  id: z.string(),
-  token: z.string(),
-  permission: z.nativeEnum(Permission),
-  usageLimited: z.boolean(),
-  maxUsageCredits: z
-    .number({ coerce: true })
-    .int()
-    .min(0)
-    .max(1000000)
-    .nullable(),
-  accumulatedUsageCredits: z.number({ coerce: true }).int().min(0).max(1000000),
-  status: z.nativeEnum(APIKeyStatus),
-});
-
 export const addAPIKeyEndpointPost = adminAuthenticatedEndpointFactory.build({
   method: 'post',
   input: addAPIKeySchemaInput,
-  output: addAPIKeySchemaOutput,
+  output: apiKeySchemaOutput,
   handler: async ({
     input,
   }: {
@@ -104,25 +92,11 @@ export const updateAPIKeySchemaInput = z.object({
   status: z.nativeEnum(APIKeyStatus).default(APIKeyStatus.Active),
 });
 
-export const updateAPIKeySchemaOutput = z.object({
-  token: z.string(),
-  permission: z.nativeEnum(Permission),
-  usageLimited: z.boolean(),
-  maxUsageCredits: z
-    .number({ coerce: true })
-    .int()
-    .min(0)
-    .max(1000000)
-    .nullable(),
-  accumulatedUsageCredits: z.number({ coerce: true }).int().min(0).max(1000000),
-  status: z.nativeEnum(APIKeyStatus),
-});
-
 export const updateAPIKeyEndpointPatch =
   adminAuthenticatedEndpointFactory.build({
     method: 'patch',
     input: updateAPIKeySchemaInput,
-    output: updateAPIKeySchemaOutput,
+    output: apiKeySchemaOutput,
     handler: async ({
       input,
     }: {
@@ -144,15 +118,11 @@ export const deleteAPIKeySchemaInput = z.object({
   token: z.string().max(550),
 });
 
-export const deleteAPIKeySchemaOutput = z.object({
-  token: z.string(),
-});
-
 export const deleteAPIKeyEndpointDelete =
   adminAuthenticatedEndpointFactory.build({
     method: 'delete',
     input: deleteAPIKeySchemaInput,
-    output: deleteAPIKeySchemaOutput,
+    output: apiKeySchemaOutput,
     handler: async ({
       input,
     }: {
