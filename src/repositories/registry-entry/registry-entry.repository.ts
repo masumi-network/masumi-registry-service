@@ -90,10 +90,10 @@ async function getRegistryDiffEntries(
     },
     orderBy: [
       {
-        statusUpdatedAt: 'desc',
+        statusUpdatedAt: 'asc',
       },
       {
-        id: 'desc',
+        id: 'asc',
       },
     ],
     cursor: currentCursorId ? { id: currentCursorId } : undefined,
