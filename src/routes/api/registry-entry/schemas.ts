@@ -34,22 +34,12 @@ export const registryDiffSchemaInput = z.object({
 
 export const registryEntrySchemaOutput = z
   .object({
-    RegistrySource: z.object({
-      id: z.string(),
-      type: z.nativeEnum($Enums.RegistryEntryType),
-      policyId: z.string().nullable(),
-      url: z.string().nullable(),
-    }),
-    Capability: z
-      .object({
-        name: z.string().nullable(),
-        version: z.string().nullable(),
-      })
-      .nullable(),
+    id: z.string(),
+
     name: z.string(),
     description: z.string().nullable(),
     status: z.nativeEnum($Enums.Status),
-    id: z.string(),
+    statusUpdatedAt: z.date().nullable(),
     lastUptimeCheck: z.date(),
     uptimeCount: z.number(),
     uptimeCheckCount: z.number(),
@@ -65,6 +55,18 @@ export const registryEntrySchemaOutput = z
     tags: z.array(z.string()).nullable(),
     agentIdentifier: z.string(),
     paymentType: z.nativeEnum($Enums.PaymentType),
+    RegistrySource: z.object({
+      id: z.string(),
+      type: z.nativeEnum($Enums.RegistryEntryType),
+      policyId: z.string().nullable(),
+      url: z.string().nullable(),
+    }),
+    Capability: z
+      .object({
+        name: z.string().nullable(),
+        version: z.string().nullable(),
+      })
+      .nullable(),
     AgentPricing: z
       .object({
         pricingType: z.literal($Enums.PricingType.Fixed),

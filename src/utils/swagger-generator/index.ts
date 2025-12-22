@@ -59,25 +59,11 @@ export function generateOpenAPI() {
     data: {
       entries: [
         {
+          id: 'unique_cuid_v2',
           name: 'Example API',
           description: 'Example API description',
           status: Status.Online,
-          RegistrySource: {
-            id: 'unique_cuid_v2',
-            policyId: 'policy_id',
-            type: RegistryEntryType.Web3CardanoV1,
-            url: 'https://example.com/api/',
-          },
-          Capability: {
-            name: 'Example Capability',
-            version: '1.0.0',
-          },
-          AgentPricing: {
-            pricingType: PricingType.Fixed,
-            FixedPricing: {
-              Amounts: [{ amount: '100', unit: 'USDC' }],
-            },
-          },
+          statusUpdatedAt: new Date(120000),
           authorName: null,
           authorContactEmail: null,
           authorContactOther: null,
@@ -94,7 +80,23 @@ export function generateOpenAPI() {
           paymentType: PaymentType.Web3CardanoV1,
           agentIdentifier:
             '222222222222222222222222222222222222222222222222222222222222222222',
-          id: 'unique_cuid_v2',
+
+          RegistrySource: {
+            id: 'unique_cuid_v2',
+            policyId: 'policy_id',
+            type: RegistryEntryType.Web3CardanoV1,
+            url: 'https://example.com/api/',
+          },
+          Capability: {
+            name: 'Example Capability',
+            version: '1.0.0',
+          },
+          AgentPricing: {
+            pricingType: PricingType.Fixed,
+            FixedPricing: {
+              Amounts: [{ amount: '100', unit: 'USDC' }],
+            },
+          },
           ExampleOutput: [
             {
               name: 'Example Output',

@@ -272,51 +272,8 @@
             "RegistryEntry": {
                 "type": "object",
                 "properties": {
-                    "RegistrySource": {
-                        "type": "object",
-                        "properties": {
-                            "id": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": [
-                                    "Web3CardanoV1"
-                                ]
-                            },
-                            "policyId": {
-                                "type": "string",
-                                "nullable": true
-                            },
-                            "url": {
-                                "type": "string",
-                                "nullable": true
-                            }
-                        },
-                        "required": [
-                            "id",
-                            "type",
-                            "policyId",
-                            "url"
-                        ]
-                    },
-                    "Capability": {
-                        "type": "object",
-                        "nullable": true,
-                        "properties": {
-                            "name": {
-                                "type": "string",
-                                "nullable": true
-                            },
-                            "version": {
-                                "type": "string",
-                                "nullable": true
-                            }
-                        },
-                        "required": [
-                            "name",
-                            "version"
-                        ]
+                    "id": {
+                        "type": "string"
                     },
                     "name": {
                         "type": "string"
@@ -334,8 +291,9 @@
                             "Invalid"
                         ]
                     },
-                    "id": {
-                        "type": "string"
+                    "statusUpdatedAt": {
+                        "type": "string",
+                        "nullable": true
                     },
                     "lastUptimeCheck": {
                         "type": "string"
@@ -396,6 +354,52 @@
                         "enum": [
                             "Web3CardanoV1",
                             "None"
+                        ]
+                    },
+                    "RegistrySource": {
+                        "type": "object",
+                        "properties": {
+                            "id": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": [
+                                    "Web3CardanoV1"
+                                ]
+                            },
+                            "policyId": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "url": {
+                                "type": "string",
+                                "nullable": true
+                            }
+                        },
+                        "required": [
+                            "id",
+                            "type",
+                            "policyId",
+                            "url"
+                        ]
+                    },
+                    "Capability": {
+                        "type": "object",
+                        "nullable": true,
+                        "properties": {
+                            "name": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "version": {
+                                "type": "string",
+                                "nullable": true
+                            }
+                        },
+                        "required": [
+                            "name",
+                            "version"
                         ]
                     },
                     "AgentPricing": {
@@ -481,12 +485,11 @@
                     }
                 },
                 "required": [
-                    "RegistrySource",
-                    "Capability",
+                    "id",
                     "name",
                     "description",
                     "status",
-                    "id",
+                    "statusUpdatedAt",
                     "lastUptimeCheck",
                     "uptimeCount",
                     "uptimeCheckCount",
@@ -502,6 +505,8 @@
                     "tags",
                     "agentIdentifier",
                     "paymentType",
+                    "RegistrySource",
+                    "Capability",
                     "AgentPricing",
                     "ExampleOutput"
                 ]
@@ -998,9 +1003,26 @@
                                         "data": {
                                             "entries": [
                                                 {
+                                                    "id": "unique_cuid_v2",
                                                     "name": "Example API",
                                                     "description": "Example API description",
                                                     "status": "Online",
+                                                    "statusUpdatedAt": "1970-01-01T00:02:00.000Z",
+                                                    "authorName": null,
+                                                    "authorContactEmail": null,
+                                                    "authorContactOther": null,
+                                                    "image": "testimage.de",
+                                                    "otherLegal": null,
+                                                    "privacyPolicy": null,
+                                                    "tags": [],
+                                                    "termsAndCondition": "If the answer is 42 what was the question",
+                                                    "uptimeCheckCount": 10,
+                                                    "uptimeCount": 8,
+                                                    "lastUptimeCheck": "1970-01-01T00:00:00.000Z",
+                                                    "apiBaseUrl": "https://example.com/api/",
+                                                    "authorOrganization": "MASUMI",
+                                                    "paymentType": "Web3CardanoV1",
+                                                    "agentIdentifier": "222222222222222222222222222222222222222222222222222222222222222222",
                                                     "RegistrySource": {
                                                         "id": "unique_cuid_v2",
                                                         "policyId": "policy_id",
@@ -1022,22 +1044,6 @@
                                                             ]
                                                         }
                                                     },
-                                                    "authorName": null,
-                                                    "authorContactEmail": null,
-                                                    "authorContactOther": null,
-                                                    "image": "testimage.de",
-                                                    "otherLegal": null,
-                                                    "privacyPolicy": null,
-                                                    "tags": [],
-                                                    "termsAndCondition": "If the answer is 42 what was the question",
-                                                    "uptimeCheckCount": 10,
-                                                    "uptimeCount": 8,
-                                                    "lastUptimeCheck": "1970-01-01T00:00:00.000Z",
-                                                    "apiBaseUrl": "https://example.com/api/",
-                                                    "authorOrganization": "MASUMI",
-                                                    "paymentType": "Web3CardanoV1",
-                                                    "agentIdentifier": "222222222222222222222222222222222222222222222222222222222222222222",
-                                                    "id": "unique_cuid_v2",
                                                     "ExampleOutput": [
                                                         {
                                                             "name": "Example Output",
@@ -1506,9 +1512,26 @@
                                         "data": {
                                             "entries": [
                                                 {
+                                                    "id": "unique_cuid_v2",
                                                     "name": "Example API",
                                                     "description": "Example API description",
                                                     "status": "Online",
+                                                    "statusUpdatedAt": "1970-01-01T00:02:00.000Z",
+                                                    "authorName": null,
+                                                    "authorContactEmail": null,
+                                                    "authorContactOther": null,
+                                                    "image": "testimage.de",
+                                                    "otherLegal": null,
+                                                    "privacyPolicy": null,
+                                                    "tags": [],
+                                                    "termsAndCondition": "If the answer is 42 what was the question",
+                                                    "uptimeCheckCount": 10,
+                                                    "uptimeCount": 8,
+                                                    "lastUptimeCheck": "1970-01-01T00:00:00.000Z",
+                                                    "apiBaseUrl": "https://example.com/api/",
+                                                    "authorOrganization": "MASUMI",
+                                                    "paymentType": "Web3CardanoV1",
+                                                    "agentIdentifier": "222222222222222222222222222222222222222222222222222222222222222222",
                                                     "RegistrySource": {
                                                         "id": "unique_cuid_v2",
                                                         "policyId": "policy_id",
@@ -1530,22 +1553,6 @@
                                                             ]
                                                         }
                                                     },
-                                                    "authorName": null,
-                                                    "authorContactEmail": null,
-                                                    "authorContactOther": null,
-                                                    "image": "testimage.de",
-                                                    "otherLegal": null,
-                                                    "privacyPolicy": null,
-                                                    "tags": [],
-                                                    "termsAndCondition": "If the answer is 42 what was the question",
-                                                    "uptimeCheckCount": 10,
-                                                    "uptimeCount": 8,
-                                                    "lastUptimeCheck": "1970-01-01T00:00:00.000Z",
-                                                    "apiBaseUrl": "https://example.com/api/",
-                                                    "authorOrganization": "MASUMI",
-                                                    "paymentType": "Web3CardanoV1",
-                                                    "agentIdentifier": "222222222222222222222222222222222222222222222222222222222222222222",
-                                                    "id": "unique_cuid_v2",
                                                     "ExampleOutput": [
                                                         {
                                                             "name": "Example Output",
