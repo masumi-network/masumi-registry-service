@@ -35,7 +35,6 @@ export const registryDiffSchemaInput = z.object({
 export const registryEntrySchemaOutput = z
   .object({
     id: z.string(),
-
     name: z.string(),
     description: z.string().nullable(),
     status: z.nativeEnum($Enums.Status),
