@@ -542,22 +542,26 @@ export async function updateLatestCardanoRegistryEntries() {
                           },
                   };
 
+                  const updateData = {
+                    ...sharedQuery,
+                    lastUptimeCheck: new Date(),
+                    uptimeCount: {
+                      increment: status == $Enums.Status.Online ? 1 : 0,
+                    },
+                    uptimeCheckCount: { increment: 1 },
+                  };
+
+                  const createData = {
+                    ...sharedQuery,
+                    lastUptimeCheck: new Date(),
+                    uptimeCount: status == $Enums.Status.Online ? 1 : 0,
+                    uptimeCheckCount: 1,
+                  };
+
                   await prisma.registryEntry.upsert({
                     where: { assetIdentifier: asset },
-                    update: {
-                      lastUptimeCheck: new Date(),
-                      uptimeCount: {
-                        increment: status == $Enums.Status.Online ? 1 : 0,
-                      },
-                      uptimeCheckCount: { increment: 1 },
-                      ...sharedQuery,
-                    },
-                    create: {
-                      lastUptimeCheck: new Date(),
-                      uptimeCount: status == $Enums.Status.Online ? 1 : 0,
-                      uptimeCheckCount: 1,
-                      ...sharedQuery,
-                    },
+                    update: updateData,
+                    create: createData,
                   });
                 }
 

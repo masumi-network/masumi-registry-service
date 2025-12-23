@@ -38,7 +38,7 @@ export const registryEntrySchemaOutput = z
     name: z.string(),
     description: z.string().nullable(),
     status: z.nativeEnum($Enums.Status),
-    statusUpdatedAt: z.date().nullable(),
+    statusUpdatedAt: z.date(),
     lastUptimeCheck: z.date(),
     uptimeCount: z.number(),
     uptimeCheckCount: z.number(),
