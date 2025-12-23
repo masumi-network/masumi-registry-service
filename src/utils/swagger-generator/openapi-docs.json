@@ -292,8 +292,7 @@
                         ]
                     },
                     "statusUpdatedAt": {
-                        "type": "string",
-                        "nullable": true
+                        "type": "string"
                     },
                     "lastUptimeCheck": {
                         "type": "string"
