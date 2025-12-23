@@ -545,7 +545,6 @@ export async function updateLatestCardanoRegistryEntries() {
                   await prisma.registryEntry.upsert({
                     where: { assetIdentifier: asset },
                     update: {
-                      lastUptimeCheck: new Date(),
                       uptimeCount: {
                         increment: status == $Enums.Status.Online ? 1 : 0,
                       },
@@ -553,7 +552,6 @@ export async function updateLatestCardanoRegistryEntries() {
                       ...sharedQuery,
                     },
                     create: {
-                      lastUptimeCheck: new Date(),
                       uptimeCount: status == $Enums.Status.Online ? 1 : 0,
                       uptimeCheckCount: 1,
                       ...sharedQuery,
