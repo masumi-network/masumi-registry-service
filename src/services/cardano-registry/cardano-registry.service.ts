@@ -342,6 +342,9 @@ export async function updateLatestCardanoRegistryEntries() {
             source.policyId,
             page
           );
+          logger.info(`Found ${txs.length} transactions on page ${page}`, {
+            cursorTxId: cursorTxHash,
+          });
 
           while (txs.length > 0) {
             const existingTx = txs.findIndex(
@@ -359,11 +362,19 @@ export async function updateLatestCardanoRegistryEntries() {
                 cursorTxId: cursorTxHash,
               }
             );
+            let count = 0;
 
             for (const tx of txs) {
+              count++;
+              if (count % 10 == 0) {
+                logger.info(`Processed ${count} transaction of page ${page}`, {
+                  cursorTxId: cursorTxHash,
+                });
+              }
               if (tx.purpose != 'mint') {
                 continue;
               }
+
               const txsUtxos = await blockfrost.txsUtxos(tx.tx_hash);
               const mintedOrBurnedAssetsOfPolicy = new Map<string, number>();
               for (const inputUtxo of txsUtxos.inputs) {
