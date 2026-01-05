@@ -326,7 +326,7 @@ export async function updateLatestCardanoRegistryEntries() {
             network:
               source.network == $Enums.Network.Mainnet ? 'mainnet' : 'preprod',
           });
-          let cursorTxHash = source.lastTxId;
+          const cursorTxHash = source.lastTxId;
           if (cursorTxHash == null) {
             logger.info(
               '***** No existing tx id found - Doing a full Sync.  *****'
@@ -359,19 +359,14 @@ export async function updateLatestCardanoRegistryEntries() {
             }
 
             logger.info(
-              `Processing page ${page} with ${txs.length} transactions`,
-              {
-                cursorTxId: cursorTxHash,
-              }
+              `Processing page ${page} with ${txs.length} transactions`
             );
 
             let count = 0;
             for (const tx of txs) {
               count++;
               if (count % 10 == 0) {
-                logger.info(`Processing ${count} transaction of page ${page}`, {
-                  cursorTxId: cursorTxHash,
-                });
+                logger.info(`Processing ${count} transaction of page ${page}`);
               }
               if (tx.purpose != 'mint') {
                 continue;
@@ -598,7 +593,6 @@ export async function updateLatestCardanoRegistryEntries() {
               });
             }
             page = page + 1;
-            cursorTxHash = txs[txs.length - 1].tx_hash;
           } while (transactionsOnPage > 0);
         } catch (error) {
           logger.error('Error updating cardano registry entries', {
