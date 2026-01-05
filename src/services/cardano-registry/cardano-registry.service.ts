@@ -336,45 +336,46 @@ export async function updateLatestCardanoRegistryEntries() {
             );
           }
           let page = source.lastCheckedPage;
-          let txs = await getScriptsRedeemers(
-            source.network,
-            source.RegistrySourceConfig.rpcProviderApiKey,
-            source.policyId,
-            page
-          );
-          logger.info(`Found ${txs.length} transactions on page ${page}`, {
-            cursorTxId: cursorTxHash,
-          });
 
-          while (txs.length > 0) {
+          let txs: ScriptRedeemersResponse = [];
+          let transactionsOnPage = 0;
+          do {
+            txs = await getScriptsRedeemers(
+              source.network,
+              source.RegistrySourceConfig.rpcProviderApiKey,
+              source.policyId,
+              page
+            );
+            transactionsOnPage = txs.length;
+
+            logger.info(`Found ${txs.length} transactions on page ${page}`, {
+              cursorTxId: cursorTxHash,
+            });
             const existingTx = txs.findIndex(
               (tx) => tx.tx_hash === cursorTxHash
             );
             if (existingTx != -1) {
               txs = txs.slice(existingTx + 1);
             }
-            if (txs.length == 0) {
-              break;
-            }
+
             logger.info(
               `Processing page ${page} with ${txs.length} transactions`,
               {
                 cursorTxId: cursorTxHash,
               }
             );
-            let count = 0;
 
+            let count = 0;
             for (const tx of txs) {
               count++;
               if (count % 10 == 0) {
-                logger.info(`Processed ${count} transaction of page ${page}`, {
+                logger.info(`Processing ${count} transaction of page ${page}`, {
                   cursorTxId: cursorTxHash,
                 });
               }
               if (tx.purpose != 'mint') {
                 continue;
               }
-
               const txsUtxos = await blockfrost.txsUtxos(tx.tx_hash);
               const mintedOrBurnedAssetsOfPolicy = new Map<string, number>();
               for (const inputUtxo of txsUtxos.inputs) {
@@ -596,19 +597,9 @@ export async function updateLatestCardanoRegistryEntries() {
                 data: { lastCheckedPage: page, lastTxId: tx.tx_hash },
               });
             }
-
-            cursorTxHash = txs[txs.length - 1].tx_hash;
-            if (txs.length !== 100) {
-              break;
-            }
             page = page + 1;
-            txs = await getScriptsRedeemers(
-              source.network,
-              source.RegistrySourceConfig.rpcProviderApiKey,
-              source.policyId,
-              page
-            );
-          }
+            cursorTxHash = txs[txs.length - 1].tx_hash;
+          } while (transactionsOnPage > 0);
         } catch (error) {
           logger.error('Error updating cardano registry entries', {
             error: error,
