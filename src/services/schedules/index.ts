@@ -9,7 +9,7 @@ import { AsyncInterval } from '@/utils/async-interval';
 async function init() {
   logger.log({
     level: 'info',
-    message: 'initialized cron events',
+    message: 'Initialized event scheduler',
   });
   await new Promise((resolve) => setTimeout(resolve, 1500));
   AsyncInterval.start(async () => {
