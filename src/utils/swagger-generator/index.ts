@@ -409,7 +409,7 @@ export function generateOpenAPI() {
     method: 'post',
     path: '/registry-diff/',
     description:
-      'Query registry entries whose status was updated after the provided timestamp. Supports pagination.',
+      'Query registry entries whose status was updated after the provided timestamp. Supports pagination. Always use statusUpdatedAt of the last item + its cursorId to paginate forward. This guarantees to include all items at least once, when paginating. Note: if the cursorId is not valid it will include all items with an id greater than the cursorId (in string comparison order). If no cursorId is provided, all items, including those with the same statusUpdatedAt, will be included. In case the statusUpdatedAt is before the provided statusUpdatedAfter, all items after the statusUpdatedAfter will be included, regardless of the cursorId.',
     summary: 'REQUIRES API KEY Authentication (+user)',
     tags: ['registry-entry'],
     request: {
@@ -420,7 +420,7 @@ export function generateOpenAPI() {
             schema: registryDiffSchemaInput.openapi({
               example: {
                 limit: 10,
-                skip: 0,
+                cursorId: 'last_paginated_item',
                 network: 'Preprod',
                 statusUpdatedAfter: new Date(0).toISOString(),
               },

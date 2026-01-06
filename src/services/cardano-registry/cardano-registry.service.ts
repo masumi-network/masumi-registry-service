@@ -366,7 +366,9 @@ export async function updateLatestCardanoRegistryEntries() {
             for (const tx of txs) {
               count++;
               if (count % 10 == 0) {
-                logger.info(`Processing ${count} transaction of page ${page}`);
+                logger.info(
+                  `**** Processed ${count} transactions from page ${page} ****`
+                );
               }
               if (tx.purpose != 'mint') {
                 continue;
