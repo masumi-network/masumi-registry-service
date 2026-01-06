@@ -5,31 +5,8 @@ import { z } from '@/utils/zod-openapi';
 import { metadataStringConvert } from '@/utils/metadata-string-convert';
 import { healthCheckService } from '@/services/health-check';
 import { logger } from '@/utils/logger';
-import { BlockFrostAPI } from '@blockfrost/blockfrost-js';
 import { DEFAULTS } from '@/utils/config';
-
-// Cache BlockFrostAPI instances to prevent memory leaks from repeated instantiation
-// Key format: `${network}-${apiKey}`
-const blockfrostInstanceCache = new Map<string, BlockFrostAPI>();
-
-function getBlockfrostInstance(
-  network: $Enums.Network,
-  apiKey: string
-): BlockFrostAPI {
-  const cacheKey = `${network}-${apiKey}`;
-  let instance = blockfrostInstanceCache.get(cacheKey);
-
-  if (!instance) {
-    instance = new BlockFrostAPI({
-      projectId: apiKey,
-      network: network === $Enums.Network.Mainnet ? 'mainnet' : 'preprod',
-    });
-    blockfrostInstanceCache.set(cacheKey, instance);
-    logger.info('Created new BlockFrostAPI instance', { network, cacheKey });
-  }
-
-  return instance;
-}
+import { getBlockfrostInstance } from '@/utils/blockfrost';
 
 const metadataSchema = z.object({
   name: z

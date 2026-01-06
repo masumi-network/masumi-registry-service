@@ -5,9 +5,9 @@ import { $Enums } from '@prisma/client';
 import { tokenCreditService } from '@/services/token-credit';
 import { paymentInformationRepository } from '@/repositories/payment-information';
 import createHttpError from 'http-errors';
-import { BlockFrostAPI } from '@blockfrost/blockfrost-js';
 import { prisma } from '@/utils/db';
 import { resolvePaymentKeyHash } from '@meshsdk/core';
+import { getBlockfrostInstance } from '@/utils/blockfrost';
 
 export const queryPaymentInformationInput = z.object({
   agentIdentifier: z.string().min(57).max(250),
@@ -111,9 +111,10 @@ export const queryPaymentInformationGet = authenticatedEndpointFactory.build({
     if (!registrySource) {
       throw createHttpError(404, 'Registry source not found');
     }
-    const blockfrost = new BlockFrostAPI({
-      projectId: registrySource.RegistrySourceConfig.rpcProviderApiKey,
-    });
+    const blockfrost = getBlockfrostInstance(
+      registrySource.network,
+      registrySource.RegistrySourceConfig.rpcProviderApiKey
+    );
     const holderData = await blockfrost.assetsAddresses(
       result.assetIdentifier,
       {
