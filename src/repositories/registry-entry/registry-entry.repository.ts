@@ -59,7 +59,7 @@ async function getRegistryEntry(
 
 async function getRegistryDiffEntries(
   statusUpdatedAfter: Date,
-  skip: number,
+  cursorId: string | undefined,
   limit: number,
   network: Network
 ) {
@@ -74,9 +74,17 @@ async function getRegistryDiffEntries(
 
   return await prisma.registryEntry.findMany({
     where: {
-      statusUpdatedAt: {
-        gte: statusUpdatedAfter,
-      },
+      OR: [
+        {
+          statusUpdatedAt: {
+            gt: statusUpdatedAfter,
+          },
+        },
+        {
+          id: cursorId ? { gte: cursorId } : undefined,
+          statusUpdatedAt: statusUpdatedAfter,
+        },
+      ],
       RegistrySource: {
         network: network,
       },
@@ -96,7 +104,6 @@ async function getRegistryDiffEntries(
         id: 'asc',
       },
     ],
-    skip: skip,
     take: limit,
   });
 }

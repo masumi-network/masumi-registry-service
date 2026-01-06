@@ -90,6 +90,9 @@ model RegistryEntry {
   ExampleOutput ExampleOutput[]
 
   metadataVersion Int
+
+  @@index([statusUpdatedAt])
+  @@index([statusUpdatedAt, id])
 }
 
 model ExampleOutput {

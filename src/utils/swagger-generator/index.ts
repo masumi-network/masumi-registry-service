@@ -420,7 +420,7 @@ export function generateOpenAPI() {
             schema: registryDiffSchemaInput.openapi({
               example: {
                 limit: 10,
-                skip: 0,
+                cursorId: 'last_paginated_item',
                 network: 'Preprod',
                 statusUpdatedAfter: new Date(0).toISOString(),
               },
