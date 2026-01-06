@@ -5,8 +5,8 @@ import { z } from '@/utils/zod-openapi';
 import { metadataStringConvert } from '@/utils/metadata-string-convert';
 import { healthCheckService } from '@/services/health-check';
 import { logger } from '@/utils/logger';
-import { BlockFrostAPI } from '@blockfrost/blockfrost-js';
 import { DEFAULTS } from '@/utils/config';
+import { getBlockfrostInstance } from '@/utils/blockfrost';
 
 const metadataSchema = z.object({
   name: z
@@ -321,11 +321,11 @@ export async function updateLatestCardanoRegistryEntries() {
     await Promise.all(
       sources.map(async (source) => {
         try {
-          const blockfrost = new BlockFrostAPI({
-            projectId: source.RegistrySourceConfig.rpcProviderApiKey!,
-            network:
-              source.network == $Enums.Network.Mainnet ? 'mainnet' : 'preprod',
-          });
+          // Reuse cached BlockFrostAPI instance to prevent memory leaks
+          const blockfrost = getBlockfrostInstance(
+            source.network,
+            source.RegistrySourceConfig.rpcProviderApiKey
+          );
           const cursorTxHash = source.lastTxId;
           if (cursorTxHash == null) {
             logger.info(
