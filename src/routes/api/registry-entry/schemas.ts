@@ -29,7 +29,7 @@ export const registryDiffSchemaInput = z.object({
   network: z.nativeEnum(Network),
   statusUpdatedAfter: ez.dateIn(),
   limit: z.number({ coerce: true }).int().min(1).max(50).default(10),
-  skip: z.number({ coerce: true }).int().min(0).default(0),
+  skip: z.number({ coerce: true }).int().min(0).default(0).optional(),
 });
 
 export const registryEntrySchemaOutput = z
