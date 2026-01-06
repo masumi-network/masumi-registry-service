@@ -73,7 +73,7 @@ async function getRegistryDiffEntries(
 ) {
   return registryEntryRepository.getRegistryDiffEntries(
     input.statusUpdatedAfter,
-    input.cursorId,
+    input.skip ?? 0,
     input.limit,
     input.network
   );

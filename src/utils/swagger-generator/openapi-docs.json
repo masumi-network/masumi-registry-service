@@ -1457,10 +1457,11 @@
                                         "maximum": 50,
                                         "default": 10
                                     },
-                                    "cursorId": {
-                                        "type": "string",
-                                        "minLength": 1,
-                                        "maxLength": 50
+                                    "skip": {
+                                        "type": "integer",
+                                        "nullable": true,
+                                        "minimum": 0,
+                                        "default": 0
                                     }
                                 },
                                 "required": [
@@ -1469,7 +1470,7 @@
                                 ],
                                 "example": {
                                     "limit": 10,
-                                    "cursorId": "last_paginated_item",
+                                    "skip": 0,
                                     "network": "Preprod",
                                     "statusUpdatedAfter": "1970-01-01T00:00:00.000Z"
                                 }
