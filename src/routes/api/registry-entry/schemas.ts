@@ -29,7 +29,14 @@ export const registryDiffSchemaInput = z.object({
   network: z.nativeEnum(Network),
   statusUpdatedAfter: ez.dateIn(),
   limit: z.number({ coerce: true }).int().min(1).max(50).default(10),
-  skip: z.number({ coerce: true }).int().min(0).default(0).optional(),
+  cursorId: z
+    .string()
+    .min(1)
+    .max(75)
+    .optional()
+    .describe(
+      'The ID of the last item in the previous page, it and all items after it will be included in the next page response if they did not change since the last page (if they did they will be moved to the newer timestamp). Guaranteed to include all items at least once, when paginating forward. (always use statusUpdatedAt of the last item + its cursorId to paginate forward) '
+    ),
 });
 
 export const registryEntrySchemaOutput = z
