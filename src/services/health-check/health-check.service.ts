@@ -9,6 +9,9 @@ import {
 } from '@prisma/client';
 
 async function checkAndVerifyEndpoint({ api_url }: { api_url: string }) {
+  let controller: AbortController | null = null;
+  let timeoutId: NodeJS.Timeout | null = null;
+
   try {
     const invalidHostname = ['localhost', '127.0.0.1'];
     const url = new URL(api_url);
@@ -35,13 +38,21 @@ async function checkAndVerifyEndpoint({ api_url }: { api_url: string }) {
     if (urlString.endsWith('/')) {
       urlString = urlString.slice(0, -1);
     }
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 7500);
+    controller = new AbortController();
+    timeoutId = setTimeout(() => controller?.abort(), 7500);
     const endpointResponse = await fetch(`${urlString}/availability`, {
       signal: controller.signal,
     });
     clearTimeout(timeoutId);
+    timeoutId = null;
+
     if (!endpointResponse.ok) {
+      // Consume the response body to allow connection reuse and prevent memory leaks
+      try {
+        await endpointResponse.text();
+      } catch {
+        // Ignore errors when consuming body
+      }
       //if the endpoint is offline, we probably want to do some later on checks if it is back up again
       return {
         returnedAgentIdentifier: null,
@@ -71,6 +82,19 @@ async function checkAndVerifyEndpoint({ api_url }: { api_url: string }) {
       returnedAgentIdentifier: null,
       status: $Enums.Status.Offline,
     };
+  } finally {
+    // Ensure cleanup of abort controller and timeout
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+    if (controller) {
+      // Abort any pending request to free resources
+      try {
+        controller.abort();
+      } catch {
+        // Ignore abort errors
+      }
+    }
   }
 }
 async function checkAndVerifyRegistryEntry({
