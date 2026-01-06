@@ -8,6 +8,29 @@ import { logger } from '@/utils/logger';
 import { BlockFrostAPI } from '@blockfrost/blockfrost-js';
 import { DEFAULTS } from '@/utils/config';
 
+// Cache BlockFrostAPI instances to prevent memory leaks from repeated instantiation
+// Key format: `${network}-${apiKey}`
+const blockfrostInstanceCache = new Map<string, BlockFrostAPI>();
+
+function getBlockfrostInstance(
+  network: $Enums.Network,
+  apiKey: string
+): BlockFrostAPI {
+  const cacheKey = `${network}-${apiKey}`;
+  let instance = blockfrostInstanceCache.get(cacheKey);
+
+  if (!instance) {
+    instance = new BlockFrostAPI({
+      projectId: apiKey,
+      network: network === $Enums.Network.Mainnet ? 'mainnet' : 'preprod',
+    });
+    blockfrostInstanceCache.set(cacheKey, instance);
+    logger.info('Created new BlockFrostAPI instance', { network, cacheKey });
+  }
+
+  return instance;
+}
+
 const metadataSchema = z.object({
   name: z
     .string()
@@ -321,11 +344,11 @@ export async function updateLatestCardanoRegistryEntries() {
     await Promise.all(
       sources.map(async (source) => {
         try {
-          const blockfrost = new BlockFrostAPI({
-            projectId: source.RegistrySourceConfig.rpcProviderApiKey!,
-            network:
-              source.network == $Enums.Network.Mainnet ? 'mainnet' : 'preprod',
-          });
+          // Reuse cached BlockFrostAPI instance to prevent memory leaks
+          const blockfrost = getBlockfrostInstance(
+            source.network,
+            source.RegistrySourceConfig.rpcProviderApiKey
+          );
           const cursorTxHash = source.lastTxId;
           if (cursorTxHash == null) {
             logger.info(
