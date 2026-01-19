@@ -61,7 +61,8 @@ async function getRegistryDiffEntries(
   statusUpdatedAfter: Date,
   cursorId: string | undefined,
   limit: number,
-  network: Network
+  network: Network,
+  policyId?: string
 ) {
   const networkExists = await prisma.registrySource.findFirst({
     where: {
@@ -87,6 +88,7 @@ async function getRegistryDiffEntries(
       ],
       RegistrySource: {
         network: network,
+        policyId: policyId ?? undefined,
       },
     },
     include: {

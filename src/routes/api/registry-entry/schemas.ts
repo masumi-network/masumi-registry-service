@@ -37,6 +37,14 @@ export const registryDiffSchemaInput = z.object({
     .describe(
       'The ID of the last item in the previous page, it and all items after it will be included in the next page response if they did not change since the last page (if they did they will be moved to the newer timestamp). Guaranteed to include all items at least once, when paginating forward. (always use statusUpdatedAt of the last item + its cursorId to paginate forward) '
     ),
+  policyId: z
+    .string()
+    .min(1)
+    .max(250)
+    .optional()
+    .describe(
+      'The policy ID of the registry source to filter by. If not specified, queries all registry sources.'
+    ),
 });
 
 export const registryEntrySchemaOutput = z
@@ -134,18 +142,18 @@ export function serializeRegistryEntries(
       AgentPricing:
         entry.AgentPricing.pricingType == $Enums.PricingType.Free
           ? {
-              pricingType: $Enums.PricingType.Free,
-            }
+            pricingType: $Enums.PricingType.Free,
+          }
           : {
-              pricingType: entry.AgentPricing.pricingType,
-              FixedPricing: {
-                Amounts:
-                  entry.AgentPricing.FixedPricing?.Amounts?.map((amount) => ({
-                    amount: amount.amount.toString(),
-                    unit: amount.unit,
-                  })) ?? [],
-              },
+            pricingType: entry.AgentPricing.pricingType,
+            FixedPricing: {
+              Amounts:
+                entry.AgentPricing.FixedPricing?.Amounts?.map((amount) => ({
+                  amount: amount.amount.toString(),
+                  unit: amount.unit,
+                })) ?? [],
             },
+          },
       ExampleOutput: [],
     }));
 

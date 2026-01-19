@@ -1462,6 +1462,12 @@
                                         "minLength": 1,
                                         "maxLength": 75,
                                         "description": "The ID of the last item in the previous page, it and all items after it will be included in the next page response if they did not change since the last page (if they did they will be moved to the newer timestamp). Guaranteed to include all items at least once, when paginating forward. (always use statusUpdatedAt of the last item + its cursorId to paginate forward) "
+                                    },
+                                    "policyId": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 250,
+                                        "description": "The policy ID of the registry source to filter by. If not specified, queries all registry sources."
                                     }
                                 },
                                 "required": [
@@ -1472,7 +1478,8 @@
                                     "limit": 10,
                                     "cursorId": "last_paginated_item",
                                     "network": "Preprod",
-                                    "statusUpdatedAfter": "1970-01-01T00:00:00.000Z"
+                                    "statusUpdatedAfter": "1970-01-01T00:00:00.000Z",
+                                    "policyId": "7e8bdaf2b2b919a3a4b94002cafb50086c0c845fe535d07a77ab7f77"
                                 }
                             }
                         }
