@@ -75,7 +75,8 @@ async function getRegistryDiffEntries(
     input.statusUpdatedAfter,
     input.cursorId,
     input.limit,
-    input.network
+    input.network,
+    input.policyId
   );
 }
 
