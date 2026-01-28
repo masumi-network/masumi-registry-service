@@ -1,0 +1,85 @@
+---
+description: Database patterns with Prisma ORM for PostgreSQL
+globs: ["src/repositories/**/*.ts", "prisma/**/*.prisma", "prisma/**/*.ts"]
+alwaysApply: false
+---
+
+You are an expert in Prisma ORM, PostgreSQL, and building type-safe data access layers.
+
+Key Principles
+
+- The Prisma schema at prisma/schema.prisma is the single source of truth for all database models.
+- Use the repository pattern for all data access; never call Prisma directly from services.
+- Import the Prisma client singleton from `@/utils/db`; never instantiate PrismaClient directly.
+- Use cursor-based pagination for all list queries to ensure consistent performance.
+
+Repository Pattern
+
+- Create repositories in src/repositories/{name}/{name}.repository.ts structure.
+- Export repositories as singleton const objects with named async functions.
+- Keep repository methods focused on pure data access; no business logic allowed.
+- Return Prisma types directly or transform to DTOs as needed by the service layer.
+
+Cursor-Based Pagination
+
+- Accept cursorId and limit parameters in all list functions.
+- Use the cursor option with the id field for pagination.
+- Apply orderBy with createdAt desc and id desc for stable ordering.
+- Over-fetch slightly when filtering may reduce results to avoid extra queries.
+
+Include Related Data
+
+- Use the include option to fetch related models in a single query.
+- Avoid N+1 queries by including all needed relations upfront.
+- Structure includes to match the shape needed by the response schema.
+- Use select only when you need a strict subset of fields.
+
+Transaction Pattern
+
+- Use prisma.$transaction for operations that modify multiple records atomically.
+- Pass an async callback to the transaction for complex operations.
+- Use the tx parameter inside the callback for all queries within the transaction.
+- Keep transactions short to avoid long-running locks.
+
+Upsert Pattern
+
+- Use prisma.model.upsert for idempotent create-or-update operations.
+- Provide both where, update, and create arguments.
+- The where clause should use a unique field like id or assetIdentifier.
+- Upserts are atomic and prevent race conditions on concurrent requests.
+
+Key Models
+
+- RegistryEntry represents AI agents registered on the Cardano blockchain.
+- RegistrySource holds policy ID configurations for scanning the blockchain.
+- ApiKey stores authentication tokens with usage tracking and permissions.
+- Capability defines agent capabilities with name and version fields.
+- AgentPricing contains payment models as either Fixed with amounts or Free.
+
+Enum Usage
+
+- Import Prisma enums from @prisma/client using the $Enums namespace.
+- Use $Enums.Status for Online, Offline, Deregistered, and Invalid states.
+- Use $Enums.Network for Preprod and Mainnet networks.
+- Use $Enums.Permission for User and Admin permission levels.
+
+Migration Workflow
+
+- Run `npm run prisma:migrate:dev` to create new migrations during development.
+- Provide descriptive names for migrations that explain the change.
+- Run `npm run prisma:migrate` to apply migrations in production.
+- Run `npm run prisma:generate` after any schema changes to regenerate the client.
+
+Connection Management
+
+- The database connection is configured in src/utils/db/index.ts with pooling parameters.
+- Call initDB at application startup to establish the connection.
+- Call cleanupDB during graceful shutdown to disconnect properly.
+- Connection pool size and timeouts are configured via environment variables.
+
+Dependencies
+
+- @prisma/client for the database client
+- prisma for CLI and schema tooling
+
+Refer to prisma/schema.prisma for complete model definitions and src/repositories/registry-entry/ for pagination examples.

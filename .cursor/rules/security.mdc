@@ -1,0 +1,88 @@
+---
+description: Security guidelines for authentication and data protection
+globs: ["src/utils/middleware/**/*.ts", "src/utils/crypto/**/*.ts", "src/services/api-key/**/*.ts", "src/repositories/api-key/**/*.ts"]
+alwaysApply: true
+---
+
+You are an expert in API security, authentication, and secure coding practices for blockchain-integrated services.
+
+Key Principles
+
+- Never commit secrets, API keys, or credentials to version control.
+- Hash all tokens using SHA-256 before storing in the database.
+- Validate and sanitize all user inputs through Zod schemas.
+- Use environment variables for all sensitive configuration values.
+
+Authentication Flow
+
+- Clients send the API key in the token header on each request.
+- The auth middleware hashes the received token using SHA-256.
+- Database lookup uses the hash, not the plaintext token.
+- The middleware verifies the API key status is Active before proceeding.
+- Admin endpoints additionally check that permission equals Admin.
+- Authenticated user context is returned in the options parameter for endpoint use.
+
+Token Hashing
+
+- Always hash tokens using the hashToken function from `@/utils/crypto` before database operations.
+- Store the plaintext token in the token field for display purposes only.
+- Store the SHA-256 hash in the tokenHash field for authentication lookups.
+- Never log or expose plaintext tokens in error messages or responses.
+
+API Key Format
+
+- Generated keys follow the pattern masumi-registry-admin-{cuid} for admin keys.
+- Generated keys follow the pattern masumi-registry-user-{cuid} for user keys.
+- Use createId from @paralleldrive/cuid2 for generating the unique identifier portion.
+- The prefix allows easy identification of key type and origin.
+
+Permission Levels
+
+- User permission grants access to read registry and query endpoints.
+- Admin permission grants all User access plus API key management and registry source configuration.
+- Check permission level in the auth middleware before allowing admin operations.
+- Never expose admin functionality through unauthenticated endpoints.
+
+Input Validation
+
+- All inputs are validated through Zod schemas defined in route files.
+- Set maximum lengths on string inputs to prevent buffer overflow attacks.
+- Set minimum and maximum values on numeric inputs to prevent abuse.
+- Use z.nativeEnum for enum validation to ensure only valid values are accepted.
+
+Environment Variables
+
+- DATABASE_URL contains database credentials and must never be logged or exposed.
+- Admin_KEY is the bootstrap admin key and must be kept confidential.
+- Blockfrost_API_KEY provides blockchain access and has rate limits that must be protected.
+- Never commit .env files; only .env.example with placeholder values.
+
+Error Messages
+
+- Return generic error messages like "Invalid token" instead of specific details.
+- Never include token values, database IDs, or internal state in error responses.
+- Log detailed error information server-side for debugging purposes.
+- Use appropriate HTTP status codes: 401 for authentication, 403 for authorization.
+
+Health Check Security
+
+- Reject localhost and 127.0.0.1 URLs as invalid to prevent SSRF attacks.
+- Only allow http and https protocols in agent URLs.
+- Reject URLs containing query parameters to prevent injection.
+- Implement request timeouts of 7.5 seconds to prevent hanging connections.
+- Abort pending requests in finally blocks to free resources.
+
+Usage Tracking
+
+- Track accumulatedUsageCredits to monitor API usage per key.
+- Enforce maxUsageCredits limits when usageLimited is true.
+- Log usage patterns to detect potential abuse or anomalies.
+- Allow admins to adjust limits and revoke keys as needed.
+
+Dependencies
+
+- http-errors for secure error responses
+- crypto (Node.js built-in) for SHA-256 hashing
+- zod for input validation
+
+Refer to docs/security.md for comprehensive security guidelines and src/utils/middleware/auth-middleware/ for authentication implementation.

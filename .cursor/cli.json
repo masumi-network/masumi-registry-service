@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Shell(ls:*)",
+      "Shell(git:*)",
+      "Shell(npm:*)",
+      "Shell(npx:*)",
+      "Read(**/*.ts)",
+      "Read(**/*.md)",
+      "Read(**/*.json)",
+      "Read(**/*.mjs)",
+      "Read(**/*.prisma)",
+      "Write(src/**/*.ts)",
+      "Write(prisma/**/*.ts)",
+      "Write(prisma/**/*.prisma)"
+    ],
+    "deny": [
+      "Shell(rm -rf:*)",
+      "Shell(rm -r:*)",
+      "Read(.env)",
+      "Read(.env.*)",
+      "Write(.env)",
+      "Write(.env.*)",
+      "Write(dist/**/*)",
+      "Write(node_modules/**/*)"
+    ]
+  }
+}
