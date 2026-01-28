@@ -1,0 +1,9 @@
+{
+  "name": "Masumi Registry Service",
+  "description": "A Registry Lookup service for MASUMI AI Nodes on Cardano blockchain",
+  "install": "npm install",
+  "start": "npm run dev",
+  "test": "npm run test",
+  "lint": "npm run lint",
+  "build": "npm run build"
+}

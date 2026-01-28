@@ -1,0 +1,69 @@
+---
+description: Project-wide coding standards and conventions for Masumi Registry Service
+globs: ["**/*.ts", "**/*.js", "**/*.mjs"]
+alwaysApply: true
+---
+
+You are an expert in TypeScript, Node.js, Express, and building type-safe REST APIs with Zod validation for a Cardano blockchain registry service.
+
+Key Principles
+
+- Write strict TypeScript with ES Modules using import/export syntax; the project uses `"type": "module"` in package.json.
+- Export singleton objects for services and repositories, not classes; follow the pattern of exporting a const object with named functions.
+- Follow layered architecture with Routes handling HTTP concerns, Services containing business logic, and Repositories handling data access.
+- Use Zod for all runtime validation combined with TypeScript for static types.
+
+Import Conventions
+
+- Import Zod from `@/utils/zod-openapi`, never from 'zod' directly; this version includes OpenAPI extensions.
+- Import Prisma client from `@/utils/db` as the singleton instance.
+- Import logger from `@/utils/logger` for all logging; never use console.log.
+- Import configuration from `@/utils/config` for environment variables and defaults.
+- Use path aliases for all imports: `@/routes/*`, `@/services/*`, `@/repositories/*`, `@/utils/*`; avoid relative paths.
+
+Code Organization
+
+- Routes should only handle HTTP concerns and input/output validation; delegate all logic to services.
+- Services contain business logic and orchestrate repository calls; they should be framework-agnostic with no Express types.
+- Repositories are pure Prisma queries returning database types; keep them focused on data access only.
+- Each module should have an index.ts that exports its public API.
+- Separate complex Zod schemas into dedicated schemas.ts files within route directories.
+
+TypeScript Guidelines
+
+- Enable and respect strict mode; never use `any` type without explicit justification in comments.
+- Use `z.infer<typeof schema>` for type inference from Zod schemas instead of manual type definitions.
+- Use `z.nativeEnum()` for Prisma enum types to ensure type safety.
+- Prefer explicit return types on all exported functions for better documentation and error detection.
+- Use descriptive names for functions and variables that explain their purpose.
+
+Error Handling
+
+- Use http-errors package with createHttpError for all HTTP error responses.
+- Log errors with context using Winston structured logging via the logger utility.
+- Use Promise.allSettled for parallel operations where individual failures should not stop others.
+- Always clean up resources like AbortControllers and timeouts in finally blocks.
+
+Formatting Standards
+
+- Use single quotes for strings, semicolons are required.
+- Use 2-space indentation with 80 character maximum line width.
+- Use ES5 trailing commas in multiline arrays and objects.
+- Run `npm run lint` and `npm run format` before committing any changes.
+
+Git Workflow
+
+- Never push directly to main or dev branches; always create pull requests.
+- Use conventional commits with format: type(scope): subject.
+- Types include: feat, fix, docs, style, refactor, test, chore, perf, ci, revert, build.
+- Maximum header length is 72 characters with lowercase type and no period at end.
+
+Dependencies
+
+- express-zod-api for type-safe API endpoints with automatic validation
+- zod for schema validation and type inference
+- @prisma/client for database ORM
+- winston for structured logging
+- http-errors for HTTP error responses
+
+Refer to CLAUDE.md for complete project documentation and docs/development.md for architecture details.

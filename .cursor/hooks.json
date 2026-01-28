@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "hooks": {
+    "afterFileEdit": [
+      {
+        "command": "npm run lint",
+        "pattern": "src/**/*.ts"
+      },
+      {
+        "command": "npm run format",
+        "pattern": "src/**/*.ts"
+      },
+      {
+        "command": "npx prisma format",
+        "pattern": "prisma/**/*.prisma"
+      }
+    ]
+  }
+}

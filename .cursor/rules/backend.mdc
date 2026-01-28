@@ -1,0 +1,67 @@
+---
+description: Backend API development patterns with express-zod-api
+globs: ["src/routes/**/*.ts", "src/services/**/*.ts", "src/utils/endpoint-factory/**/*.ts"]
+alwaysApply: false
+---
+
+You are an expert in express-zod-api, building type-safe REST APIs with automatic OpenAPI documentation generation.
+
+Key Principles
+
+- Use endpoint factory pattern for all API endpoints; never create raw Express routes.
+- Define Zod schemas for all inputs and outputs; the framework handles validation automatically.
+- Access authenticated user context via the options parameter in handlers.
+- Keep handlers thin; delegate all business logic to service functions.
+
+Endpoint Factory Usage
+
+- Use authenticatedEndpointFactory from `@/utils/endpoint-factory/authenticated` for endpoints requiring a valid API key.
+- Use adminAuthenticatedEndpointFactory from `@/utils/endpoint-factory/admin-authenticated` for admin-only operations.
+- Use unauthenticatedEndpointFactory from `@/utils/endpoint-factory/unauthenticated` for public endpoints.
+- The authenticated factories provide user context in options including id, permissions, accumulatedUsageCredits, maxUsageCredits, and usageLimited.
+
+Route Registration
+
+- Register all routes in src/routes/api/index.ts using the Routing type from express-zod-api.
+- Use DependsOnMethod to define multiple HTTP methods on the same path.
+- Follow the v1 versioning pattern with routes nested under the v1 key.
+- Export individual endpoint handlers from route module index.ts files.
+
+Schema Guidelines
+
+- Import Zod from `@/utils/zod-openapi` to include OpenAPI extensions.
+- Add .openapi('SchemaName') to output schemas for automatic documentation generation.
+- Use z.nativeEnum() with Prisma enums imported from @prisma/client.
+- Use ez.dateIn() from express-zod-api for date input parsing.
+- Define validation constraints with min, max, and default values.
+- Use coerce option for numeric inputs that may arrive as strings.
+
+Pagination Pattern
+
+- Use cursor-based pagination with cursorId parameter for all list endpoints.
+- Accept limit parameter with sensible min, max, and default values.
+- Return the last item's ID for clients to use as the next cursorId.
+- Order results consistently using createdAt desc with id desc as secondary sort.
+
+Service Layer Pattern
+
+- Create services in src/services/{name}/{name}.service.ts structure.
+- Export services as singleton const objects with named async functions.
+- Services should be framework-agnostic with no Express or HTTP types.
+- Services orchestrate repository calls and contain business logic.
+
+Error Handling
+
+- Use createHttpError from http-errors package for all HTTP errors.
+- Use 400 for validation errors, 401 for authentication, 403 for authorization, 404 for not found.
+- Return generic error messages; avoid leaking internal details to clients.
+- Log errors with context before throwing for debugging purposes.
+
+Dependencies
+
+- express-zod-api for API framework with automatic validation
+- zod for schema definitions and type inference
+- http-errors for HTTP error responses
+- winston via @/utils/logger for logging
+
+Refer to src/routes/api/registry-entry/ for a complete endpoint example and src/routes/api/api-key/ for admin endpoint patterns.
