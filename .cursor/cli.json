@@ -6,8 +6,6 @@
       "Shell(git:*)",
       "Shell(npm:*)",
       "Shell(npx:*)",
-      "Shell(npx prisma:*)",
-      "Shell(npx tsx:*)",
       "Read(**/*.ts)",
       "Read(**/*.md)",
       "Read(**/*.json)",
