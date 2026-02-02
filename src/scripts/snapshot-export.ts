@@ -74,6 +74,10 @@ Examples:
         0
       );
       console.log(`  Total entries exported: ${totalEntries}`);
+
+      if (failed.length > 0) {
+        process.exit(1);
+      }
     }
   } catch (error) {
     console.error('Export failed:', error);
