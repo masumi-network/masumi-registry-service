@@ -117,6 +117,7 @@ Examples:
         for (const f of failed) {
           console.log(`    - ${f.reason}`);
         }
+        process.exit(1);
       }
     }
   } catch (error) {
