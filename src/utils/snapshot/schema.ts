@@ -9,7 +9,7 @@ export const snapshotAmountSchema = z.object({
 });
 
 export const snapshotFixedPricingSchema = z.object({
-  amounts: z.array(snapshotAmountSchema).min(1).max(25),
+  amounts: z.array(snapshotAmountSchema).max(25),
 });
 
 export const snapshotAgentPricingSchema = z.discriminatedUnion('pricingType', [
