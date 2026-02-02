@@ -37,19 +37,19 @@ export async function importSnapshotForSource(
     );
   }
 
-  const existingCount = await prisma.registryEntry.count({
-    where: { registrySourceId: source.id },
-  });
-
-  if (existingCount > 0) {
-    return {
-      success: false,
-      skipped: true,
-      reason: `Source already has ${existingCount} entries. Import only allowed on empty sources.`,
-    };
-  }
-
   if (options.dryRun) {
+    const existingCount = await prisma.registryEntry.count({
+      where: { registrySourceId: source.id },
+    });
+
+    if (existingCount > 0) {
+      return {
+        success: false,
+        skipped: true,
+        reason: `Source already has ${existingCount} entries. Import only allowed on empty sources.`,
+      };
+    }
+
     return {
       success: true,
       dryRun: true,
@@ -57,8 +57,20 @@ export async function importSnapshotForSource(
     };
   }
 
-  await prisma.$transaction(
+  const result = await prisma.$transaction(
     async (tx) => {
+      const existingCount = await tx.registryEntry.count({
+        where: { registrySourceId: source.id },
+      });
+
+      if (existingCount > 0) {
+        return {
+          success: false,
+          skipped: true,
+          reason: `Source already has ${existingCount} entries. Import only allowed on empty sources.`,
+        } as ImportResult;
+      }
+
       for (const entry of snapshot.entries) {
         const capabilityConnect = entry.capability
           ? {
@@ -139,6 +151,15 @@ export async function importSnapshotForSource(
           lastCheckedPage: snapshot.lastCheckedPage,
         },
       });
+
+      return {
+        success: true,
+        imported: snapshot.entries.length,
+        syncProgress: {
+          lastTxId: snapshot.lastTxId,
+          lastCheckedPage: snapshot.lastCheckedPage,
+        },
+      } as ImportResult;
     },
     {
       maxWait: 30000,
@@ -147,14 +168,7 @@ export async function importSnapshotForSource(
     }
   );
 
-  return {
-    success: true,
-    imported: snapshot.entries.length,
-    syncProgress: {
-      lastTxId: snapshot.lastTxId,
-      lastCheckedPage: snapshot.lastCheckedPage,
-    },
-  };
+  return result;
 }
 
 export async function importSnapshotsForConfiguredSources(
