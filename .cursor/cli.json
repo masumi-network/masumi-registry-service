@@ -2,25 +2,35 @@
   "permissions": {
     "allow": [
       "Shell(ls:*)",
+      "Shell(cat:*)",
       "Shell(git:*)",
       "Shell(npm:*)",
       "Shell(npx:*)",
+      "Shell(npx prisma:*)",
+      "Shell(npx tsx:*)",
       "Read(**/*.ts)",
       "Read(**/*.md)",
       "Read(**/*.json)",
       "Read(**/*.mjs)",
+      "Read(**/*.mdc)",
       "Read(**/*.prisma)",
       "Write(src/**/*.ts)",
       "Write(prisma/**/*.ts)",
-      "Write(prisma/**/*.prisma)"
+      "Write(prisma/**/*.prisma)",
+      "Write(package.json)"
     ],
     "deny": [
       "Shell(rm -rf:*)",
       "Shell(rm -r:*)",
-      "Read(.env)",
-      "Read(.env.*)",
-      "Write(.env)",
-      "Write(.env.*)",
+      "Shell(cat:**/*.env*)",
+      "Shell(cat:**/.env*)",
+      "Shell(cat:**/*.key)",
+      "Shell(cat:**/*.mnemonic)",
+      "Shell(cat:**/*.sk)",
+      "Read(**/.env*)",
+      "Write(**/.env*)",
+      "Write(**/*.key)",
+      "Write(**/*.mnemonic)",
       "Write(dist/**/*)",
       "Write(node_modules/**/*)"
     ]

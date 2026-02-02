@@ -1,6 +1,6 @@
 ---
 description: Security guidelines for authentication and data protection
-globs: ["src/utils/middleware/**/*.ts", "src/utils/crypto/**/*.ts", "src/services/api-key/**/*.ts", "src/repositories/api-key/**/*.ts"]
+globs: ["**/*.ts", "**/*.tsx"]
 alwaysApply: true
 ---
 
