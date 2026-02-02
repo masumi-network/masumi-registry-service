@@ -5,6 +5,10 @@ describe('metadataStringConvert', () => {
     expect(metadataStringConvert(undefined)).toBeNull();
   });
 
+  it('should return null when input is null', () => {
+    expect(metadataStringConvert(null)).toBeNull();
+  });
+
   it('should return the same string when input is a non-empty string', () => {
     const input = 'test string';
     expect(metadataStringConvert(input)).toBe(input);
