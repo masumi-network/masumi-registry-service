@@ -16,6 +16,27 @@ function bigIntReplacer(_key: string, value: unknown): unknown {
   return value;
 }
 
+async function writeSnapshotFiles(
+  snapshot: Snapshot,
+  network: string,
+  policyId: string,
+  outputDir: string
+): Promise<{ timestampedPath: string; latestPath: string }> {
+  const json = JSON.stringify(snapshot, bigIntReplacer, 2);
+
+  // Write timestamped file for archival
+  const dateStr = new Date().toISOString().split('T')[0];
+  const timestampedFilename = `${network.toLowerCase()}_${policyId}_${dateStr}.json`;
+  const timestampedPath = path.join(outputDir, timestampedFilename);
+  await fs.writeFile(timestampedPath, json, 'utf-8');
+
+  const latestFilename = `${network.toLowerCase()}_${policyId}.json`;
+  const latestPath = path.join(outputDir, latestFilename);
+  await fs.writeFile(latestPath, json, 'utf-8');
+
+  return { timestampedPath, latestPath };
+}
+
 function mapEntryToSnapshot(
   entry: Awaited<ReturnType<typeof prisma.registryEntry.findMany>>[number] & {
     Capability: {
@@ -141,17 +162,12 @@ export async function exportAllSnapshots(
 
       const snapshot = await exportSnapshotForSource(source.id);
 
-      const json = JSON.stringify(snapshot, bigIntReplacer, 2);
-
-      // Write timestamped file for archival
-      const dateStr = new Date().toISOString().split('T')[0];
-      const timestampedFilename = `${source.network.toLowerCase()}_${source.policyId}_${dateStr}.json`;
-      const timestampedPath = path.join(outputDir, timestampedFilename);
-      await fs.writeFile(timestampedPath, json, 'utf-8');
-
-      const latestFilename = `${source.network.toLowerCase()}_${source.policyId}.json`;
-      const latestPath = path.join(outputDir, latestFilename);
-      await fs.writeFile(latestPath, json, 'utf-8');
+      const { timestampedPath, latestPath } = await writeSnapshotFiles(
+        snapshot,
+        source.network,
+        source.policyId,
+        outputDir
+      );
 
       logger.info(
         `Exported ${snapshot.entryCount} entries to ${timestampedPath} and ${latestPath}`
@@ -196,17 +212,12 @@ export async function exportSnapshotByPolicyId(
   try {
     const snapshot = await exportSnapshotForSource(source.id);
 
-    const json = JSON.stringify(snapshot, bigIntReplacer, 2);
-
-    // Write timestamped file for archival
-    const dateStr = new Date().toISOString().split('T')[0];
-    const timestampedFilename = `${source.network.toLowerCase()}_${policyId}_${dateStr}.json`;
-    const timestampedPath = path.join(outputDir, timestampedFilename);
-    await fs.writeFile(timestampedPath, json, 'utf-8');
-
-    const latestFilename = `${source.network.toLowerCase()}_${policyId}.json`;
-    const latestPath = path.join(outputDir, latestFilename);
-    await fs.writeFile(latestPath, json, 'utf-8');
+    const { timestampedPath, latestPath } = await writeSnapshotFiles(
+      snapshot,
+      source.network,
+      policyId,
+      outputDir
+    );
 
     logger.info(
       `Exported ${snapshot.entryCount} entries to ${timestampedPath} and ${latestPath}`
