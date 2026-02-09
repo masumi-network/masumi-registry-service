@@ -1,6 +1,6 @@
 import { Network, PaymentType, PricingType, Status } from '@prisma/client';
 
-export interface SnapshotMetadata {
+interface SnapshotMetadata {
   version: '1.0.0';
   exportedAt: string;
   network: Network;
@@ -21,7 +21,7 @@ export interface SnapshotAmount {
   unit: string;
 }
 
-export interface SnapshotFixedPricing {
+interface SnapshotFixedPricing {
   amounts: SnapshotAmount[];
 }
 
