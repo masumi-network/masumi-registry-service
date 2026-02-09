@@ -41,7 +41,7 @@ export const snapshotEntrySchema = z.object({
   apiBaseUrl: z.string().min(1),
   description: z.string().nullable(),
   image: z.string().min(1),
-  tags: z.array(z.string().min(1)).min(1),
+  tags: z.array(z.string().min(1)),
   authorName: z.string().nullable(),
   authorContactEmail: z.string().nullable(),
   authorContactOther: z.string().nullable(),
