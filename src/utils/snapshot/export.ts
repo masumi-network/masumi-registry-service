@@ -143,17 +143,25 @@ export async function exportAllSnapshots(
 
       const snapshot = await exportSnapshotForSource(source.id);
 
-      const filename = `${source.network.toLowerCase()}_${source.policyId}.json`;
-      const filePath = path.join(outputDir, filename);
-
       const json = JSON.stringify(snapshot, bigIntReplacer, 2);
-      await fs.writeFile(filePath, json, 'utf-8');
 
-      logger.info(`Exported ${snapshot.entryCount} entries to ${filePath}`);
+      // Write timestamped file for archival
+      const dateStr = new Date().toISOString().split('T')[0];
+      const timestampedFilename = `${source.network.toLowerCase()}_${source.policyId}_${dateStr}.json`;
+      const timestampedPath = path.join(outputDir, timestampedFilename);
+      await fs.writeFile(timestampedPath, json, 'utf-8');
+
+      const latestFilename = `${source.network.toLowerCase()}_${source.policyId}.json`;
+      const latestPath = path.join(outputDir, latestFilename);
+      await fs.writeFile(latestPath, json, 'utf-8');
+
+      logger.info(
+        `Exported ${snapshot.entryCount} entries to ${timestampedPath} and ${latestPath}`
+      );
 
       results.push({
         success: true,
-        filePath,
+        filePath: latestPath,
         entryCount: snapshot.entryCount,
       });
     } catch (error) {
@@ -190,17 +198,25 @@ export async function exportSnapshotByPolicyId(
   try {
     const snapshot = await exportSnapshotForSource(source.id);
 
-    const filename = `${source.network.toLowerCase()}_${policyId}.json`;
-    const filePath = path.join(outputDir, filename);
-
     const json = JSON.stringify(snapshot, bigIntReplacer, 2);
-    await fs.writeFile(filePath, json, 'utf-8');
 
-    logger.info(`Exported ${snapshot.entryCount} entries to ${filePath}`);
+    // Write timestamped file for archival
+    const dateStr = new Date().toISOString().split('T')[0];
+    const timestampedFilename = `${source.network.toLowerCase()}_${policyId}_${dateStr}.json`;
+    const timestampedPath = path.join(outputDir, timestampedFilename);
+    await fs.writeFile(timestampedPath, json, 'utf-8');
+
+    const latestFilename = `${source.network.toLowerCase()}_${policyId}.json`;
+    const latestPath = path.join(outputDir, latestFilename);
+    await fs.writeFile(latestPath, json, 'utf-8');
+
+    logger.info(
+      `Exported ${snapshot.entryCount} entries to ${timestampedPath} and ${latestPath}`
+    );
 
     return {
       success: true,
-      filePath,
+      filePath: latestPath,
       entryCount: snapshot.entryCount,
     };
   } catch (error) {
