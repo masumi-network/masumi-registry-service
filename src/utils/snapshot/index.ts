@@ -8,10 +8,6 @@ export {
 export type {
   Snapshot,
   SnapshotEntry,
-  SnapshotCapability,
-  SnapshotAgentPricing,
-  SnapshotExampleOutput,
-  SnapshotAmount,
   ImportResult,
   ExportResult,
 } from './types';

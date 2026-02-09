@@ -61,7 +61,7 @@ const snapshotEntrySchema = z.object({
   exampleOutputs: z.array(snapshotExampleOutputSchema),
 });
 
-export const snapshotSchema = z
+const snapshotSchema = z
   .object({
     version: z.literal('1.0.0'),
     exportedAt: z.string().datetime(),
@@ -77,8 +77,7 @@ export const snapshotSchema = z
     path: ['entryCount'],
   });
 
-export type ValidatedSnapshot = z.infer<typeof snapshotSchema>;
-export type ValidatedSnapshotEntry = z.infer<typeof snapshotEntrySchema>;
+type ValidatedSnapshot = z.infer<typeof snapshotSchema>;
 
 export function validateSnapshot(data: unknown): {
   success: boolean;
