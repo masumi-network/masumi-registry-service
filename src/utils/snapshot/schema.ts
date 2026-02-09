@@ -1,18 +1,18 @@
 import { z } from '@/utils/zod-openapi';
 import { Network, PaymentType, PricingType, Status } from '@prisma/client';
 
-export const snapshotAmountSchema = z.object({
+const snapshotAmountSchema = z.object({
   amount: z
     .string()
     .regex(/^\d+$/, 'Amount must be a numeric string (BigInt format)'),
   unit: z.string(),
 });
 
-export const snapshotFixedPricingSchema = z.object({
+const snapshotFixedPricingSchema = z.object({
   amounts: z.array(snapshotAmountSchema).max(25),
 });
 
-export const snapshotAgentPricingSchema = z.discriminatedUnion('pricingType', [
+const snapshotAgentPricingSchema = z.discriminatedUnion('pricingType', [
   z.object({
     pricingType: z.literal(PricingType.Free),
     fixedPricing: z.null(),
@@ -23,19 +23,19 @@ export const snapshotAgentPricingSchema = z.discriminatedUnion('pricingType', [
   }),
 ]);
 
-export const snapshotCapabilitySchema = z.object({
+const snapshotCapabilitySchema = z.object({
   name: z.string().min(1),
   version: z.string().min(1),
   description: z.string().nullable(),
 });
 
-export const snapshotExampleOutputSchema = z.object({
+const snapshotExampleOutputSchema = z.object({
   name: z.string().min(1),
   mimeType: z.string().min(1),
   url: z.string().min(1),
 });
 
-export const snapshotEntrySchema = z.object({
+const snapshotEntrySchema = z.object({
   assetIdentifier: z.string().min(1),
   name: z.string().min(1),
   apiBaseUrl: z.string().min(1),
