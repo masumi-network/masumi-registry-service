@@ -1,8 +1,4 @@
-export {
-  exportSnapshotForSource,
-  exportAllSnapshots,
-  exportSnapshotByPolicyId,
-} from './export';
+export { exportAllSnapshots, exportSnapshotByPolicyId } from './export';
 
 export {
   importSnapshotsForConfiguredSources,
