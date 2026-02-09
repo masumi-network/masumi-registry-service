@@ -5,8 +5,6 @@ export {
   importSnapshotFile,
 } from './import';
 
-export { validateSnapshot } from './schema';
-
 export type {
   Snapshot,
   SnapshotEntry,
