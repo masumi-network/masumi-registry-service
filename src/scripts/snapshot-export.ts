@@ -4,6 +4,7 @@ dotenv.config();
 import { parseArgs } from 'util';
 import { exportAllSnapshots, exportSnapshotByPolicyId } from '@/utils/snapshot';
 import { prisma } from '@/utils/db';
+import { logger } from '@/utils/logger';
 
 async function main() {
   const { values } = parseArgs({
@@ -16,7 +17,7 @@ async function main() {
   });
 
   if (values.help) {
-    console.log(`
+    logger.info(`
 Registry Snapshot Export
 
 Usage:
@@ -38,20 +39,20 @@ Examples:
   const outputDir = values['output-dir'] ?? './snapshots';
   const policyId = values['policy-id'];
 
-  console.log('Starting snapshot export...');
-  console.log(`Output directory: ${outputDir}`);
+  logger.info('Starting snapshot export...');
+  logger.info(`Output directory: ${outputDir}`);
 
   try {
     if (policyId) {
-      console.log(`Exporting policy ID: ${policyId}`);
+      logger.info(`Exporting policy ID: ${policyId}`);
       const result = await exportSnapshotByPolicyId(policyId, outputDir);
 
       if (result.success) {
-        console.log(
+        logger.info(
           `✓ Exported ${result.entryCount} entries to ${result.filePath}`
         );
       } else {
-        console.error(`✗ Export failed: ${result.error}`);
+        logger.error(`✗ Export failed: ${result.error}`);
         process.exit(1);
       }
     } else {
@@ -60,12 +61,12 @@ Examples:
       const successful = results.filter((r) => r.success);
       const failed = results.filter((r) => !r.success);
 
-      console.log(`\nExport complete:`);
-      console.log(`  ✓ ${successful.length} successful`);
+      logger.info(`\nExport complete:`);
+      logger.info(`  ✓ ${successful.length} successful`);
       if (failed.length > 0) {
-        console.log(`  ✗ ${failed.length} failed`);
+        logger.info(`  ✗ ${failed.length} failed`);
         for (const f of failed) {
-          console.log(`    - ${f.error}`);
+          logger.info(`    - ${f.error}`);
         }
       }
 
@@ -73,14 +74,14 @@ Examples:
         (sum, r) => sum + (r.entryCount ?? 0),
         0
       );
-      console.log(`  Total entries exported: ${totalEntries}`);
+      logger.info(`  Total entries exported: ${totalEntries}`);
 
       if (failed.length > 0) {
         process.exit(1);
       }
     }
   } catch (error) {
-    console.error('Export failed:', error);
+    logger.error('Export failed:', error);
     process.exit(1);
   } finally {
     await prisma.$disconnect();

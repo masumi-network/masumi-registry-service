@@ -84,9 +84,7 @@ function mapEntryToSnapshot(
   };
 }
 
-export async function exportSnapshotForSource(
-  sourceId: string
-): Promise<Snapshot> {
+async function exportSnapshotForSource(sourceId: string): Promise<Snapshot> {
   const source = await prisma.registrySource.findUniqueOrThrow({
     where: { id: sourceId },
   });
