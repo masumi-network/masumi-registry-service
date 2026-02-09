@@ -6,7 +6,7 @@ import { logger } from '@/utils/logger';
 import { validateSnapshot } from './schema';
 import type { Snapshot, ImportResult } from './types';
 
-export async function importSnapshotForSource(
+async function importSnapshotForSource(
   sourceId: string,
   snapshot: Snapshot,
   options: { dryRun?: boolean } = {}

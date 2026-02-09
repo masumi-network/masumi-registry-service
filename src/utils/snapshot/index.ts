@@ -5,7 +5,6 @@ export {
 } from './export';
 
 export {
-  importSnapshotForSource,
   importSnapshotsForConfiguredSources,
   importSnapshotFile,
 } from './import';
