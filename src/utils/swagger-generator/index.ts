@@ -61,6 +61,8 @@ export function generateOpenAPI() {
         {
           id: 'unique_cuid_v2',
           name: 'Example API',
+          createdAt: new Date(0),
+          updatedAt: new Date(120000),
           description: 'Example API description',
           status: Status.Online,
           statusUpdatedAt: new Date(120000),
@@ -104,6 +106,7 @@ export function generateOpenAPI() {
               url: 'https://example.com/image.png',
             },
           ],
+          metadataVersion: 1,
         },
       ],
     },

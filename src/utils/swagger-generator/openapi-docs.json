@@ -278,6 +278,9 @@
                     "name": {
                         "type": "string"
                     },
+                    "createdAt": {
+                        "type": "string"
+                    },
                     "description": {
                         "type": "string",
                         "nullable": true
@@ -481,11 +484,18 @@
                                 "url"
                             ]
                         }
+                    },
+                    "metadataVersion": {
+                        "type": "integer"
+                    },
+                    "updatedAt": {
+                        "type": "string"
                     }
                 },
                 "required": [
                     "id",
                     "name",
+                    "createdAt",
                     "description",
                     "status",
                     "statusUpdatedAt",
@@ -507,7 +517,9 @@
                     "RegistrySource",
                     "Capability",
                     "AgentPricing",
-                    "ExampleOutput"
+                    "ExampleOutput",
+                    "metadataVersion",
+                    "updatedAt"
                 ]
             },
             "RegistrySource": {
