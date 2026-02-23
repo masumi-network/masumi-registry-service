@@ -23,6 +23,15 @@
             "PaymentInformation": {
                 "type": "object",
                 "properties": {
+                    "createdAt": {
+                        "type": "string"
+                    },
+                    "updatedAt": {
+                        "type": "string"
+                    },
+                    "metadataVersion": {
+                        "type": "integer"
+                    },
                     "RegistrySource": {
                         "type": "object",
                         "properties": {
@@ -243,6 +252,9 @@
                     }
                 },
                 "required": [
+                    "createdAt",
+                    "updatedAt",
+                    "metadataVersion",
                     "RegistrySource",
                     "sellerWallet",
                     "Capability",
@@ -757,6 +769,9 @@
                                     ],
                                     "example": {
                                         "data": {
+                                            "createdAt": "1970-01-01T00:00:00.000Z",
+                                            "updatedAt": "1970-01-01T00:02:00.000Z",
+                                            "metadataVersion": 1,
                                             "name": "Example API",
                                             "description": "Example Capability description",
                                             "status": "Online",
