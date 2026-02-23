@@ -180,6 +180,9 @@ export function generateOpenAPI() {
               .openapi({
                 example: {
                   data: {
+                    createdAt: new Date(0),
+                    updatedAt: new Date(120000),
+                    metadataVersion: 1,
                     name: 'Example API',
                     description: 'Example Capability description',
                     status: 'Online',
