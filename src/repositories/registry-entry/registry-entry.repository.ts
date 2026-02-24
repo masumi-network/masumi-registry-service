@@ -42,6 +42,7 @@ async function getRegistryEntry(
       AgentPricing: {
         include: { FixedPricing: { include: { Amounts: true } } },
       },
+      ExampleOutput: true,
     },
     orderBy: [
       {
@@ -97,6 +98,7 @@ async function getRegistryDiffEntries(
       AgentPricing: {
         include: { FixedPricing: { include: { Amounts: true } } },
       },
+      ExampleOutput: true,
     },
     orderBy: [
       {

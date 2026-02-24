@@ -23,6 +23,15 @@
             "PaymentInformation": {
                 "type": "object",
                 "properties": {
+                    "createdAt": {
+                        "type": "string"
+                    },
+                    "updatedAt": {
+                        "type": "string"
+                    },
+                    "metadataVersion": {
+                        "type": "integer"
+                    },
                     "RegistrySource": {
                         "type": "object",
                         "properties": {
@@ -243,6 +252,9 @@
                     }
                 },
                 "required": [
+                    "createdAt",
+                    "updatedAt",
+                    "metadataVersion",
                     "RegistrySource",
                     "sellerWallet",
                     "Capability",
@@ -276,6 +288,9 @@
                         "type": "string"
                     },
                     "name": {
+                        "type": "string"
+                    },
+                    "createdAt": {
                         "type": "string"
                     },
                     "description": {
@@ -481,11 +496,18 @@
                                 "url"
                             ]
                         }
+                    },
+                    "metadataVersion": {
+                        "type": "integer"
+                    },
+                    "updatedAt": {
+                        "type": "string"
                     }
                 },
                 "required": [
                     "id",
                     "name",
+                    "createdAt",
                     "description",
                     "status",
                     "statusUpdatedAt",
@@ -507,7 +529,9 @@
                     "RegistrySource",
                     "Capability",
                     "AgentPricing",
-                    "ExampleOutput"
+                    "ExampleOutput",
+                    "metadataVersion",
+                    "updatedAt"
                 ]
             },
             "RegistrySource": {
@@ -745,6 +769,9 @@
                                     ],
                                     "example": {
                                         "data": {
+                                            "createdAt": "1970-01-01T00:00:00.000Z",
+                                            "updatedAt": "1970-01-01T00:02:00.000Z",
+                                            "metadataVersion": 1,
                                             "name": "Example API",
                                             "description": "Example Capability description",
                                             "status": "Online",
@@ -1004,6 +1031,8 @@
                                                 {
                                                     "id": "unique_cuid_v2",
                                                     "name": "Example API",
+                                                    "createdAt": "1970-01-01T00:00:00.000Z",
+                                                    "updatedAt": "1970-01-01T00:02:00.000Z",
                                                     "description": "Example API description",
                                                     "status": "Online",
                                                     "statusUpdatedAt": "1970-01-01T00:02:00.000Z",
@@ -1049,7 +1078,8 @@
                                                             "mimeType": "image/png",
                                                             "url": "https://example.com/image.png"
                                                         }
-                                                    ]
+                                                    ],
+                                                    "metadataVersion": 1
                                                 }
                                             ]
                                         },
@@ -1521,6 +1551,8 @@
                                                 {
                                                     "id": "unique_cuid_v2",
                                                     "name": "Example API",
+                                                    "createdAt": "1970-01-01T00:00:00.000Z",
+                                                    "updatedAt": "1970-01-01T00:02:00.000Z",
                                                     "description": "Example API description",
                                                     "status": "Online",
                                                     "statusUpdatedAt": "1970-01-01T00:02:00.000Z",
@@ -1566,7 +1598,8 @@
                                                             "mimeType": "image/png",
                                                             "url": "https://example.com/image.png"
                                                         }
-                                                    ]
+                                                    ],
+                                                    "metadataVersion": 1
                                                 }
                                             ]
                                         },

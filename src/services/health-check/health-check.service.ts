@@ -147,6 +147,7 @@ async function checkVerifyAndUpdateRegistryEntries({
         Amounts: { amount: bigint; unit: string }[];
       } | null;
     };
+    ExampleOutput: { name: string; mimeType: string; url: string }[];
   })[];
   minHealthCheckDate: Date | undefined;
 }) {
@@ -266,6 +267,7 @@ async function checkVerifyAndUpdateRegistryEntries({
             },
             Capability: true,
             RegistrySource: true,
+            ExampleOutput: true,
           },
           data: {
             status: s.status,

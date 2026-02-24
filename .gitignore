@@ -14,3 +14,6 @@ src/utils/.DS_Store
 src/services/.DS_Store
 .DS_Store
 
+# Cursor AI
+.cursor/snapshots
+.cursor/logs

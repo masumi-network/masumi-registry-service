@@ -153,6 +153,7 @@ export async function updateHealthCheck(onlyEntriesAfter?: Date | undefined) {
                 },
               },
             },
+            ExampleOutput: true,
           },
         });
         logger.info(
@@ -183,6 +184,7 @@ export async function updateHealthCheck(onlyEntriesAfter?: Date | undefined) {
                 },
               },
             },
+            ExampleOutput: true,
           },
         });
         logger.info(
