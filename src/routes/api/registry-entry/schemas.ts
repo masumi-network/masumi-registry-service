@@ -51,6 +51,7 @@ export const registryEntrySchemaOutput = z
   .object({
     id: z.string(),
     name: z.string(),
+    createdAt: z.date(),
     description: z.string().nullable(),
     status: z.nativeEnum($Enums.Status),
     statusUpdatedAt: z.date(),
@@ -105,6 +106,8 @@ export const registryEntrySchemaOutput = z
         url: z.string(),
       })
     ),
+    metadataVersion: z.number().int(),
+    updatedAt: z.date(),
   })
   .openapi('RegistryEntry');
 
@@ -113,16 +116,47 @@ export const queryRegistrySchemaOutput = z.object({
 });
 
 export type RegistryEntrySerializable = {
+  id: string;
+  name: string;
+  createdAt: Date | string;
+  updatedAt: Date | string;
+  description: string | null;
+  status: $Enums.Status;
+  statusUpdatedAt: Date | string;
+  lastUptimeCheck: Date | string;
+  uptimeCount: number;
+  uptimeCheckCount: number;
+  apiBaseUrl: string;
+  authorName: string | null;
+  authorOrganization: string | null;
+  authorContactEmail: string | null;
+  authorContactOther: string | null;
+  image: string | null;
+  privacyPolicy: string | null;
+  termsAndCondition: string | null;
+  otherLegal: string | null;
+  tags: string[] | null;
   assetIdentifier: string;
-  lastUptimeCheck?: Date | string;
+  paymentType: $Enums.PaymentType;
+  metadataVersion: number;
+  RegistrySource: {
+    id: string;
+    type: $Enums.RegistryEntryType;
+    policyId: string | null;
+    url: string | null;
+  };
+  Capability: {
+    name: string | null;
+    version: string | null;
+  } | null;
   AgentPricing: {
     pricingType: $Enums.PricingType;
     FixedPricing?: {
       Amounts?: { amount: bigint | number | string; unit: string }[] | null;
     } | null;
   };
-  ExampleOutput?: unknown[];
-} & Record<string, unknown>;
+  ExampleOutput: { name: string; mimeType: string; url: string }[];
+};
 
 export function serializeRegistryEntries(
   entries: RegistryEntrySerializable[],
@@ -142,19 +176,24 @@ export function serializeRegistryEntries(
       AgentPricing:
         entry.AgentPricing.pricingType == $Enums.PricingType.Free
           ? {
-            pricingType: $Enums.PricingType.Free,
-          }
+              pricingType: $Enums.PricingType.Free,
+            }
           : {
-            pricingType: entry.AgentPricing.pricingType,
-            FixedPricing: {
-              Amounts:
-                entry.AgentPricing.FixedPricing?.Amounts?.map((amount) => ({
-                  amount: amount.amount.toString(),
-                  unit: amount.unit,
-                })) ?? [],
+              pricingType: entry.AgentPricing.pricingType,
+              FixedPricing: {
+                Amounts:
+                  entry.AgentPricing.FixedPricing?.Amounts?.map((amount) => ({
+                    amount: amount.amount.toString(),
+                    unit: amount.unit,
+                  })) ?? [],
+              },
             },
-          },
-      ExampleOutput: [],
+      ExampleOutput: (entry.ExampleOutput ?? []).map((output) => ({
+        name: output.name,
+        mimeType: output.mimeType,
+        url: output.url,
+      })),
+      metadataVersion: entry.metadataVersion,
     }));
 
   return serialized as unknown as z.infer<
