@@ -234,7 +234,7 @@ async function checkVerifyAndUpdateRegistryEntries({
       const registrySource = entry.RegistrySource;
       if (registrySource == null || registrySource.policyId == null) {
         logger.error('registrySource is null', entry);
-        return entry;
+        throw new Error('registrySource or policyId is null');
       }
 
       // Use the compound key so A2A and MIP-001 entries are never cross-matched
@@ -296,7 +296,7 @@ async function checkVerifyAndUpdateRegistryEntries({
 
   await prisma.registryEntry.updateMany({
     where: { id: { in: failedIds } },
-    data: { lastUptimeCheck: new Date(), status: $Enums.Status.Offline },
+    data: { status: $Enums.Status.Invalid },
   });
 
   const updatedEntries = [];

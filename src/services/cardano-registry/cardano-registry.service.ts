@@ -344,10 +344,10 @@ export async function processMip002Entry(
 
   const capabilitiesData = agentCard
     ? {
-        streaming: agentCard.capabilities.streaming ?? null,
-        pushNotifications: agentCard.capabilities.pushNotifications ?? null,
+        streaming: agentCard.capabilities?.streaming ?? null,
+        pushNotifications: agentCard.capabilities?.pushNotifications ?? null,
         // Prisma requires Prisma.JsonNull (not JS null) for nullable JSONB fields
-        extensions: agentCard.capabilities.extensions ?? Prisma.JsonNull,
+        extensions: agentCard.capabilities?.extensions ?? Prisma.JsonNull,
       }
     : null;
 
