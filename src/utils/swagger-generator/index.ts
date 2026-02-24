@@ -124,6 +124,8 @@ export function generateOpenAPI() {
           // MIP-002 (A2A) entry example
           id: 'unique_cuid_v2_a2a',
           name: 'Example A2A Agent',
+          createdAt: new Date(0),
+          updatedAt: new Date(120000),
           description: 'An A2A protocol agent',
           status: Status.Online,
           statusUpdatedAt: new Date(120000),
