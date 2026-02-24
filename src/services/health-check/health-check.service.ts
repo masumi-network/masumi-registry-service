@@ -282,7 +282,7 @@ async function checkVerifyAndUpdateRegistryEntries({
 
   await prisma.registryEntry.updateMany({
     where: { id: { in: failedIds } },
-    data: { status: $Enums.Status.Invalid },
+    data: { status: $Enums.Status.Invalid, lastUptimeCheck: new Date() },
   });
 
   const updatedEntries = [];

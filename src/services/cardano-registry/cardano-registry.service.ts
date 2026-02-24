@@ -524,11 +524,11 @@ export async function updateHealthCheck(onlyEntriesAfter?: Date | undefined) {
         );
         const excludedEntries = invalidEntries.filter(
           (e) =>
-            filteredOutInvalidStaggeredEntries.find((e2) => e2.id === e.id) !=
+            filteredOutInvalidStaggeredEntries.find((e2) => e2.id === e.id) ==
             null
         );
         logger.info(
-          `Filtered out ${filteredOutInvalidStaggeredEntries.length} invalid staggered entries`
+          `Stagger-deferring ${excludedEntries.length} invalid entries, retrying ${filteredOutInvalidStaggeredEntries.length}`
         );
         await Promise.allSettled(
           excludedEntries.map(async (e) => {
