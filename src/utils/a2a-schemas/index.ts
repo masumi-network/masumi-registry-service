@@ -22,19 +22,21 @@ export const agentCardSchema = z.object({
     .optional(),
   documentationUrl: z.string().optional(),
   iconUrl: z.string().optional(),
-  capabilities: z.object({
-    streaming: z.boolean().optional(),
-    pushNotifications: z.boolean().optional(),
-    extensions: z
-      .array(
-        z.object({
-          uri: z.string(),
-          description: z.string().optional(),
-          required: z.boolean().optional(),
-        })
-      )
-      .optional(),
-  }),
+  capabilities: z
+    .object({
+      streaming: z.boolean().optional(),
+      pushNotifications: z.boolean().optional(),
+      extensions: z
+        .array(
+          z.object({
+            uri: z.string(),
+            description: z.string().optional(),
+            required: z.boolean().optional(),
+          })
+        )
+        .optional(),
+    })
+    .optional(),
   defaultInputModes: z.array(z.string()),
   defaultOutputModes: z.array(z.string()),
   skills: z
