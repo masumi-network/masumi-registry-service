@@ -24,7 +24,10 @@
     "build": "npx prisma generate && tsc --noEmit &&  npx pkgroll && mkdir -p dist/public && cp -r public/* dist/public/",
     "start": "NODE_ENV=production && node ./dist/index.js",
     "swagger-json": "export DATABASE_URL=http://set-mock-env-for-generation.com && tsx ./src/utils/swagger-generator/cli.ts",
-    "knip": "knip"
+    "knip": "knip",
+    "snapshot:export": "tsx ./src/scripts/snapshot-export.ts",
+    "snapshot:import": "tsx ./src/scripts/snapshot-import.ts",
+    "snapshot:import:dry": "tsx ./src/scripts/snapshot-import.ts --dry-run"
   },
   "dependencies": {
     "@asteasolutions/zod-to-openapi": "^7.3.0",

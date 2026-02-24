@@ -86,6 +86,40 @@ You can start the service in different modes:
 
 Once running, you can access the OpenAPI Documentation at [http://localhost:3000/docs](http://localhost:3000/docs).
 
+### Step 6: Snapshot Management (Optional)
+
+Export registry data to JSON snapshots for backup or bootstrapping new instances:
+
+```sh
+# Export all sources (creates both dated and latest files)
+npm run snapshot:export
+
+# Export specific policy
+npm run snapshot:export -- --policy-id <hex>
+
+# Export to custom directory
+npm run snapshot:export -- --output-dir ./backup
+```
+
+> **Note:** Export creates two files per source:
+> - `<network>_<policyId>_<date>.json` - dated archive for backups
+> - `<network>_<policyId>.json` - latest file for auto-import
+
+Import snapshots into empty registry sources:
+
+```sh
+# Validate without importing
+npm run snapshot:import:dry
+
+# Import all matching snapshots
+npm run snapshot:import
+
+# Import specific file
+npm run snapshot:import -- --file ./snapshots/preprod_<policyId>_<date>.json
+```
+
+> **Note:** Import only works when the target registry source has no existing entries.
+
 ## Additional Setup
 
 ### Getting the Blockfrost API Key
