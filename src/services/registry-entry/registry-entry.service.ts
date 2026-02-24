@@ -25,7 +25,12 @@ function getFilterParams(
     ? { name: filter.capability.name, version: filter.capability.version }
     : undefined;
 
-  return { allowedPaymentTypes, allowedStatuses, capability };
+  const metadataVersions =
+    filter?.metadataVersion && filter.metadataVersion.length > 0
+      ? filter.metadataVersion
+      : undefined;
+
+  return { allowedPaymentTypes, allowedStatuses, capability, metadataVersions };
 }
 
 async function getRegistryEntries(
@@ -35,9 +40,8 @@ async function getRegistryEntries(
 
   const healthCheckedEntries = [];
   let currentCursorId = input.cursorId;
-  const { allowedPaymentTypes, allowedStatuses, capability } = getFilterParams(
-    input.filter
-  );
+  const { allowedPaymentTypes, allowedStatuses, capability, metadataVersions } =
+    getFilterParams(input.filter);
 
   while (healthCheckedEntries.length < input.limit) {
     const registryEntries = await registryEntryRepository.getRegistryEntry(
@@ -49,6 +53,7 @@ async function getRegistryEntries(
       input.filter?.tags,
       currentCursorId,
       input.limit * 2,
+      metadataVersions,
       input.network
     );
 
@@ -76,7 +81,8 @@ async function getRegistryDiffEntries(
     input.cursorId,
     input.limit,
     input.network,
-    input.policyId
+    input.policyId,
+    input.metadataVersion
   );
 }
 

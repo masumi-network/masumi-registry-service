@@ -67,8 +67,19 @@ model RegistryEntry {
   privacyPolicy     String?
   termsAndCondition String?
   otherLegal        String?
-  image             String
+  image             String?
   tags              String[]
+
+  agentCardUrl        String?
+  a2aProtocolVersions String[]
+
+  a2aAgentVersion       String?
+  a2aDefaultInputModes  String[]
+  a2aDefaultOutputModes String[]
+  a2aProviderName       String?
+  a2aProviderUrl        String?
+  a2aDocumentationUrl   String?
+  a2aIconUrl            String?
 
   lastUptimeCheck  DateTime
   uptimeCount      Int            @default(0)
@@ -87,7 +98,10 @@ model RegistryEntry {
   AgentPricing    AgentPricing @relation(fields: [agentPricingId], references: [id])
   agentPricingId  String
 
-  ExampleOutput ExampleOutput[]
+  ExampleOutput          ExampleOutput[]
+  A2ASkills              A2ASkill[]
+  A2ASupportedInterfaces A2ASupportedInterface[]
+  A2ACapabilities        A2ACapabilities?
 
   metadataVersion Int
 
@@ -211,4 +225,41 @@ model UpdatedRegistryEntriesLog {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model A2ASkill {
+  id              String        @id @default(cuid())
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  skillId         String
+  name            String
+  description     String
+  tags            String[]
+  examples        String[]
+  inputModes      String[]
+  outputModes     String[]
+  RegistryEntry   RegistryEntry @relation(fields: [registryEntryId], references: [id], onDelete: Cascade)
+  registryEntryId String
+}
+
+model A2ASupportedInterface {
+  id              String        @id @default(cuid())
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  url             String
+  protocolBinding String
+  protocolVersion String
+  RegistryEntry   RegistryEntry @relation(fields: [registryEntryId], references: [id], onDelete: Cascade)
+  registryEntryId String
+}
+
+model A2ACapabilities {
+  id                String        @id @default(cuid())
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  streaming         Boolean?
+  pushNotifications Boolean?
+  extensions        Json?
+  RegistryEntry     RegistryEntry @relation(fields: [registryEntryId], references: [id], onDelete: Cascade)
+  registryEntryId   String        @unique
 }
