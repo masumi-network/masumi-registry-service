@@ -1,6 +1,7 @@
 import {
   $Enums,
   InboxAgentRegistrationStatus,
+  Prisma,
   PricingType,
 } from '@prisma/client';
 import { Mutex, tryAcquire, MutexInterface } from 'async-mutex';
@@ -11,6 +12,8 @@ import { healthCheckService } from '@/services/health-check';
 import { logger } from '@/utils/logger';
 import { DEFAULTS } from '@/utils/config';
 import { getBlockfrostInstance } from '@/utils/blockfrost';
+import { agentCardSchema, AgentCard } from '@/utils/a2a-schemas';
+import { timedFetch } from '@/utils/timed-fetch';
 import {
   getInboxAgentRegistrationVerificationDataReset,
   INBOX_REGISTRY_METADATA_TYPE,
@@ -19,7 +22,8 @@ import {
   parseInboxAgentRegistrationMetadata,
 } from './inbox-agent-registration';
 
-const web3CardanoMetadataSchema = z.object({
+// ─── MIP-001 on-chain schema (metadata_version: 1) ───────────────────────────
+export const mip001Schema = z.object({
   name: z
     .string()
     .min(1)
@@ -100,6 +104,198 @@ const web3CardanoMetadataSchema = z.object({
   image: z.string().or(z.array(z.string())),
   metadata_version: z.number({ coerce: true }).int().min(1).max(1),
 });
+
+// ─── MIP-002 on-chain schema (metadata_version: 2) ───────────────────────────
+export const mip002Schema = z.object({
+  name: z
+    .string()
+    .min(1)
+    .or(z.array(z.string().min(1))),
+  description: z.string().or(z.array(z.string())).optional(),
+  api_url: z
+    .string()
+    .min(1)
+    .or(z.array(z.string().min(1))),
+  agent_card_url: z
+    .string()
+    .min(1)
+    .or(z.array(z.string().min(1))),
+  a2a_protocol_versions: z.string().or(z.array(z.string())),
+  tags: z.array(z.string().min(1)).optional(),
+  image: z.string().or(z.array(z.string())).optional(),
+  metadata_version: z.number({ coerce: true }).int().min(2).max(2),
+});
+
+// ─── Fetch & validate agent card (used during indexing only) ─────────────────
+async function fetchAndValidateAgentCard(agentCardUrl: string): Promise<{
+  status: $Enums.Status;
+  agentCard: AgentCard | null;
+}> {
+  try {
+    const url = new URL(agentCardUrl);
+    if (['localhost', '127.0.0.1'].includes(url.hostname)) {
+      return { status: $Enums.Status.Invalid, agentCard: null };
+    }
+    if (url.protocol !== 'https:' && url.protocol !== 'http:') {
+      return { status: $Enums.Status.Invalid, agentCard: null };
+    }
+
+    const response = await timedFetch(agentCardUrl);
+    if (!response.ok) {
+      try {
+        await response.text();
+      } catch {
+        // drain body
+      }
+      return { status: $Enums.Status.Offline, agentCard: null };
+    }
+    const json = await response.json();
+    const parsed = agentCardSchema.safeParse(json);
+    if (!parsed.success) {
+      return { status: $Enums.Status.Invalid, agentCard: null };
+    }
+    return { status: $Enums.Status.Online, agentCard: parsed.data };
+  } catch {
+    return { status: $Enums.Status.Offline, agentCard: null };
+  }
+}
+
+// ─── Process a MIP-002 mint ───────────────────────────────────────────────────
+export async function processMip002Entry(
+  data: z.infer<typeof mip002Schema>,
+  asset: string,
+  source: { id: string }
+) {
+  const apiUrl = metadataStringConvert(data.api_url)!;
+  const agentCardUrl = metadataStringConvert(data.agent_card_url)!;
+  // a2a_protocol_versions may be a single string or an array of version strings
+  const a2aProtocolVersions = Array.isArray(data.a2a_protocol_versions)
+    ? data.a2a_protocol_versions
+    : [data.a2a_protocol_versions];
+
+  // Single fetch: status + data to store (avoids double HTTP call)
+  const { status, agentCard } = await fetchAndValidateAgentCard(agentCardUrl);
+
+  const skillsData =
+    agentCard?.skills.map((s) => ({
+      skillId: s.id,
+      name: s.name,
+      description: s.description,
+      tags: s.tags,
+      examples: s.examples ?? [],
+      inputModes: s.inputModes,
+      outputModes: s.outputModes,
+    })) ?? [];
+
+  const interfacesData =
+    agentCard?.supportedInterfaces.map((i) => ({
+      url: i.url,
+      protocolBinding: i.protocolBinding,
+      protocolVersion: i.protocolVersion,
+    })) ?? [];
+
+  const capabilitiesData = agentCard
+    ? {
+        streaming: agentCard.capabilities?.streaming ?? null,
+        pushNotifications: agentCard.capabilities?.pushNotifications ?? null,
+        // Prisma requires Prisma.JsonNull (not JS null) for nullable JSONB fields
+        extensions: agentCard.capabilities?.extensions ?? Prisma.JsonNull,
+      }
+    : null;
+
+  const sharedFields = {
+    status,
+    name: metadataStringConvert(data.name)!,
+    description: metadataStringConvert(data.description),
+    apiBaseUrl: apiUrl,
+    agentCardUrl,
+    a2aProtocolVersions,
+    image: metadataStringConvert(data.image) ?? null, // optional in MIP-002
+    tags: data.tags ?? [], // optional in MIP-002
+    metadataVersion: data.metadata_version,
+    authorName: null,
+    authorOrganization: null,
+    authorContactEmail: null,
+    authorContactOther: null,
+    privacyPolicy: null,
+    termsAndCondition: null,
+    otherLegal: null,
+    assetIdentifier: asset,
+    paymentType: $Enums.PaymentType.None,
+    RegistrySource: { connect: { id: source.id } },
+    Capability: undefined,
+  };
+
+  // Top-level agent card fields (populated when fetch succeeds, null otherwise)
+  const agentCardFields = agentCard
+    ? {
+        a2aAgentVersion: agentCard.version,
+        a2aDefaultInputModes: agentCard.defaultInputModes,
+        a2aDefaultOutputModes: agentCard.defaultOutputModes,
+        a2aProviderName: agentCard.provider?.organization ?? null,
+        a2aProviderUrl: agentCard.provider?.url ?? null,
+        a2aDocumentationUrl: agentCard.documentationUrl ?? null,
+        a2aIconUrl: agentCard.iconUrl ?? null,
+      }
+    : null;
+
+  await prisma.registryEntry.upsert({
+    where: { assetIdentifier: asset },
+    create: {
+      ...sharedFields,
+      lastUptimeCheck: new Date(),
+      uptimeCount: status == $Enums.Status.Online ? 1 : 0,
+      uptimeCheckCount: 1,
+      AgentPricing: { create: { pricingType: PricingType.Free } },
+      // Agent card detail fields — null/empty if the initial fetch failed
+      a2aAgentVersion: agentCardFields?.a2aAgentVersion ?? null,
+      a2aDefaultInputModes: agentCardFields?.a2aDefaultInputModes ?? [],
+      a2aDefaultOutputModes: agentCardFields?.a2aDefaultOutputModes ?? [],
+      a2aProviderName: agentCardFields?.a2aProviderName ?? null,
+      a2aProviderUrl: agentCardFields?.a2aProviderUrl ?? null,
+      a2aDocumentationUrl: agentCardFields?.a2aDocumentationUrl ?? null,
+      a2aIconUrl: agentCardFields?.a2aIconUrl ?? null,
+      A2ASkills:
+        skillsData.length > 0
+          ? { createMany: { data: skillsData } }
+          : undefined,
+      A2ASupportedInterfaces:
+        interfacesData.length > 0
+          ? { createMany: { data: interfacesData } }
+          : undefined,
+      A2ACapabilities: capabilitiesData
+        ? { create: capabilitiesData }
+        : undefined,
+    },
+    update: {
+      ...sharedFields,
+      AgentPricing: { update: { pricingType: PricingType.Free } },
+      lastUptimeCheck: new Date(),
+      uptimeCount: { increment: status == $Enums.Status.Online ? 1 : 0 },
+      uptimeCheckCount: { increment: 1 },
+      // Only refresh agent card data when the fetch succeeded — preserve
+      // previously indexed values rather than wiping them on a transient failure.
+      ...(agentCard !== null
+        ? {
+            ...agentCardFields,
+            A2ASkills: { deleteMany: {}, createMany: { data: skillsData } },
+            A2ASupportedInterfaces: {
+              deleteMany: {},
+              createMany: { data: interfacesData },
+            },
+            A2ACapabilities: capabilitiesData
+              ? {
+                  upsert: {
+                    create: capabilitiesData,
+                    update: capabilitiesData,
+                  },
+                }
+              : undefined,
+          }
+        : {}),
+    },
+  });
+}
 
 type SyncableRegistrySource = {
   id: string;
@@ -369,9 +565,7 @@ async function syncWeb3CardanoRegistryEntry(params: {
   asset: string;
   onchainMetadata: unknown;
 }): Promise<boolean> {
-  const parsedMetadata = web3CardanoMetadataSchema.safeParse(
-    params.onchainMetadata
-  );
+  const parsedMetadata = mip001Schema.safeParse(params.onchainMetadata);
 
   if (!parsedMetadata.success) {
     return false;
@@ -577,7 +771,15 @@ async function syncMintedAsset(params: {
     return;
   }
 
-  await syncWeb3CardanoRegistryEntry(params);
+  // Try MIP-001 first, then MIP-002 — either standard is valid
+  const synced = await syncWeb3CardanoRegistryEntry(params);
+  if (!synced) {
+    const v2Result = mip002Schema.safeParse(params.onchainMetadata);
+    if (v2Result.success) {
+      await processMip002Entry(v2Result.data, params.asset, params.source);
+    }
+    // else: neither version valid → skip
+  }
 }
 
 async function markAssetDeregistered(params: {
