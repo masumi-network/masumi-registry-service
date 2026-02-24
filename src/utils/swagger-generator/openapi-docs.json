@@ -647,18 +647,14 @@
                                             "type": "string"
                                         },
                                         "description": {
-                                            "type": "string",
-                                            "nullable": true
+                                            "type": "string"
                                         },
                                         "required": {
-                                            "type": "boolean",
-                                            "nullable": true
+                                            "type": "boolean"
                                         }
                                     },
                                     "required": [
-                                        "uri",
-                                        "description",
-                                        "required"
+                                        "uri"
                                     ]
                                 }
                             }
@@ -1287,6 +1283,8 @@
                                                 {
                                                     "id": "unique_cuid_v2_a2a",
                                                     "name": "Example A2A Agent",
+                                                    "createdAt": "1970-01-01T00:00:00.000Z",
+                                                    "updatedAt": "1970-01-01T00:02:00.000Z",
                                                     "description": "An A2A protocol agent",
                                                     "status": "Online",
                                                     "statusUpdatedAt": "1970-01-01T00:02:00.000Z",
@@ -1929,6 +1927,8 @@
                                                 {
                                                     "id": "unique_cuid_v2_a2a",
                                                     "name": "Example A2A Agent",
+                                                    "createdAt": "1970-01-01T00:00:00.000Z",
+                                                    "updatedAt": "1970-01-01T00:02:00.000Z",
                                                     "description": "An A2A protocol agent",
                                                     "status": "Online",
                                                     "statusUpdatedAt": "1970-01-01T00:02:00.000Z",
