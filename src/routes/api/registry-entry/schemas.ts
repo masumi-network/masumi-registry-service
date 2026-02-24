@@ -153,8 +153,8 @@ export const registryEntrySchemaOutput = z
           .array(
             z.object({
               uri: z.string(),
-              description: z.string().nullable(),
-              required: z.boolean().nullable(),
+              description: z.string().optional(),
+              required: z.boolean().optional(),
             })
           )
           .nullable(),

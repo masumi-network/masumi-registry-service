@@ -7,6 +7,7 @@ import { healthCheckService } from '@/services/health-check';
 import { logger } from '@/utils/logger';
 import { getBlockfrostInstance } from '@/utils/blockfrost';
 import { agentCardSchema, AgentCard } from '@/utils/a2a-schemas';
+import { timedFetch } from '@/utils/timed-fetch';
 
 // ─── MIP-001 on-chain schema (metadata_version: 1) ───────────────────────────
 export const mip001Schema = z.object({
@@ -106,22 +107,6 @@ export const mip002Schema = z.object({
   image: z.string().or(z.array(z.string())).optional(),
   metadata_version: z.number({ coerce: true }).int().min(2).max(2),
 });
-
-// ─── Shared fetch helper with AbortController timeout ────────────────────────
-async function timedFetch(url: string, timeoutMs = 7500): Promise<Response> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    return await fetch(url, { signal: controller.signal });
-  } finally {
-    clearTimeout(timeoutId);
-    try {
-      controller.abort();
-    } catch {
-      // no-op on a completed request
-    }
-  }
-}
 
 // ─── Fetch & validate agent card (used during indexing only) ─────────────────
 async function fetchAndValidateAgentCard(agentCardUrl: string): Promise<{
