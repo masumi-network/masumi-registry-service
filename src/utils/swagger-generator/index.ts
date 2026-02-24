@@ -59,6 +59,7 @@ export function generateOpenAPI() {
     data: {
       entries: [
         {
+          // MIP-001 entry example
           id: 'unique_cuid_v2',
           name: 'Example API',
           createdAt: new Date(0),
@@ -80,9 +81,18 @@ export function generateOpenAPI() {
           apiBaseUrl: 'https://example.com/api/',
           authorOrganization: 'MASUMI',
           paymentType: PaymentType.Web3CardanoV1,
+          metadataVersion: 1,
+          agentCardUrl: null,
+          a2aProtocolVersions: [],
+          a2aAgentVersion: null,
+          a2aDefaultInputModes: [],
+          a2aDefaultOutputModes: [],
+          a2aProviderName: null,
+          a2aProviderUrl: null,
+          a2aDocumentationUrl: null,
+          a2aIconUrl: null,
           agentIdentifier:
             '222222222222222222222222222222222222222222222222222222222222222222',
-
           RegistrySource: {
             id: 'unique_cuid_v2',
             policyId: 'policy_id',
@@ -106,7 +116,88 @@ export function generateOpenAPI() {
               url: 'https://example.com/image.png',
             },
           ],
-          metadataVersion: 1,
+          A2ASkills: [],
+          A2ASupportedInterfaces: [],
+          A2ACapabilities: null,
+        },
+        {
+          // MIP-002 (A2A) entry example
+          id: 'unique_cuid_v2_a2a',
+          name: 'Example A2A Agent',
+          createdAt: new Date(0),
+          updatedAt: new Date(120000),
+          description: 'An A2A protocol agent',
+          status: Status.Online,
+          statusUpdatedAt: new Date(120000),
+          authorName: null,
+          authorContactEmail: null,
+          authorContactOther: null,
+          image: null,
+          otherLegal: null,
+          privacyPolicy: null,
+          tags: ['ai', 'a2a'],
+          termsAndCondition: null,
+          uptimeCheckCount: 5,
+          uptimeCount: 5,
+          lastUptimeCheck: new Date(0),
+          apiBaseUrl: 'https://a2a-agent.example.com/',
+          authorOrganization: null,
+          paymentType: PaymentType.None,
+          metadataVersion: 2,
+          agentCardUrl:
+            'https://a2a-agent.example.com/.well-known/agent-card.json',
+          a2aProtocolVersions: ['1.0'],
+          a2aAgentVersion: '1.0.0',
+          a2aDefaultInputModes: ['text/plain', 'application/json'],
+          a2aDefaultOutputModes: ['text/plain', 'application/json'],
+          a2aProviderName: 'Example Org',
+          a2aProviderUrl: 'https://example-org.com',
+          a2aDocumentationUrl: 'https://a2a-agent.example.com/docs',
+          a2aIconUrl: 'https://a2a-agent.example.com/icon.png',
+          agentIdentifier:
+            '333333333333333333333333333333333333333333333333333333333333333333',
+          RegistrySource: {
+            id: 'unique_cuid_v2',
+            policyId: 'policy_id',
+            type: RegistryEntryType.Web3CardanoV1,
+            url: null,
+          },
+          Capability: null,
+          AgentPricing: {
+            pricingType: PricingType.Free,
+          },
+          ExampleOutput: [],
+          A2ASkills: [
+            {
+              id: 'skill_cuid',
+              skillId: 'text-summarization',
+              name: 'Text Summarization',
+              description: 'Summarizes long documents into concise summaries',
+              tags: ['text', 'summarization', 'nlp'],
+              examples: ['Summarize this article for me'],
+              inputModes: ['text/plain', 'application/json'],
+              outputModes: ['text/plain', 'application/json'],
+            },
+          ],
+          A2ASupportedInterfaces: [
+            {
+              id: 'iface_cuid',
+              url: 'https://a2a-agent.example.com/',
+              protocolBinding: 'HTTP+JSON',
+              protocolVersion: '1.0',
+            },
+          ],
+          A2ACapabilities: {
+            streaming: false,
+            pushNotifications: false,
+            extensions: [
+              {
+                uri: 'https://github.com/google-agentic-commerce/a2a-x402/blob/main/spec/v0.2',
+                description: 'x402 payment extension',
+                required: false,
+              },
+            ],
+          },
         },
       ],
     },
@@ -283,6 +374,7 @@ export function generateOpenAPI() {
                     name: 'Example Capability',
                     version: 'Optional version',
                   },
+                  metadataVersion: [1, 2],
                 },
                 minHealthCheckDate: new Date(0).toISOString(),
               },
@@ -431,6 +523,7 @@ export function generateOpenAPI() {
                 statusUpdatedAfter: new Date(0).toISOString(),
                 policyId:
                   '7e8bdaf2b2b919a3a4b94002cafb50086c0c845fe535d07a77ab7f77',
+                metadataVersion: [1, 2],
               },
             }),
           },

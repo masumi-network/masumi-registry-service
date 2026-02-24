@@ -370,6 +370,51 @@
                             "None"
                         ]
                     },
+                    "metadataVersion": {
+                        "type": "integer"
+                    },
+                    "agentCardUrl": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "a2aProtocolVersions": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "a2aAgentVersion": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "a2aDefaultInputModes": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "a2aDefaultOutputModes": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "a2aProviderName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "a2aProviderUrl": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "a2aDocumentationUrl": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "a2aIconUrl": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "RegistrySource": {
                         "type": "object",
                         "properties": {
@@ -497,11 +542,128 @@
                             ]
                         }
                     },
-                    "metadataVersion": {
-                        "type": "integer"
-                    },
                     "updatedAt": {
                         "type": "string"
+                    },
+                    "A2ASkills": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "id": {
+                                    "type": "string"
+                                },
+                                "skillId": {
+                                    "type": "string"
+                                },
+                                "name": {
+                                    "type": "string"
+                                },
+                                "description": {
+                                    "type": "string"
+                                },
+                                "tags": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string"
+                                    }
+                                },
+                                "examples": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string"
+                                    }
+                                },
+                                "inputModes": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string"
+                                    }
+                                },
+                                "outputModes": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string"
+                                    }
+                                }
+                            },
+                            "required": [
+                                "id",
+                                "skillId",
+                                "name",
+                                "description",
+                                "tags",
+                                "examples",
+                                "inputModes",
+                                "outputModes"
+                            ]
+                        }
+                    },
+                    "A2ASupportedInterfaces": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "id": {
+                                    "type": "string"
+                                },
+                                "url": {
+                                    "type": "string"
+                                },
+                                "protocolBinding": {
+                                    "type": "string"
+                                },
+                                "protocolVersion": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": [
+                                "id",
+                                "url",
+                                "protocolBinding",
+                                "protocolVersion"
+                            ]
+                        }
+                    },
+                    "A2ACapabilities": {
+                        "type": "object",
+                        "nullable": true,
+                        "properties": {
+                            "streaming": {
+                                "type": "boolean",
+                                "nullable": true
+                            },
+                            "pushNotifications": {
+                                "type": "boolean",
+                                "nullable": true
+                            },
+                            "extensions": {
+                                "type": "array",
+                                "nullable": true,
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "uri": {
+                                            "type": "string"
+                                        },
+                                        "description": {
+                                            "type": "string"
+                                        },
+                                        "required": {
+                                            "type": "boolean"
+                                        }
+                                    },
+                                    "required": [
+                                        "uri"
+                                    ]
+                                }
+                            }
+                        },
+                        "required": [
+                            "streaming",
+                            "pushNotifications",
+                            "extensions"
+                        ]
                     }
                 },
                 "required": [
@@ -526,12 +688,24 @@
                     "tags",
                     "agentIdentifier",
                     "paymentType",
+                    "metadataVersion",
+                    "agentCardUrl",
+                    "a2aProtocolVersions",
+                    "a2aAgentVersion",
+                    "a2aDefaultInputModes",
+                    "a2aDefaultOutputModes",
+                    "a2aProviderName",
+                    "a2aProviderUrl",
+                    "a2aDocumentationUrl",
+                    "a2aIconUrl",
                     "RegistrySource",
                     "Capability",
                     "AgentPricing",
                     "ExampleOutput",
-                    "metadataVersion",
-                    "updatedAt"
+                    "updatedAt",
+                    "A2ASkills",
+                    "A2ASupportedInterfaces",
+                    "A2ACapabilities"
                 ]
             },
             "RegistrySource": {
@@ -943,6 +1117,15 @@
                                                 "required": [
                                                     "name"
                                                 ]
+                                            },
+                                            "metadataVersion": {
+                                                "type": "array",
+                                                "items": {
+                                                    "type": "integer",
+                                                    "minimum": 1,
+                                                    "maximum": 2
+                                                },
+                                                "maxItems": 2
                                             }
                                         }
                                     },
@@ -987,7 +1170,11 @@
                                         "capability": {
                                             "name": "Example Capability",
                                             "version": "Optional version"
-                                        }
+                                        },
+                                        "metadataVersion": [
+                                            1,
+                                            2
+                                        ]
                                     },
                                     "minHealthCheckDate": "1970-01-01T00:00:00.000Z"
                                 }
@@ -1050,6 +1237,16 @@
                                                     "apiBaseUrl": "https://example.com/api/",
                                                     "authorOrganization": "MASUMI",
                                                     "paymentType": "Web3CardanoV1",
+                                                    "metadataVersion": 1,
+                                                    "agentCardUrl": null,
+                                                    "a2aProtocolVersions": [],
+                                                    "a2aAgentVersion": null,
+                                                    "a2aDefaultInputModes": [],
+                                                    "a2aDefaultOutputModes": [],
+                                                    "a2aProviderName": null,
+                                                    "a2aProviderUrl": null,
+                                                    "a2aDocumentationUrl": null,
+                                                    "a2aIconUrl": null,
                                                     "agentIdentifier": "222222222222222222222222222222222222222222222222222222222222222222",
                                                     "RegistrySource": {
                                                         "id": "unique_cuid_v2",
@@ -1079,7 +1276,108 @@
                                                             "url": "https://example.com/image.png"
                                                         }
                                                     ],
-                                                    "metadataVersion": 1
+                                                    "A2ASkills": [],
+                                                    "A2ASupportedInterfaces": [],
+                                                    "A2ACapabilities": null
+                                                },
+                                                {
+                                                    "id": "unique_cuid_v2_a2a",
+                                                    "name": "Example A2A Agent",
+                                                    "createdAt": "1970-01-01T00:00:00.000Z",
+                                                    "updatedAt": "1970-01-01T00:02:00.000Z",
+                                                    "description": "An A2A protocol agent",
+                                                    "status": "Online",
+                                                    "statusUpdatedAt": "1970-01-01T00:02:00.000Z",
+                                                    "authorName": null,
+                                                    "authorContactEmail": null,
+                                                    "authorContactOther": null,
+                                                    "image": null,
+                                                    "otherLegal": null,
+                                                    "privacyPolicy": null,
+                                                    "tags": [
+                                                        "ai",
+                                                        "a2a"
+                                                    ],
+                                                    "termsAndCondition": null,
+                                                    "uptimeCheckCount": 5,
+                                                    "uptimeCount": 5,
+                                                    "lastUptimeCheck": "1970-01-01T00:00:00.000Z",
+                                                    "apiBaseUrl": "https://a2a-agent.example.com/",
+                                                    "authorOrganization": null,
+                                                    "paymentType": "None",
+                                                    "metadataVersion": 2,
+                                                    "agentCardUrl": "https://a2a-agent.example.com/.well-known/agent-card.json",
+                                                    "a2aProtocolVersions": [
+                                                        "1.0"
+                                                    ],
+                                                    "a2aAgentVersion": "1.0.0",
+                                                    "a2aDefaultInputModes": [
+                                                        "text/plain",
+                                                        "application/json"
+                                                    ],
+                                                    "a2aDefaultOutputModes": [
+                                                        "text/plain",
+                                                        "application/json"
+                                                    ],
+                                                    "a2aProviderName": "Example Org",
+                                                    "a2aProviderUrl": "https://example-org.com",
+                                                    "a2aDocumentationUrl": "https://a2a-agent.example.com/docs",
+                                                    "a2aIconUrl": "https://a2a-agent.example.com/icon.png",
+                                                    "agentIdentifier": "333333333333333333333333333333333333333333333333333333333333333333",
+                                                    "RegistrySource": {
+                                                        "id": "unique_cuid_v2",
+                                                        "policyId": "policy_id",
+                                                        "type": "Web3CardanoV1",
+                                                        "url": null
+                                                    },
+                                                    "Capability": null,
+                                                    "AgentPricing": {
+                                                        "pricingType": "Free"
+                                                    },
+                                                    "ExampleOutput": [],
+                                                    "A2ASkills": [
+                                                        {
+                                                            "id": "skill_cuid",
+                                                            "skillId": "text-summarization",
+                                                            "name": "Text Summarization",
+                                                            "description": "Summarizes long documents into concise summaries",
+                                                            "tags": [
+                                                                "text",
+                                                                "summarization",
+                                                                "nlp"
+                                                            ],
+                                                            "examples": [
+                                                                "Summarize this article for me"
+                                                            ],
+                                                            "inputModes": [
+                                                                "text/plain",
+                                                                "application/json"
+                                                            ],
+                                                            "outputModes": [
+                                                                "text/plain",
+                                                                "application/json"
+                                                            ]
+                                                        }
+                                                    ],
+                                                    "A2ASupportedInterfaces": [
+                                                        {
+                                                            "id": "iface_cuid",
+                                                            "url": "https://a2a-agent.example.com/",
+                                                            "protocolBinding": "HTTP+JSON",
+                                                            "protocolVersion": "1.0"
+                                                        }
+                                                    ],
+                                                    "A2ACapabilities": {
+                                                        "streaming": false,
+                                                        "pushNotifications": false,
+                                                        "extensions": [
+                                                            {
+                                                                "uri": "https://github.com/google-agentic-commerce/a2a-x402/blob/main/spec/v0.2",
+                                                                "description": "x402 payment extension",
+                                                                "required": false
+                                                            }
+                                                        ]
+                                                    }
                                                 }
                                             ]
                                         },
@@ -1498,6 +1796,15 @@
                                         "minLength": 1,
                                         "maxLength": 250,
                                         "description": "The policy ID of the registry source to filter by. If not specified, queries all registry sources."
+                                    },
+                                    "metadataVersion": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "integer",
+                                            "minimum": 1,
+                                            "maximum": 2
+                                        },
+                                        "maxItems": 2
                                     }
                                 },
                                 "required": [
@@ -1509,7 +1816,11 @@
                                     "cursorId": "last_paginated_item",
                                     "network": "Preprod",
                                     "statusUpdatedAfter": "1970-01-01T00:00:00.000Z",
-                                    "policyId": "7e8bdaf2b2b919a3a4b94002cafb50086c0c845fe535d07a77ab7f77"
+                                    "policyId": "7e8bdaf2b2b919a3a4b94002cafb50086c0c845fe535d07a77ab7f77",
+                                    "metadataVersion": [
+                                        1,
+                                        2
+                                    ]
                                 }
                             }
                         }
@@ -1570,6 +1881,16 @@
                                                     "apiBaseUrl": "https://example.com/api/",
                                                     "authorOrganization": "MASUMI",
                                                     "paymentType": "Web3CardanoV1",
+                                                    "metadataVersion": 1,
+                                                    "agentCardUrl": null,
+                                                    "a2aProtocolVersions": [],
+                                                    "a2aAgentVersion": null,
+                                                    "a2aDefaultInputModes": [],
+                                                    "a2aDefaultOutputModes": [],
+                                                    "a2aProviderName": null,
+                                                    "a2aProviderUrl": null,
+                                                    "a2aDocumentationUrl": null,
+                                                    "a2aIconUrl": null,
                                                     "agentIdentifier": "222222222222222222222222222222222222222222222222222222222222222222",
                                                     "RegistrySource": {
                                                         "id": "unique_cuid_v2",
@@ -1599,7 +1920,108 @@
                                                             "url": "https://example.com/image.png"
                                                         }
                                                     ],
-                                                    "metadataVersion": 1
+                                                    "A2ASkills": [],
+                                                    "A2ASupportedInterfaces": [],
+                                                    "A2ACapabilities": null
+                                                },
+                                                {
+                                                    "id": "unique_cuid_v2_a2a",
+                                                    "name": "Example A2A Agent",
+                                                    "createdAt": "1970-01-01T00:00:00.000Z",
+                                                    "updatedAt": "1970-01-01T00:02:00.000Z",
+                                                    "description": "An A2A protocol agent",
+                                                    "status": "Online",
+                                                    "statusUpdatedAt": "1970-01-01T00:02:00.000Z",
+                                                    "authorName": null,
+                                                    "authorContactEmail": null,
+                                                    "authorContactOther": null,
+                                                    "image": null,
+                                                    "otherLegal": null,
+                                                    "privacyPolicy": null,
+                                                    "tags": [
+                                                        "ai",
+                                                        "a2a"
+                                                    ],
+                                                    "termsAndCondition": null,
+                                                    "uptimeCheckCount": 5,
+                                                    "uptimeCount": 5,
+                                                    "lastUptimeCheck": "1970-01-01T00:00:00.000Z",
+                                                    "apiBaseUrl": "https://a2a-agent.example.com/",
+                                                    "authorOrganization": null,
+                                                    "paymentType": "None",
+                                                    "metadataVersion": 2,
+                                                    "agentCardUrl": "https://a2a-agent.example.com/.well-known/agent-card.json",
+                                                    "a2aProtocolVersions": [
+                                                        "1.0"
+                                                    ],
+                                                    "a2aAgentVersion": "1.0.0",
+                                                    "a2aDefaultInputModes": [
+                                                        "text/plain",
+                                                        "application/json"
+                                                    ],
+                                                    "a2aDefaultOutputModes": [
+                                                        "text/plain",
+                                                        "application/json"
+                                                    ],
+                                                    "a2aProviderName": "Example Org",
+                                                    "a2aProviderUrl": "https://example-org.com",
+                                                    "a2aDocumentationUrl": "https://a2a-agent.example.com/docs",
+                                                    "a2aIconUrl": "https://a2a-agent.example.com/icon.png",
+                                                    "agentIdentifier": "333333333333333333333333333333333333333333333333333333333333333333",
+                                                    "RegistrySource": {
+                                                        "id": "unique_cuid_v2",
+                                                        "policyId": "policy_id",
+                                                        "type": "Web3CardanoV1",
+                                                        "url": null
+                                                    },
+                                                    "Capability": null,
+                                                    "AgentPricing": {
+                                                        "pricingType": "Free"
+                                                    },
+                                                    "ExampleOutput": [],
+                                                    "A2ASkills": [
+                                                        {
+                                                            "id": "skill_cuid",
+                                                            "skillId": "text-summarization",
+                                                            "name": "Text Summarization",
+                                                            "description": "Summarizes long documents into concise summaries",
+                                                            "tags": [
+                                                                "text",
+                                                                "summarization",
+                                                                "nlp"
+                                                            ],
+                                                            "examples": [
+                                                                "Summarize this article for me"
+                                                            ],
+                                                            "inputModes": [
+                                                                "text/plain",
+                                                                "application/json"
+                                                            ],
+                                                            "outputModes": [
+                                                                "text/plain",
+                                                                "application/json"
+                                                            ]
+                                                        }
+                                                    ],
+                                                    "A2ASupportedInterfaces": [
+                                                        {
+                                                            "id": "iface_cuid",
+                                                            "url": "https://a2a-agent.example.com/",
+                                                            "protocolBinding": "HTTP+JSON",
+                                                            "protocolVersion": "1.0"
+                                                        }
+                                                    ],
+                                                    "A2ACapabilities": {
+                                                        "streaming": false,
+                                                        "pushNotifications": false,
+                                                        "extensions": [
+                                                            {
+                                                                "uri": "https://github.com/google-agentic-commerce/a2a-x402/blob/main/spec/v0.2",
+                                                                "description": "x402 payment extension",
+                                                                "required": false
+                                                            }
+                                                        ]
+                                                    }
                                                 }
                                             ]
                                         },

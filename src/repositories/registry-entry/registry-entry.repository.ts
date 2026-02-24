@@ -12,6 +12,7 @@ async function getRegistryEntry(
   tags: string[] | undefined,
   currentCursorId: string | undefined,
   limit: number,
+  metadataVersions: number[] | undefined,
   network: Network
 ) {
   const networkExists = await prisma.registrySource.findFirst({
@@ -30,6 +31,7 @@ async function getRegistryEntry(
         : undefined,
       status: { in: allowedStatuses },
       assetIdentifier: currentAssetIdentifier,
+      metadataVersion: metadataVersions ? { in: metadataVersions } : undefined,
       RegistrySource: {
         policyId: currentRegistryPolicyId,
         network: network,
@@ -43,6 +45,9 @@ async function getRegistryEntry(
         include: { FixedPricing: { include: { Amounts: true } } },
       },
       ExampleOutput: true,
+      A2ASkills: true,
+      A2ASupportedInterfaces: true,
+      A2ACapabilities: true,
     },
     orderBy: [
       {
@@ -53,7 +58,6 @@ async function getRegistryEntry(
       },
     ],
     cursor: currentCursorId ? { id: currentCursorId } : undefined,
-    //over-fetching to account for health check failures
     take: limit,
   });
 }
@@ -63,7 +67,8 @@ async function getRegistryDiffEntries(
   cursorId: string | undefined,
   limit: number,
   network: Network,
-  policyId?: string
+  policyId?: string,
+  metadataVersions?: number[]
 ) {
   const networkExists = await prisma.registrySource.findFirst({
     where: {
@@ -87,6 +92,7 @@ async function getRegistryDiffEntries(
           statusUpdatedAt: statusUpdatedAfter,
         },
       ],
+      metadataVersion: metadataVersions ? { in: metadataVersions } : undefined,
       RegistrySource: {
         network: network,
         policyId: policyId ?? undefined,
@@ -99,6 +105,9 @@ async function getRegistryDiffEntries(
         include: { FixedPricing: { include: { Amounts: true } } },
       },
       ExampleOutput: true,
+      A2ASkills: true,
+      A2ASupportedInterfaces: true,
+      A2ACapabilities: true,
     },
     orderBy: [
       {

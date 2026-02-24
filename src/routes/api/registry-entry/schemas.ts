@@ -1,6 +1,6 @@
 import { z } from '@/utils/zod-openapi';
 import { ez } from 'express-zod-api';
-import { $Enums, Network } from '@prisma/client';
+import { $Enums, Network, Prisma } from '@prisma/client';
 
 export const queryRegistrySchemaInput = z.object({
   network: z.nativeEnum(Network),
@@ -19,6 +19,10 @@ export const queryRegistrySchemaInput = z.object({
           name: z.string().min(1).max(150),
           version: z.string().max(150).optional(),
         })
+        .optional(),
+      metadataVersion: z
+        .array(z.number({ coerce: true }).int().min(1).max(2))
+        .max(2)
         .optional(),
     })
     .optional(),
@@ -45,6 +49,10 @@ export const registryDiffSchemaInput = z.object({
     .describe(
       'The policy ID of the registry source to filter by. If not specified, queries all registry sources.'
     ),
+  metadataVersion: z
+    .array(z.number({ coerce: true }).int().min(1).max(2))
+    .max(2)
+    .optional(),
 });
 
 export const registryEntrySchemaOutput = z
@@ -70,6 +78,16 @@ export const registryEntrySchemaOutput = z
     tags: z.array(z.string()).nullable(),
     agentIdentifier: z.string(),
     paymentType: z.nativeEnum($Enums.PaymentType),
+    metadataVersion: z.number().int(),
+    agentCardUrl: z.string().nullable(),
+    a2aProtocolVersions: z.array(z.string()),
+    a2aAgentVersion: z.string().nullable(),
+    a2aDefaultInputModes: z.array(z.string()),
+    a2aDefaultOutputModes: z.array(z.string()),
+    a2aProviderName: z.string().nullable(),
+    a2aProviderUrl: z.string().nullable(),
+    a2aDocumentationUrl: z.string().nullable(),
+    a2aIconUrl: z.string().nullable(),
     RegistrySource: z.object({
       id: z.string(),
       type: z.nativeEnum($Enums.RegistryEntryType),
@@ -106,8 +124,42 @@ export const registryEntrySchemaOutput = z
         url: z.string(),
       })
     ),
-    metadataVersion: z.number().int(),
     updatedAt: z.date(),
+    A2ASkills: z.array(
+      z.object({
+        id: z.string(),
+        skillId: z.string(),
+        name: z.string(),
+        description: z.string(),
+        tags: z.array(z.string()),
+        examples: z.array(z.string()),
+        inputModes: z.array(z.string()),
+        outputModes: z.array(z.string()),
+      })
+    ),
+    A2ASupportedInterfaces: z.array(
+      z.object({
+        id: z.string(),
+        url: z.string(),
+        protocolBinding: z.string(),
+        protocolVersion: z.string(),
+      })
+    ),
+    A2ACapabilities: z
+      .object({
+        streaming: z.boolean().nullable(),
+        pushNotifications: z.boolean().nullable(),
+        extensions: z
+          .array(
+            z.object({
+              uri: z.string(),
+              description: z.string().optional(),
+              required: z.boolean().optional(),
+            })
+          )
+          .nullable(),
+      })
+      .nullable(),
   })
   .openapi('RegistryEntry');
 
@@ -156,7 +208,36 @@ export type RegistryEntrySerializable = {
     } | null;
   };
   ExampleOutput: { name: string; mimeType: string; url: string }[];
-};
+  A2ASkills?: Array<{
+    id: string;
+    skillId: string;
+    name: string;
+    description: string;
+    tags: string[];
+    examples: string[];
+    inputModes: string[];
+    outputModes: string[];
+  }>;
+  A2ASupportedInterfaces?: Array<{
+    id: string;
+    url: string;
+    protocolBinding: string;
+    protocolVersion: string;
+  }>;
+  A2ACapabilities?: {
+    streaming: boolean | null;
+    pushNotifications: boolean | null;
+    // Prisma returns JsonValue for JSONB fields; Zod validates the shape at the route layer
+    extensions: Prisma.JsonValue | null;
+  } | null;
+  a2aAgentVersion?: string | null;
+  a2aDefaultInputModes?: string[];
+  a2aDefaultOutputModes?: string[];
+  a2aProviderName?: string | null;
+  a2aProviderUrl?: string | null;
+  a2aDocumentationUrl?: string | null;
+  a2aIconUrl?: string | null;
+} & Record<string, unknown>;
 
 export function serializeRegistryEntries(
   entries: RegistryEntrySerializable[],
@@ -194,6 +275,18 @@ export function serializeRegistryEntries(
         url: output.url,
       })),
       metadataVersion: entry.metadataVersion,
+      A2ASkills: entry.A2ASkills ?? [],
+      A2ASupportedInterfaces: entry.A2ASupportedInterfaces ?? [],
+      A2ACapabilities: entry.A2ACapabilities ?? null,
+      a2aProtocolVersions: (entry.a2aProtocolVersions as string[]) ?? [],
+      agentCardUrl: (entry.agentCardUrl as string | null) ?? null,
+      a2aAgentVersion: (entry.a2aAgentVersion as string | null) ?? null,
+      a2aDefaultInputModes: (entry.a2aDefaultInputModes as string[]) ?? [],
+      a2aDefaultOutputModes: (entry.a2aDefaultOutputModes as string[]) ?? [],
+      a2aProviderName: (entry.a2aProviderName as string | null) ?? null,
+      a2aProviderUrl: (entry.a2aProviderUrl as string | null) ?? null,
+      a2aDocumentationUrl: (entry.a2aDocumentationUrl as string | null) ?? null,
+      a2aIconUrl: (entry.a2aIconUrl as string | null) ?? null,
     }));
 
   return serialized as unknown as z.infer<
