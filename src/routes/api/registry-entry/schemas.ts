@@ -98,6 +98,11 @@ export const registryEntrySchemaOutput = z
         z.object({
           pricingType: z.literal($Enums.PricingType.Free),
         })
+      )
+      .or(
+        z.object({
+          pricingType: z.literal($Enums.PricingType.Dynamic),
+        })
       ),
     ExampleOutput: z.array(
       z.object({
@@ -174,12 +179,9 @@ export function serializeRegistryEntries(
             ? new Date(entry.lastUptimeCheck)
             : entry.lastUptimeCheck,
       AgentPricing:
-        entry.AgentPricing.pricingType == $Enums.PricingType.Free
+        entry.AgentPricing.pricingType === $Enums.PricingType.Fixed
           ? {
-              pricingType: $Enums.PricingType.Free,
-            }
-          : {
-              pricingType: entry.AgentPricing.pricingType,
+              pricingType: $Enums.PricingType.Fixed,
               FixedPricing: {
                 Amounts:
                   entry.AgentPricing.FixedPricing?.Amounts?.map((amount) => ({
@@ -187,6 +189,10 @@ export function serializeRegistryEntries(
                     unit: amount.unit,
                   })) ?? [],
               },
+            }
+          : {
+              // Free or Dynamic — no FixedPricing
+              pricingType: entry.AgentPricing.pricingType,
             },
       ExampleOutput: (entry.ExampleOutput ?? []).map((output) => ({
         name: output.name,
