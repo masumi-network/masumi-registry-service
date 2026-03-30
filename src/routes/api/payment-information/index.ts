@@ -45,7 +45,8 @@ export const queryPaymentInformationSchemaOutput = z
           ),
         }),
       })
-      .or(z.object({ pricingType: z.literal($Enums.PricingType.Free) })),
+      .or(z.object({ pricingType: z.literal($Enums.PricingType.Free) }))
+      .or(z.object({ pricingType: z.literal($Enums.PricingType.Dynamic) })),
     name: z.string(),
     description: z.string().nullable(),
     status: z.nativeEnum($Enums.Status),
@@ -136,12 +137,9 @@ export const queryPaymentInformationGet = authenticatedEndpointFactory.build({
         vkey: resolvePaymentKeyHash(sellerWallet.address),
       },
       AgentPricing:
-        result.AgentPricing.pricingType == $Enums.PricingType.Free
+        result.AgentPricing.pricingType === $Enums.PricingType.Fixed
           ? {
-              pricingType: $Enums.PricingType.Free,
-            }
-          : {
-              pricingType: result.AgentPricing.pricingType,
+              pricingType: $Enums.PricingType.Fixed,
               FixedPricing: {
                 Amounts:
                   result.AgentPricing.FixedPricing?.Amounts.map((amount) => ({
@@ -149,6 +147,10 @@ export const queryPaymentInformationGet = authenticatedEndpointFactory.build({
                     unit: amount.unit,
                   })) ?? [],
               },
+            }
+          : {
+              // Free or Dynamic — no FixedPricing
+              pricingType: result.AgentPricing.pricingType,
             },
     };
   },
