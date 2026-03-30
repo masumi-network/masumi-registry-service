@@ -80,6 +80,11 @@ const metadataSchema = z.object({
       z.object({
         pricingType: z.enum([PricingType.Free]),
       })
+    )
+    .or(
+      z.object({
+        pricingType: z.enum([PricingType.Dynamic]),
+      })
     ),
   image: z.string().or(z.array(z.string())),
   metadata_version: z.number({ coerce: true }).int().min(1).max(1),
@@ -507,11 +512,9 @@ export async function updateLatestCardanoRegistryEntries() {
                     metadataVersion: DEFAULTS.METADATA_VERSION,
                     AgentPricing: {
                       create:
-                        parsedMetadata.data.agentPricing.pricingType == 'Free'
+                        parsedMetadata.data.agentPricing.pricingType ===
+                        PricingType.Fixed
                           ? {
-                              pricingType: PricingType.Free,
-                            }
-                          : {
                               pricingType: PricingType.Fixed,
                               FixedPricing: {
                                 create: {
@@ -529,6 +532,10 @@ export async function updateLatestCardanoRegistryEntries() {
                                   },
                                 },
                               },
+                            }
+                          : {
+                              pricingType:
+                                parsedMetadata.data.agentPricing.pricingType,
                             },
                     },
                     assetIdentifier: asset,

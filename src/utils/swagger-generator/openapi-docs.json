@@ -145,6 +145,20 @@
                                 "required": [
                                     "pricingType"
                                 ]
+                            },
+                            {
+                                "type": "object",
+                                "properties": {
+                                    "pricingType": {
+                                        "type": "string",
+                                        "enum": [
+                                            "Dynamic"
+                                        ]
+                                    }
+                                },
+                                "required": [
+                                    "pricingType"
+                                ]
                             }
                         ]
                     },
@@ -466,6 +480,20 @@
                                         "type": "string",
                                         "enum": [
                                             "Free"
+                                        ]
+                                    }
+                                },
+                                "required": [
+                                    "pricingType"
+                                ]
+                            },
+                            {
+                                "type": "object",
+                                "properties": {
+                                    "pricingType": {
+                                        "type": "string",
+                                        "enum": [
+                                            "Dynamic"
                                         ]
                                     }
                                 },
