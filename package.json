@@ -11,6 +11,7 @@
     "seed": "tsx ./prisma/seed.ts"
   },
   "scripts": {
+    "postinstall": "node scripts/fix-libsodium-esm.mjs",
     "prepare": "husky",
     "preinstall": "node -e \"if (!(process.env.npm_config_user_agent||'').startsWith('pnpm')) { console.error('\\nThis project uses pnpm. Use: pnpm install\\n'); process.exit(1); }\"",
     "lint": "eslint --fix --quiet --config eslint.config.mjs",
