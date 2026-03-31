@@ -68,9 +68,9 @@ git diff --cached --name-only --diff-filter=ACMR | while IFS= read -r file; do
     fi
 done
 
-# Check if npm is available
-if ! command -v npm >/dev/null 2>&1; then
-    echo "${RED}❌ npm is not installed or not in PATH${NC}"
+# Check if pnpm is available
+if ! command -v pnpm >/dev/null 2>&1; then
+    echo "${RED}❌ pnpm is not installed or not in PATH${NC}"
     exit 3
 fi
 

@@ -1,28 +1,30 @@
 FROM node:20-slim AS builder
 RUN apt-get update -y && apt-get install -y openssl
+RUN corepack enable && corepack prepare pnpm@10.33.0 --activate
 # Build step
 WORKDIR /usr/src/app
 COPY .env* ./
 
-
-COPY package*.json ./
+COPY package.json pnpm-lock.yaml ./
 COPY ./src ./src
 COPY ./prisma ./prisma
 COPY tsconfig.json .
 COPY public ./public
 
-RUN npm install
-RUN npx prisma generate
-RUN npm run build
+RUN pnpm install --frozen-lockfile
+RUN pnpm prisma generate
+RUN pnpm run build
 
 # Serve step
 FROM node:20-slim AS runner
 RUN apt-get update -y && apt-get install -y openssl
+RUN corepack enable && corepack prepare pnpm@10.33.0 --activate
 WORKDIR /usr/src/app
 
 COPY --from=builder /usr/src/app/dist ./dist
 COPY --from=builder /usr/src/app/node_modules ./node_modules
-COPY --from=builder /usr/src/app/package*.json ./
+COPY --from=builder /usr/src/app/package.json ./
+COPY --from=builder /usr/src/app/pnpm-lock.yaml ./
 COPY --from=builder /usr/src/app/prisma ./prisma
 COPY --from=builder /usr/src/app/src ./src
 
@@ -31,4 +33,4 @@ COPY .env* ./
 
 EXPOSE 3000
 ENV NODE_ENV=production
-CMD [ "npm", "run", "start" ]
+CMD [ "pnpm", "run", "start" ]
