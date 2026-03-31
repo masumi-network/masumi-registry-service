@@ -1,0 +1,9 @@
+onlyBuiltDependencies:
+  - '@prisma/engines'
+  - prisma
+  - protobufjs
+  - sharp
+
+overrides:
+  libsodium-sumo: 0.7.15
+  libsodium-wrappers-sumo: 0.7.15
