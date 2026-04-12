@@ -95,6 +95,28 @@ model RegistryEntry {
   @@index([statusUpdatedAt, id])
 }
 
+model InboxAgentRegistration {
+  id              String                       @id @default(cuid())
+  createdAt       DateTime                     @default(now())
+  updatedAt       DateTime                     @updatedAt
+  status          InboxAgentRegistrationStatus @default(Pending)
+  statusUpdatedAt DateTime                     @default(now())
+
+  name            String
+  description     String?
+  agentSlug       String
+  assetIdentifier String  @unique
+  metadataVersion Int
+
+  RegistrySource   RegistrySource @relation(fields: [registrySourceId], references: [id], onDelete: Cascade)
+  registrySourceId String
+
+  @@index([agentSlug])
+  @@index([status])
+  @@index([statusUpdatedAt])
+  @@index([statusUpdatedAt, id])
+}
+
 model ExampleOutput {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
@@ -155,8 +177,16 @@ enum Status {
   Invalid
 }
 
+enum InboxAgentRegistrationStatus {
+  Pending
+  Verified
+  Invalid
+  Deregistered
+}
+
 enum RegistryEntryType {
   Web3CardanoV1
+  MasumiInboxV1
 }
 
 model Capability {
@@ -182,10 +212,11 @@ model RegistrySource {
   RegistrySourceConfig   RegistrySourceConfig @relation(fields: [registrySourceConfigId], references: [id])
   registrySourceConfigId String
 
-  note            String?
-  lastTxId        String?
-  lastCheckedPage Int             @default(1) //blockfrost starts at page 1
-  RegistryEntry   RegistryEntry[]
+  note                   String?
+  lastTxId               String?
+  lastCheckedPage        Int                      @default(1) //blockfrost starts at page 1
+  RegistryEntry          RegistryEntry[]
+  InboxAgentRegistration InboxAgentRegistration[]
 
   @@unique([type, policyId])
 }

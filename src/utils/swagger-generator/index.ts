@@ -12,6 +12,11 @@ import {
   registryDiffSchemaInput,
 } from '@/routes/api/registry-entry/schemas';
 import {
+  queryInboxAgentRegistrationSchemaInput,
+  queryInboxAgentRegistrationSchemaOutput,
+  inboxAgentRegistrationDiffSchemaInput,
+} from '@/routes/api/inbox-agent-registration';
+import {
   capabilitySchemaInput,
   capabilitySchemaOutput,
 } from '@/routes/api/capability';
@@ -36,6 +41,7 @@ import {
   queryPaymentInformationSchemaOutput,
 } from '@/routes/api/payment-information';
 import {
+  InboxAgentRegistrationStatus,
   PaymentType,
   RegistryEntryType,
   Status,
@@ -107,6 +113,33 @@ export function generateOpenAPI() {
             },
           ],
           metadataVersion: 1,
+        },
+      ],
+    },
+    status: 'success',
+  };
+
+  const inboxAgentRegistrationsResponseExample = {
+    data: {
+      registrations: [
+        {
+          id: 'unique_cuid_v2',
+          createdAt: new Date(0),
+          updatedAt: new Date(120000),
+          status: InboxAgentRegistrationStatus.Pending,
+          statusUpdatedAt: new Date(120000),
+          name: 'Inbox Agent',
+          description: 'Masumi inbox identity registration',
+          agentSlug: 'inbox-agent',
+          agentIdentifier:
+            '333333333333333333333333333333333333333333333333333333333333333333',
+          metadataVersion: 1,
+          RegistrySource: {
+            id: 'unique_cuid_v2',
+            policyId: 'policy_id',
+            type: RegistryEntryType.MasumiInboxV1,
+            url: 'https://example.com/registry.json',
+          },
         },
       ],
     },
@@ -301,6 +334,119 @@ export function generateOpenAPI() {
               .object({ data: queryRegistrySchemaOutput, status: z.string() })
               .openapi({
                 example: registryEntriesResponseExample,
+              }),
+          },
+        },
+      },
+      400: {
+        description: 'Bad Request (possible parameters missing or invalid)',
+      },
+      401: {
+        description: 'Unauthorized',
+      },
+      500: {
+        description: 'Internal Server Error',
+      },
+    },
+  });
+
+  registry.registerPath({
+    method: 'post',
+    path: '/inbox-agent-registration/',
+    description:
+      'Query blockchain-tracked Masumi inbox registrations. By default, only pending and verified registrations are returned. Supports pagination and filtering by slug, status, and policy id.',
+    summary: 'REQUIRES API KEY Authentication (+user)',
+    tags: ['inbox-agent-registration'],
+    request: {
+      body: {
+        description: '',
+        content: {
+          'application/json': {
+            schema: queryInboxAgentRegistrationSchemaInput.openapi({
+              example: {
+                limit: 10,
+                cursorId: 'last_paginated_item',
+                network: 'Preprod',
+                filter: {
+                  policyId: 'policy_id',
+                  agentSlug: 'inbox-agent',
+                  status: ['Pending', 'Verified'],
+                },
+              },
+            }),
+          },
+        },
+      },
+    },
+    security: [{ [apiKeyAuth.name]: [] }],
+    responses: {
+      200: {
+        description: 'Inbox agent registrations',
+        content: {
+          'application/json': {
+            schema: z
+              .object({
+                data: queryInboxAgentRegistrationSchemaOutput,
+                status: z.string(),
+              })
+              .openapi({
+                example: inboxAgentRegistrationsResponseExample,
+              }),
+          },
+        },
+      },
+      400: {
+        description: 'Bad Request (possible parameters missing or invalid)',
+      },
+      401: {
+        description: 'Unauthorized',
+      },
+      500: {
+        description: 'Internal Server Error',
+      },
+    },
+  });
+
+  registry.registerPath({
+    method: 'post',
+    path: '/inbox-agent-registration-diff/',
+    description:
+      'Query inbox registrations whose status was updated after the provided timestamp. Supports pagination and optional filtering by status, slug, and policy id.',
+    summary: 'REQUIRES API KEY Authentication (+user)',
+    tags: ['inbox-agent-registration'],
+    request: {
+      body: {
+        description: '',
+        content: {
+          'application/json': {
+            schema: inboxAgentRegistrationDiffSchemaInput.openapi({
+              example: {
+                limit: 10,
+                cursorId: 'last_paginated_item',
+                network: 'Preprod',
+                statusUpdatedAfter: new Date(0).toISOString(),
+                policyId: 'policy_id',
+                agentSlug: 'inbox-agent',
+                status: ['Pending', 'Verified', 'Invalid', 'Deregistered'],
+              },
+            }),
+          },
+        },
+      },
+    },
+    security: [{ [apiKeyAuth.name]: [] }],
+    responses: {
+      200: {
+        description: 'Inbox registrations with updated status',
+        content: {
+          'application/json': {
+            schema: z
+              .object({
+                data: queryInboxAgentRegistrationSchemaOutput,
+                status: z.string(),
+              })
+              .openapi({
+                example: inboxAgentRegistrationsResponseExample,
               }),
           },
         },

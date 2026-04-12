@@ -1,4 +1,8 @@
-import { $Enums, PricingType } from '@prisma/client';
+import {
+  $Enums,
+  InboxAgentRegistrationStatus,
+  PricingType,
+} from '@prisma/client';
 import { Mutex, tryAcquire, MutexInterface } from 'async-mutex';
 import { prisma } from '@/utils/db';
 import { z } from '@/utils/zod-openapi';
@@ -7,8 +11,13 @@ import { healthCheckService } from '@/services/health-check';
 import { logger } from '@/utils/logger';
 import { DEFAULTS } from '@/utils/config';
 import { getBlockfrostInstance } from '@/utils/blockfrost';
+import {
+  hasInboxAgentRegistrationContentChanged,
+  nextInboxAgentRegistrationStatus,
+  parseInboxAgentRegistrationMetadata,
+} from './inbox-agent-registration';
 
-const metadataSchema = z.object({
+const web3CardanoMetadataSchema = z.object({
   name: z
     .string()
     .min(1)
@@ -89,6 +98,23 @@ const metadataSchema = z.object({
   image: z.string().or(z.array(z.string())),
   metadata_version: z.number({ coerce: true }).int().min(1).max(1),
 });
+
+const SYNCABLE_REGISTRY_SOURCE_TYPES = [
+  $Enums.RegistryEntryType.Web3CardanoV1,
+  $Enums.RegistryEntryType.MasumiInboxV1,
+] as const;
+
+type SyncableRegistrySource = {
+  id: string;
+  policyId: string;
+  network: $Enums.Network;
+  type: $Enums.RegistryEntryType;
+  lastTxId: string | null;
+  lastCheckedPage: number;
+  RegistrySourceConfig: {
+    rpcProviderApiKey: string;
+  };
+};
 
 const healthMutex = new Mutex();
 export async function updateHealthCheck(onlyEntriesAfter?: Date | undefined) {
@@ -278,17 +304,266 @@ async function getScriptsRedeemers(
   return data;
 }
 
-const updateMutex = new Mutex();
-export async function updateLatestCardanoRegistryEntries() {
-  //we do not need any isolation level here as worst case we have a few duplicate checks in the next run but no data loss. Advantage we do not need to lock the table
-  let sources = await prisma.registrySource.findMany({
+async function getSyncableRegistrySources() {
+  return prisma.registrySource.findMany({
     where: {
-      type: $Enums.RegistryEntryType.Web3CardanoV1,
+      type: {
+        in: [...SYNCABLE_REGISTRY_SOURCE_TYPES],
+      },
     },
     include: {
       RegistrySourceConfig: true,
     },
   });
+}
+
+async function syncWeb3CardanoRegistryEntry(params: {
+  source: SyncableRegistrySource;
+  asset: string;
+  onchainMetadata: unknown;
+}) {
+  const parsedMetadata = web3CardanoMetadataSchema.safeParse(
+    params.onchainMetadata
+  );
+
+  if (!parsedMetadata.success) {
+    return;
+  }
+
+  const paymentType =
+    parsedMetadata.data.agentPricing.pricingType == 'Free'
+      ? $Enums.PaymentType.None
+      : $Enums.PaymentType.Web3CardanoV1;
+
+  const endpoint = metadataStringConvert(parsedMetadata.data.api_base_url)!;
+  const isAvailable = await healthCheckService.checkAndVerifyEndpoint({
+    api_url: endpoint,
+  });
+  const status =
+    isAvailable.returnedAgentIdentifier != null
+      ? isAvailable.returnedAgentIdentifier == params.asset
+        ? isAvailable.status
+        : $Enums.Status.Invalid
+      : isAvailable.status;
+  const capability_name = metadataStringConvert(
+    parsedMetadata.data.capability?.name
+  )!;
+  const capability_version = metadataStringConvert(
+    parsedMetadata.data.capability?.version
+  )!;
+  const sharedQuery = {
+    status: status,
+    name: metadataStringConvert(parsedMetadata.data.name)!,
+    description: metadataStringConvert(parsedMetadata.data.description),
+    apiBaseUrl: metadataStringConvert(parsedMetadata.data.api_base_url)!,
+    authorName: metadataStringConvert(parsedMetadata.data.author?.name),
+    authorOrganization: metadataStringConvert(
+      parsedMetadata.data.author?.organization
+    ),
+    authorContactEmail: metadataStringConvert(
+      parsedMetadata.data.author?.contact_email
+    ),
+    authorContactOther: metadataStringConvert(
+      parsedMetadata.data.author?.contact_other
+    ),
+    image: metadataStringConvert(parsedMetadata.data.image)!,
+    privacyPolicy: metadataStringConvert(
+      parsedMetadata.data.legal?.privacy_policy
+    ),
+    termsAndCondition: metadataStringConvert(parsedMetadata.data.legal?.terms),
+    otherLegal: metadataStringConvert(parsedMetadata.data.legal?.other),
+    ExampleOutput:
+      parsedMetadata.data.example_output &&
+      parsedMetadata.data.example_output.length > 0
+        ? {
+            createMany: {
+              data: parsedMetadata.data.example_output.map((example) => ({
+                name: metadataStringConvert(example.name)!,
+                mimeType: metadataStringConvert(example.mime_type)!,
+                url: metadataStringConvert(example.url)!,
+              })),
+            },
+          }
+        : undefined,
+    tags: parsedMetadata.data.tags,
+    metadataVersion: DEFAULTS.METADATA_VERSION,
+    AgentPricing: {
+      create:
+        parsedMetadata.data.agentPricing.pricingType === PricingType.Fixed
+          ? {
+              pricingType: PricingType.Fixed,
+              FixedPricing: {
+                create: {
+                  Amounts: {
+                    createMany: {
+                      data: parsedMetadata.data.agentPricing.fixedPricing.map(
+                        (price) => ({
+                          amount: price.amount,
+                          unit: metadataStringConvert(price.unit)!,
+                        })
+                      ),
+                    },
+                  },
+                },
+              },
+            }
+          : {
+              pricingType: parsedMetadata.data.agentPricing.pricingType,
+            },
+    },
+    assetIdentifier: params.asset,
+    paymentType: paymentType,
+    RegistrySource: { connect: { id: params.source.id } },
+    Capability:
+      capability_name == null || capability_version == null
+        ? undefined
+        : {
+            connectOrCreate: {
+              create: {
+                name: capability_name,
+                version: capability_version,
+              },
+              where: {
+                name_version: {
+                  name: capability_name,
+                  version: capability_version,
+                },
+              },
+            },
+          },
+  };
+
+  const updateData = {
+    ...sharedQuery,
+    lastUptimeCheck: new Date(),
+    uptimeCount: {
+      increment: status == $Enums.Status.Online ? 1 : 0,
+    },
+    uptimeCheckCount: { increment: 1 },
+  };
+
+  const createData = {
+    ...sharedQuery,
+    lastUptimeCheck: new Date(),
+    uptimeCount: status == $Enums.Status.Online ? 1 : 0,
+    uptimeCheckCount: 1,
+  };
+
+  await prisma.registryEntry.upsert({
+    where: { assetIdentifier: params.asset },
+    update: updateData,
+    create: createData,
+  });
+}
+
+async function syncInboxAgentRegistration(params: {
+  source: SyncableRegistrySource;
+  asset: string;
+  onchainMetadata: unknown;
+}) {
+  const normalizedMetadata = parseInboxAgentRegistrationMetadata(
+    params.onchainMetadata
+  );
+
+  if (!normalizedMetadata) {
+    return;
+  }
+
+  const existing = await prisma.inboxAgentRegistration.findUnique({
+    where: {
+      assetIdentifier: params.asset,
+    },
+  });
+
+  const changed = existing
+    ? hasInboxAgentRegistrationContentChanged(existing, normalizedMetadata)
+    : true;
+  const status = existing
+    ? nextInboxAgentRegistrationStatus({
+        currentStatus: existing.status,
+        changed,
+      })
+    : InboxAgentRegistrationStatus.Pending;
+
+  const sharedQuery = {
+    name: normalizedMetadata.name,
+    description: normalizedMetadata.description,
+    agentSlug: normalizedMetadata.agentSlug,
+    metadataVersion: normalizedMetadata.metadataVersion,
+    registrySourceId: params.source.id,
+  };
+
+  await prisma.inboxAgentRegistration.upsert({
+    where: { assetIdentifier: params.asset },
+    update: {
+      ...sharedQuery,
+      status,
+    },
+    create: {
+      ...sharedQuery,
+      assetIdentifier: params.asset,
+      status: InboxAgentRegistrationStatus.Pending,
+    },
+  });
+}
+
+async function syncMintedAsset(params: {
+  source: SyncableRegistrySource;
+  asset: string;
+  onchainMetadata: unknown;
+}) {
+  if (params.source.type === $Enums.RegistryEntryType.Web3CardanoV1) {
+    await syncWeb3CardanoRegistryEntry(params);
+    return;
+  }
+
+  if (params.source.type === $Enums.RegistryEntryType.MasumiInboxV1) {
+    await syncInboxAgentRegistration(params);
+    return;
+  }
+
+  throw new Error(`Unsupported registry source type: ${params.source.type}`);
+}
+
+async function markAssetDeregistered(params: {
+  source: SyncableRegistrySource;
+  asset: string;
+}) {
+  if (params.source.type === $Enums.RegistryEntryType.Web3CardanoV1) {
+    const existingEntry = await prisma.registryEntry.findUnique({
+      where: { assetIdentifier: params.asset },
+    });
+    if (existingEntry) {
+      await prisma.registryEntry.update({
+        where: { assetIdentifier: params.asset },
+        data: { status: $Enums.Status.Deregistered },
+      });
+    }
+    return;
+  }
+
+  if (params.source.type === $Enums.RegistryEntryType.MasumiInboxV1) {
+    const existingRegistration = await prisma.inboxAgentRegistration.findUnique(
+      {
+        where: { assetIdentifier: params.asset },
+      }
+    );
+    if (existingRegistration) {
+      await prisma.inboxAgentRegistration.update({
+        where: { assetIdentifier: params.asset },
+        data: { status: InboxAgentRegistrationStatus.Deregistered },
+      });
+    }
+    return;
+  }
+
+  throw new Error(`Unsupported registry source type: ${params.source.type}`);
+}
+
+const updateMutex = new Mutex();
+export async function updateLatestCardanoRegistryEntries() {
+  //we do not need any isolation level here as worst case we have a few duplicate checks in the next run but no data loss. Advantage we do not need to lock the table
+  let sources = await getSyncableRegistrySources();
 
   if (sources.length == 0) return;
 
@@ -301,14 +576,7 @@ export async function updateLatestCardanoRegistryEntries() {
   }
   //if we are already performing an update, we wait for it to finish and return
 
-  sources = await prisma.registrySource.findMany({
-    where: {
-      type: $Enums.RegistryEntryType.Web3CardanoV1,
-    },
-    include: {
-      RegistrySourceConfig: true,
-    },
-  });
+  sources = await getSyncableRegistrySources();
   if (sources.length == 0) {
     release();
     return;
@@ -317,7 +585,7 @@ export async function updateLatestCardanoRegistryEntries() {
   try {
     //sanity checks
     const invalidSourcesTypes = sources.filter(
-      (s) => s.type !== $Enums.RegistryEntryType.Web3CardanoV1
+      (s) => !SYNCABLE_REGISTRY_SOURCE_TYPES.includes(s.type)
     );
     if (invalidSourcesTypes.length > 0) throw new Error('Invalid source types');
     const invalidSourceIdentifiers = sources.filter((s) => s.policyId == null);
@@ -427,174 +695,18 @@ export async function updateLatestCardanoRegistryEntries() {
                     continue;
                   }
 
-                  const onchainMetadata = registryData.onchain_metadata;
-                  const parsedMetadata =
-                    metadataSchema.safeParse(onchainMetadata);
-
-                  //if the metadata is not valid or the token has no holder -> is burned, we skip it
-                  if (!parsedMetadata.success) {
-                    continue;
-                  }
-                  const paymentType =
-                    parsedMetadata.data.agentPricing.pricingType == 'Free'
-                      ? $Enums.PaymentType.None
-                      : $Enums.PaymentType.Web3CardanoV1;
-
-                  //check endpoint
-                  const endpoint = metadataStringConvert(
-                    parsedMetadata.data.api_base_url
-                  )!;
-                  const isAvailable =
-                    await healthCheckService.checkAndVerifyEndpoint({
-                      api_url: endpoint,
-                    });
-                  const status =
-                    isAvailable.returnedAgentIdentifier != null
-                      ? isAvailable.returnedAgentIdentifier == asset
-                        ? isAvailable.status
-                        : $Enums.Status.Invalid
-                      : isAvailable.status;
-                  const capability_name = metadataStringConvert(
-                    parsedMetadata.data.capability?.name
-                  )!;
-                  const capability_version = metadataStringConvert(
-                    parsedMetadata.data.capability?.version
-                  )!;
-                  const sharedQuery = {
-                    status: status,
-                    name: metadataStringConvert(parsedMetadata.data.name)!,
-                    description: metadataStringConvert(
-                      parsedMetadata.data.description
-                    ),
-                    apiBaseUrl: metadataStringConvert(
-                      parsedMetadata.data.api_base_url
-                    )!,
-                    authorName: metadataStringConvert(
-                      parsedMetadata.data.author?.name
-                    ),
-                    authorOrganization: metadataStringConvert(
-                      parsedMetadata.data.author?.organization
-                    ),
-                    authorContactEmail: metadataStringConvert(
-                      parsedMetadata.data.author?.contact_email
-                    ),
-                    authorContactOther: metadataStringConvert(
-                      parsedMetadata.data.author?.contact_other
-                    ),
-                    image: metadataStringConvert(parsedMetadata.data.image)!,
-                    privacyPolicy: metadataStringConvert(
-                      parsedMetadata.data.legal?.privacy_policy
-                    ),
-                    termsAndCondition: metadataStringConvert(
-                      parsedMetadata.data.legal?.terms
-                    ),
-                    otherLegal: metadataStringConvert(
-                      parsedMetadata.data.legal?.other
-                    ),
-                    ExampleOutput:
-                      parsedMetadata.data.example_output &&
-                      parsedMetadata.data.example_output.length > 0
-                        ? {
-                            createMany: {
-                              data: parsedMetadata.data.example_output.map(
-                                (example) => ({
-                                  name: metadataStringConvert(example.name)!,
-                                  mimeType: metadataStringConvert(
-                                    example.mime_type
-                                  )!,
-                                  url: metadataStringConvert(example.url)!,
-                                })
-                              ),
-                            },
-                          }
-                        : undefined,
-                    tags: parsedMetadata.data.tags,
-                    metadataVersion: DEFAULTS.METADATA_VERSION,
-                    AgentPricing: {
-                      create:
-                        parsedMetadata.data.agentPricing.pricingType ===
-                        PricingType.Fixed
-                          ? {
-                              pricingType: PricingType.Fixed,
-                              FixedPricing: {
-                                create: {
-                                  Amounts: {
-                                    createMany: {
-                                      data: parsedMetadata.data.agentPricing.fixedPricing.map(
-                                        (price) => ({
-                                          amount: price.amount,
-                                          unit: metadataStringConvert(
-                                            price.unit
-                                          )!,
-                                        })
-                                      ),
-                                    },
-                                  },
-                                },
-                              },
-                            }
-                          : {
-                              pricingType:
-                                parsedMetadata.data.agentPricing.pricingType,
-                            },
-                    },
-                    assetIdentifier: asset,
-                    paymentType: paymentType,
-                    RegistrySource: { connect: { id: source.id } },
-                    Capability:
-                      capability_name == null || capability_version == null
-                        ? undefined
-                        : {
-                            connectOrCreate: {
-                              create: {
-                                name: capability_name,
-                                version: capability_version,
-                              },
-                              where: {
-                                name_version: {
-                                  name: capability_name,
-                                  version: capability_version,
-                                },
-                              },
-                            },
-                          },
-                  };
-
-                  const updateData = {
-                    ...sharedQuery,
-                    lastUptimeCheck: new Date(),
-                    uptimeCount: {
-                      increment: status == $Enums.Status.Online ? 1 : 0,
-                    },
-                    uptimeCheckCount: { increment: 1 },
-                  };
-
-                  const createData = {
-                    ...sharedQuery,
-                    lastUptimeCheck: new Date(),
-                    uptimeCount: status == $Enums.Status.Online ? 1 : 0,
-                    uptimeCheckCount: 1,
-                  };
-
-                  await prisma.registryEntry.upsert({
-                    where: { assetIdentifier: asset },
-                    update: updateData,
-                    create: createData,
+                  await syncMintedAsset({
+                    source,
+                    asset,
+                    onchainMetadata: registryData.onchain_metadata,
                   });
                 }
 
                 if (quantity < 0) {
                   //burn
-                  await prisma.$transaction(async (tx) => {
-                    const existingEntry = await tx.registryEntry.findUnique({
-                      where: { assetIdentifier: asset },
-                    });
-                    if (existingEntry) {
-                      await tx.registryEntry.update({
-                        where: { assetIdentifier: asset },
-                        data: { status: $Enums.Status.Deregistered },
-                      });
-                    }
+                  await markAssetDeregistered({
+                    source,
+                    asset,
                   });
                 }
               }
