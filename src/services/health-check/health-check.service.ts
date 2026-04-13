@@ -3,10 +3,78 @@ import { logger } from '@/utils/logger';
 import {
   $Enums,
   Capability,
+  InboxAgentRegistration,
+  InboxAgentRegistrationStatus,
   PricingType,
   RegistryEntry,
   RegistrySource,
 } from '@prisma/client';
+
+const INBOX_AGENT_PUBLIC_BASE_URLS: Partial<Record<$Enums.Network, string>> = {
+  [$Enums.Network.Preprod]: 'https://masumi-inbox-dev-ivi44.ondigitalocean.app',
+};
+
+const INBOX_AGENT_IDENTIFIER_KEYS = new Set([
+  'agentIdentifier',
+  'masumiAgentIdentifier',
+]);
+
+function collectIdentifierValues(
+  value: unknown,
+  foundIdentifiers: Set<string>
+): void {
+  if (typeof value === 'string') {
+    const trimmedValue = value.trim();
+    if (trimmedValue) {
+      foundIdentifiers.add(trimmedValue);
+    }
+    return;
+  }
+
+  if (!Array.isArray(value)) {
+    return;
+  }
+
+  for (const item of value) {
+    collectIdentifierValues(item, foundIdentifiers);
+  }
+}
+
+function collectInboxAgentIdentifiers(
+  value: unknown,
+  foundIdentifiers: Set<string>,
+  visitedObjects: WeakSet<object>
+): void {
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      collectInboxAgentIdentifiers(item, foundIdentifiers, visitedObjects);
+    }
+    return;
+  }
+
+  if (value == null || typeof value !== 'object') {
+    return;
+  }
+
+  if (visitedObjects.has(value)) {
+    return;
+  }
+  visitedObjects.add(value);
+
+  for (const [key, nestedValue] of Object.entries(value)) {
+    if (INBOX_AGENT_IDENTIFIER_KEYS.has(key)) {
+      collectIdentifierValues(nestedValue, foundIdentifiers);
+    }
+
+    collectInboxAgentIdentifiers(nestedValue, foundIdentifiers, visitedObjects);
+  }
+}
+
+function extractInboxAgentIdentifiers(value: unknown): string[] {
+  const foundIdentifiers = new Set<string>();
+  collectInboxAgentIdentifiers(value, foundIdentifiers, new WeakSet<object>());
+  return Array.from(foundIdentifiers);
+}
 
 async function checkAndVerifyEndpoint({ api_url }: { api_url: string }) {
   let controller: AbortController | null = null;
@@ -300,8 +368,198 @@ async function checkVerifyAndUpdateRegistryEntries({
   return updatedEntries;
 }
 
+type InboxAgentRegistrationWithSource = InboxAgentRegistration & {
+  RegistrySource: RegistrySource;
+};
+
+async function checkAndVerifyInboxAgentPublicEndpoint(params: {
+  network: $Enums.Network;
+  agentSlug: string;
+}): Promise<{ returnedAgentIdentifiers: string[] }> {
+  const baseUrl = INBOX_AGENT_PUBLIC_BASE_URLS[params.network];
+  if (!baseUrl) {
+    return { returnedAgentIdentifiers: [] };
+  }
+
+  let controller: AbortController | null = null;
+  let timeoutId: NodeJS.Timeout | null = null;
+
+  try {
+    controller = new AbortController();
+    timeoutId = setTimeout(() => controller?.abort(), 7500);
+    const endpointResponse = await fetch(
+      `${baseUrl}/${encodeURIComponent(params.agentSlug)}/public`,
+      {
+        signal: controller.signal,
+        headers: {
+          Accept: 'application/json',
+        },
+      }
+    );
+    clearTimeout(timeoutId);
+    timeoutId = null;
+
+    if (!endpointResponse.ok) {
+      try {
+        await endpointResponse.text();
+      } catch {
+        // Ignore response body consumption errors for pending inbox agents
+      }
+      return { returnedAgentIdentifiers: [] };
+    }
+
+    let responseBody: unknown;
+    try {
+      responseBody = await endpointResponse.json();
+    } catch {
+      return { returnedAgentIdentifiers: [] };
+    }
+
+    return {
+      returnedAgentIdentifiers: extractInboxAgentIdentifiers(responseBody),
+    };
+  } catch {
+    return { returnedAgentIdentifiers: [] };
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+    if (controller) {
+      try {
+        controller.abort();
+      } catch {
+        // Ignore abort errors
+      }
+    }
+  }
+}
+
+async function checkAndVerifyInboxAgentRegistration(params: {
+  inboxAgentRegistration: Pick<
+    InboxAgentRegistrationWithSource,
+    'assetIdentifier' | 'agentSlug'
+  > & {
+    RegistrySource: Pick<RegistrySource, 'network'>;
+  };
+}) {
+  const result = await checkAndVerifyInboxAgentPublicEndpoint({
+    network: params.inboxAgentRegistration.RegistrySource.network,
+    agentSlug: params.inboxAgentRegistration.agentSlug,
+  });
+
+  if (result.returnedAgentIdentifiers.length === 0) {
+    return InboxAgentRegistrationStatus.Pending;
+  }
+
+  return result.returnedAgentIdentifiers.includes(
+    params.inboxAgentRegistration.assetIdentifier
+  )
+    ? InboxAgentRegistrationStatus.Verified
+    : InboxAgentRegistrationStatus.Invalid;
+}
+
+async function checkVerifyAndUpdateInboxAgentRegistrations(params: {
+  inboxAgentRegistrations: InboxAgentRegistrationWithSource[];
+}) {
+  if (params.inboxAgentRegistrations.length === 0) {
+    return [];
+  }
+
+  const lookupMap = new Map<string, string[]>();
+  const neededLookups = new Map<
+    string,
+    { network: $Enums.Network; agentSlug: string }
+  >();
+
+  for (const registration of params.inboxAgentRegistrations) {
+    const lookupKey = `${registration.RegistrySource.network}:${registration.agentSlug}`;
+    if (!neededLookups.has(lookupKey)) {
+      neededLookups.set(lookupKey, {
+        network: registration.RegistrySource.network,
+        agentSlug: registration.agentSlug,
+      });
+    }
+  }
+
+  const completedLookups = await Promise.allSettled(
+    Array.from(neededLookups.entries()).map(async ([lookupKey, lookup]) => ({
+      lookupKey,
+      result: await checkAndVerifyInboxAgentPublicEndpoint(lookup),
+    }))
+  );
+
+  for (const lookup of completedLookups) {
+    if (lookup.status === 'fulfilled') {
+      lookupMap.set(
+        lookup.value.lookupKey,
+        lookup.value.result.returnedAgentIdentifiers
+      );
+    }
+  }
+
+  logger.info('completed inbox agent lookups', {
+    count: lookupMap.size,
+    total: neededLookups.size,
+  });
+
+  const now = new Date();
+  const data = await Promise.allSettled(
+    params.inboxAgentRegistrations.map(async (registration) => {
+      const lookupKey = `${registration.RegistrySource.network}:${registration.agentSlug}`;
+      const returnedAgentIdentifiers = lookupMap.get(lookupKey) ?? [];
+      const status =
+        returnedAgentIdentifiers.length === 0
+          ? InboxAgentRegistrationStatus.Pending
+          : returnedAgentIdentifiers.includes(registration.assetIdentifier)
+            ? InboxAgentRegistrationStatus.Verified
+            : InboxAgentRegistrationStatus.Invalid;
+
+      return prisma.inboxAgentRegistration.update({
+        where: { id: registration.id },
+        include: {
+          RegistrySource: true,
+        },
+        data: {
+          status,
+          statusUpdatedAt: status !== registration.status ? now : undefined,
+        },
+      });
+    })
+  );
+
+  const failed = data.filter((result) => result.status === 'rejected');
+  for (const failure of failed) {
+    logger.error('failed to update inbox agent registration', {
+      error:
+        failure.reason instanceof Error
+          ? failure.reason.message
+          : failure.reason,
+    });
+  }
+
+  const updatedRegistrations = data
+    .filter((result) => result.status === 'fulfilled')
+    .map((result) => result.value);
+
+  logger.info(
+    'updated the following inbox agent registrations successfully ' +
+      updatedRegistrations.length +
+      '/' +
+      params.inboxAgentRegistrations.length,
+    {
+      successful: updatedRegistrations.length,
+      failed: failed.length,
+      total: params.inboxAgentRegistrations.length,
+    }
+  );
+
+  return updatedRegistrations;
+}
+
 export const healthCheckService = {
   checkAndVerifyEndpoint,
   checkAndVerifyRegistryEntry,
   checkVerifyAndUpdateRegistryEntries,
+  checkAndVerifyInboxAgentRegistration,
+  checkVerifyAndUpdateInboxAgentRegistrations,
 };
