@@ -5,8 +5,6 @@ CREATE TYPE "InboxAgentRegistrationStatus" AS ENUM (
     'Deregistered'
 );
 
-ALTER TYPE "RegistryEntryType" ADD VALUE IF NOT EXISTS 'MasumiInboxV1';
-
 CREATE TABLE "InboxAgentRegistration" (
     "id" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
