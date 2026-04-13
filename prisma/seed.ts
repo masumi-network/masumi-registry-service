@@ -1,4 +1,4 @@
-import { $Enums, Network, PrismaClient, RPCProvider } from '@prisma/client';
+import { Network, PrismaClient, RPCProvider } from '@prisma/client';
 import dotenv from 'dotenv';
 import { DEFAULTS } from '../src/utils/config';
 import { hashToken } from '../src/utils/crypto';
@@ -41,7 +41,6 @@ export const seed = async (prisma: PrismaClient) => {
     console.log('REGISTRY_SOURCE_IDENTIFIER_CARDANO_Preprod is seeded');
     await prisma.registrySource.upsert({
       create: {
-        type: $Enums.RegistryEntryType.Web3CardanoV1,
         network: Network.Preprod,
         note: 'Created via seeding',
         policyId: registryPolicyPreprod,
@@ -54,8 +53,8 @@ export const seed = async (prisma: PrismaClient) => {
       },
       update: {},
       where: {
-        type_policyId: {
-          type: $Enums.RegistryEntryType.Web3CardanoV1,
+        network_policyId: {
+          network: Network.Preprod,
           policyId: registryPolicyPreprod,
         },
       },
@@ -69,7 +68,6 @@ export const seed = async (prisma: PrismaClient) => {
     console.log('REGISTRY_SOURCE_IDENTIFIER_CARDANO_Mainnet is seeded');
     await prisma.registrySource.upsert({
       create: {
-        type: $Enums.RegistryEntryType.Web3CardanoV1,
         network: Network.Mainnet,
         note: 'Created via seeding',
         policyId: registrySourcePolicyMainnet,
@@ -82,8 +80,8 @@ export const seed = async (prisma: PrismaClient) => {
       },
       update: {},
       where: {
-        type_policyId: {
-          type: $Enums.RegistryEntryType.Web3CardanoV1,
+        network_policyId: {
+          network: Network.Mainnet,
           policyId: registrySourcePolicyMainnet,
         },
       },

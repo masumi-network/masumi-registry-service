@@ -13,7 +13,7 @@ async function getRegistrySource(
   return await prisma.registrySource.findMany({
     cursor: cursorId ? { id: cursorId } : undefined,
     take: limit,
-    orderBy: [{ createdAt: 'desc' }],
+    orderBy: [{ id: 'desc' }],
     include: { RegistrySourceConfig: true },
   });
 }
@@ -23,7 +23,6 @@ async function addRegistrySource(
 ) {
   return await prisma.registrySource.create({
     data: {
-      type: input.type,
       policyId: input.policyId,
       note: input.note,
       network: input.network,
