@@ -17,6 +17,8 @@ import {
 import { queryPaymentInformationGet } from './payment-information';
 import { queryAPIKeyStatusEndpointGet } from './api-key-status';
 import { registryDiffPost } from './registry-diff';
+import { queryInboxAgentRegistrationPost } from './inbox-agent-registration';
+import { inboxAgentRegistrationDiffPost } from './inbox-agent-registration-diff';
 export const apiRouter: Routing = {
   v1: {
     health: healthEndpointGet,
@@ -25,6 +27,12 @@ export const apiRouter: Routing = {
     }),
     'registry-diff': new DependsOnMethod({
       post: registryDiffPost,
+    }),
+    'inbox-agent-registration': new DependsOnMethod({
+      post: queryInboxAgentRegistrationPost,
+    }),
+    'inbox-agent-registration-diff': new DependsOnMethod({
+      post: inboxAgentRegistrationDiffPost,
     }),
     'api-key-status': new DependsOnMethod({
       get: queryAPIKeyStatusEndpointGet,

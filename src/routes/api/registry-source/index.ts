@@ -5,7 +5,6 @@ import { registrySourceService } from '@/services/registry-source';
 
 const mapRegistrySourceToOutput = (source: {
   id: string;
-  type: $Enums.RegistryEntryType;
   url: string | null;
   policyId: string | null;
   note: string | null;
@@ -15,7 +14,6 @@ const mapRegistrySourceToOutput = (source: {
   RegistrySourceConfig?: { rpcProviderApiKey: string } | null;
 }) => ({
   id: source.id,
-  type: source.type,
   url: source.url,
   policyId: source.policyId,
   note: source.note,
@@ -33,7 +31,6 @@ export const getRegistrySourceSchemaInput = z.object({
 export const registrySourceSchemaOutput = z
   .object({
     id: z.string(),
-    type: z.nativeEnum($Enums.RegistryEntryType),
     url: z.string().nullable(),
     policyId: z.string().nullable(),
     note: z.string().nullable(),
@@ -69,7 +66,6 @@ export const queryRegistrySourceEndpointGet =
   });
 
 export const addRegistrySourceSchemaInput = z.object({
-  type: z.nativeEnum($Enums.RegistryEntryType),
   policyId: z.string(),
   note: z.string().nullable(),
   rpcProviderApiKey: z.string(),

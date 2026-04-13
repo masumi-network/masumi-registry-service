@@ -19,7 +19,6 @@ export const queryPaymentInformationSchemaOutput = z
     updatedAt: z.date(),
     metadataVersion: z.number().int(),
     RegistrySource: z.object({
-      type: z.nativeEnum($Enums.RegistryEntryType),
       policyId: z.string().nullable(),
       url: z.string().nullable(),
     }),

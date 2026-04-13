@@ -46,9 +46,6 @@ async function getRegistryEntry(
     },
     orderBy: [
       {
-        createdAt: 'desc',
-      },
-      {
         id: 'desc',
       },
     ],

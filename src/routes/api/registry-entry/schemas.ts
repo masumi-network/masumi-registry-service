@@ -72,7 +72,6 @@ export const registryEntrySchemaOutput = z
     paymentType: z.nativeEnum($Enums.PaymentType),
     RegistrySource: z.object({
       id: z.string(),
-      type: z.nativeEnum($Enums.RegistryEntryType),
       policyId: z.string().nullable(),
       url: z.string().nullable(),
     }),
@@ -146,7 +145,6 @@ export type RegistryEntrySerializable = {
   metadataVersion: number;
   RegistrySource: {
     id: string;
-    type: $Enums.RegistryEntryType;
     policyId: string | null;
     url: string | null;
   };
