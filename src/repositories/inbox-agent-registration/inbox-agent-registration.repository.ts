@@ -34,9 +34,6 @@ async function getInboxAgentRegistrations(params: {
     },
     orderBy: [
       {
-        createdAt: 'desc',
-      },
-      {
         id: 'desc',
       },
     ],

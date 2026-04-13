@@ -303,22 +303,12 @@ function getRegistryMetadataType(metadata: unknown): string | undefined {
 }
 
 async function getSyncableRegistrySources() {
-  const sources = await prisma.registrySource.findMany({
+  return prisma.registrySource.findMany({
     include: {
       RegistrySourceConfig: true,
     },
     orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
   });
-
-  const preferredSourcesByPolicyId = new Map<string, SyncableRegistrySource>();
-  for (const source of sources) {
-    const sourceKey = `${source.network}:${source.policyId}`;
-    if (!preferredSourcesByPolicyId.has(sourceKey)) {
-      preferredSourcesByPolicyId.set(sourceKey, source);
-    }
-  }
-
-  return [...preferredSourcesByPolicyId.values()];
 }
 
 async function syncWeb3CardanoRegistryEntry(params: {
@@ -534,7 +524,7 @@ async function markAssetDeregistered(params: {
   source: SyncableRegistrySource;
   asset: string;
 }) {
-  await Promise.all([
+  await prisma.$transaction([
     prisma.registryEntry.updateMany({
       where: { assetIdentifier: params.asset },
       data: { status: $Enums.Status.Deregistered },
