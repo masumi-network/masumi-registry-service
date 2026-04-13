@@ -106,7 +106,7 @@ async function checkAndVerifyRegistryEntry({
     lastUptimeCheck: Date;
     apiBaseUrl: string;
     status: $Enums.Status;
-    RegistrySource: { policyId: string; type: $Enums.RegistryEntryType };
+    RegistrySource: { policyId: string };
   };
   minHealthCheckDate: Date | undefined;
 }) {

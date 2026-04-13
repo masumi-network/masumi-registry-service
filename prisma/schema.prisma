@@ -184,11 +184,6 @@ enum InboxAgentRegistrationStatus {
   Deregistered
 }
 
-enum RegistryEntryType {
-  Web3CardanoV1
-  MasumiInboxV1
-}
-
 model Capability {
   id            String          @id @default(cuid())
   createdAt     DateTime        @default(now())
@@ -205,7 +200,6 @@ model RegistrySource {
   id                     String               @id @default(cuid())
   createdAt              DateTime             @default(now())
   updatedAt              DateTime             @updatedAt
-  type                   RegistryEntryType
   network                Network
   url                    String?
   policyId               String
@@ -218,7 +212,7 @@ model RegistrySource {
   RegistryEntry          RegistryEntry[]
   InboxAgentRegistration InboxAgentRegistration[]
 
-  @@unique([type, policyId])
+  @@unique([network, policyId])
 }
 
 enum RPCProvider {

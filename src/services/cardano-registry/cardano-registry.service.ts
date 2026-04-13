@@ -12,6 +12,7 @@ import { logger } from '@/utils/logger';
 import { DEFAULTS } from '@/utils/config';
 import { getBlockfrostInstance } from '@/utils/blockfrost';
 import {
+  INBOX_REGISTRY_METADATA_TYPE,
   hasInboxAgentRegistrationContentChanged,
   nextInboxAgentRegistrationStatus,
   parseInboxAgentRegistrationMetadata,
@@ -99,16 +100,10 @@ const web3CardanoMetadataSchema = z.object({
   metadata_version: z.number({ coerce: true }).int().min(1).max(1),
 });
 
-const SYNCABLE_REGISTRY_SOURCE_TYPES = [
-  $Enums.RegistryEntryType.Web3CardanoV1,
-  $Enums.RegistryEntryType.MasumiInboxV1,
-] as const;
-
 type SyncableRegistrySource = {
   id: string;
   policyId: string;
   network: $Enums.Network;
-  type: $Enums.RegistryEntryType;
   lastTxId: string | null;
   lastCheckedPage: number;
   RegistrySourceConfig: {
@@ -127,9 +122,6 @@ export async function updateHealthCheck(onlyEntriesAfter?: Date | undefined) {
 
   //we do not need any isolation level here as worst case we have a few duplicate checks in the next run but no data loss. Advantage we do not need to lock the table
   const sourcesCount = await prisma.registrySource.aggregate({
-    where: {
-      type: $Enums.RegistryEntryType.Web3CardanoV1,
-    },
     _count: true,
   });
 
@@ -145,9 +137,6 @@ export async function updateHealthCheck(onlyEntriesAfter?: Date | undefined) {
   //if we are already performing an update, we wait for it to finish and return
 
   const sources = await prisma.registrySource.findMany({
-    where: {
-      type: $Enums.RegistryEntryType.Web3CardanoV1,
-    },
     include: {
       RegistrySourceConfig: true,
     },
@@ -304,30 +293,45 @@ async function getScriptsRedeemers(
   return data;
 }
 
+const registryMetadataTypeSchema = z.object({
+  type: z.string(),
+});
+
+function getRegistryMetadataType(metadata: unknown): string | undefined {
+  const parsed = registryMetadataTypeSchema.safeParse(metadata);
+  return parsed.success ? parsed.data.type : undefined;
+}
+
 async function getSyncableRegistrySources() {
-  return prisma.registrySource.findMany({
-    where: {
-      type: {
-        in: [...SYNCABLE_REGISTRY_SOURCE_TYPES],
-      },
-    },
+  const sources = await prisma.registrySource.findMany({
     include: {
       RegistrySourceConfig: true,
     },
+    orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
   });
+
+  const preferredSourcesByPolicyId = new Map<string, SyncableRegistrySource>();
+  for (const source of sources) {
+    const sourceKey = `${source.network}:${source.policyId}`;
+    if (!preferredSourcesByPolicyId.has(sourceKey)) {
+      preferredSourcesByPolicyId.set(sourceKey, source);
+    }
+  }
+
+  return [...preferredSourcesByPolicyId.values()];
 }
 
 async function syncWeb3CardanoRegistryEntry(params: {
   source: SyncableRegistrySource;
   asset: string;
   onchainMetadata: unknown;
-}) {
+}): Promise<boolean> {
   const parsedMetadata = web3CardanoMetadataSchema.safeParse(
     params.onchainMetadata
   );
 
   if (!parsedMetadata.success) {
-    return;
+    return false;
   }
 
   const paymentType =
@@ -454,19 +458,21 @@ async function syncWeb3CardanoRegistryEntry(params: {
     update: updateData,
     create: createData,
   });
+
+  return true;
 }
 
 async function syncInboxAgentRegistration(params: {
   source: SyncableRegistrySource;
   asset: string;
   onchainMetadata: unknown;
-}) {
+}): Promise<boolean> {
   const normalizedMetadata = parseInboxAgentRegistrationMetadata(
     params.onchainMetadata
   );
 
   if (!normalizedMetadata) {
-    return;
+    return false;
   }
 
   const existing = await prisma.inboxAgentRegistration.findUnique({
@@ -505,6 +511,8 @@ async function syncInboxAgentRegistration(params: {
       status: InboxAgentRegistrationStatus.Pending,
     },
   });
+
+  return true;
 }
 
 async function syncMintedAsset(params: {
@@ -512,52 +520,30 @@ async function syncMintedAsset(params: {
   asset: string;
   onchainMetadata: unknown;
 }) {
-  if (params.source.type === $Enums.RegistryEntryType.Web3CardanoV1) {
-    await syncWeb3CardanoRegistryEntry(params);
-    return;
-  }
+  const metadataType = getRegistryMetadataType(params.onchainMetadata);
 
-  if (params.source.type === $Enums.RegistryEntryType.MasumiInboxV1) {
+  if (metadataType === INBOX_REGISTRY_METADATA_TYPE) {
     await syncInboxAgentRegistration(params);
     return;
   }
 
-  throw new Error(`Unsupported registry source type: ${params.source.type}`);
+  await syncWeb3CardanoRegistryEntry(params);
 }
 
 async function markAssetDeregistered(params: {
   source: SyncableRegistrySource;
   asset: string;
 }) {
-  if (params.source.type === $Enums.RegistryEntryType.Web3CardanoV1) {
-    const existingEntry = await prisma.registryEntry.findUnique({
+  await Promise.all([
+    prisma.registryEntry.updateMany({
       where: { assetIdentifier: params.asset },
-    });
-    if (existingEntry) {
-      await prisma.registryEntry.update({
-        where: { assetIdentifier: params.asset },
-        data: { status: $Enums.Status.Deregistered },
-      });
-    }
-    return;
-  }
-
-  if (params.source.type === $Enums.RegistryEntryType.MasumiInboxV1) {
-    const existingRegistration = await prisma.inboxAgentRegistration.findUnique(
-      {
-        where: { assetIdentifier: params.asset },
-      }
-    );
-    if (existingRegistration) {
-      await prisma.inboxAgentRegistration.update({
-        where: { assetIdentifier: params.asset },
-        data: { status: InboxAgentRegistrationStatus.Deregistered },
-      });
-    }
-    return;
-  }
-
-  throw new Error(`Unsupported registry source type: ${params.source.type}`);
+      data: { status: $Enums.Status.Deregistered },
+    }),
+    prisma.inboxAgentRegistration.updateMany({
+      where: { assetIdentifier: params.asset },
+      data: { status: InboxAgentRegistrationStatus.Deregistered },
+    }),
+  ]);
 }
 
 const updateMutex = new Mutex();
@@ -584,10 +570,6 @@ export async function updateLatestCardanoRegistryEntries() {
 
   try {
     //sanity checks
-    const invalidSourcesTypes = sources.filter(
-      (s) => !SYNCABLE_REGISTRY_SOURCE_TYPES.includes(s.type)
-    );
-    if (invalidSourcesTypes.length > 0) throw new Error('Invalid source types');
     const invalidSourceIdentifiers = sources.filter((s) => s.policyId == null);
     if (invalidSourceIdentifiers.length > 0)
       //this should never happen unless the db is corrupted or someone played with the settings
@@ -642,7 +624,7 @@ export async function updateLatestCardanoRegistryEntries() {
               count++;
               if (count % 10 == 0) {
                 logger.info(
-                  `**** Processed ${count} transactions from page ${page} ****`
+                  `**** Processed ${count}/${txs.length} transactions from page ${page} ****`
                 );
               }
               if (tx.purpose != 'mint') {

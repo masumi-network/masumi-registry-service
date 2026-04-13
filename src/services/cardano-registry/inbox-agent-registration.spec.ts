@@ -1,5 +1,6 @@
 import { InboxAgentRegistrationStatus } from '@prisma/client';
 import {
+  INBOX_REGISTRY_METADATA_TYPE,
   hasInboxAgentRegistrationContentChanged,
   nextInboxAgentRegistrationStatus,
   normalizeInboxAgentRegistrationMetadata,
@@ -10,6 +11,7 @@ describe('inbox agent registration helpers', () => {
   it('parses minimal valid metadata', () => {
     expect(
       parseInboxAgentRegistrationMetadata({
+        type: INBOX_REGISTRY_METADATA_TYPE,
         name: 'Inbox Agent',
         agentslug: 'inbox-agent',
         metadata_version: 1,
@@ -25,6 +27,7 @@ describe('inbox agent registration helpers', () => {
   it('normalizes chunked metadata strings', () => {
     expect(
       normalizeInboxAgentRegistrationMetadata({
+        type: INBOX_REGISTRY_METADATA_TYPE,
         name: ['Inbox ', 'Agent'],
         description: ['hello ', 'world'],
         agentslug: 'inbox-agent',
@@ -41,6 +44,7 @@ describe('inbox agent registration helpers', () => {
   it('rejects non-canonical or reserved slugs', () => {
     expect(
       parseInboxAgentRegistrationMetadata({
+        type: INBOX_REGISTRY_METADATA_TYPE,
         name: 'Inbox Agent',
         agentslug: 'Inbox Agent',
         metadata_version: 1,
@@ -49,8 +53,19 @@ describe('inbox agent registration helpers', () => {
 
     expect(
       parseInboxAgentRegistrationMetadata({
+        type: INBOX_REGISTRY_METADATA_TYPE,
         name: 'Inbox Agent',
         agentslug: 'robots.txt',
+        metadata_version: 1,
+      })
+    ).toBeNull();
+  });
+
+  it('requires the inbox metadata type discriminator', () => {
+    expect(
+      parseInboxAgentRegistrationMetadata({
+        name: 'Inbox Agent',
+        agentslug: 'inbox-agent',
         metadata_version: 1,
       })
     ).toBeNull();

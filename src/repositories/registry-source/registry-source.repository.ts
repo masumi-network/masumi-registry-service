@@ -23,7 +23,6 @@ async function addRegistrySource(
 ) {
   return await prisma.registrySource.create({
     data: {
-      type: input.type,
       policyId: input.policyId,
       note: input.note,
       network: input.network,

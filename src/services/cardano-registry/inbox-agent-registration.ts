@@ -3,12 +3,15 @@ import { z } from '@/utils/zod-openapi';
 import { metadataStringConvert } from '@/utils/metadata-string-convert';
 import { isReservedInboxSlug, normalizeInboxSlug } from '@/utils/inbox-slug';
 
+export const INBOX_REGISTRY_METADATA_TYPE = 'MasumiInboxV1' as const;
+
 const METADATA_VERSION = 1;
 const MAX_NAME_LENGTH = 120;
 const MAX_DESCRIPTION_LENGTH = 500;
 const MAX_AGENT_SLUG_LENGTH = 80;
 
 export const inboxAgentRegistrationMetadataSchema = z.object({
+  type: z.literal(INBOX_REGISTRY_METADATA_TYPE),
   name: z
     .string()
     .min(1)

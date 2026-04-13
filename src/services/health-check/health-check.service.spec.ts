@@ -29,7 +29,7 @@ describe('healthCheckService', () => {
         json: () =>
           Promise.resolve({
             agentIdentifier: `${mockRegistryId}${mockIdentifier}`,
-            type: $Enums.RegistryEntryType.Web3CardanoV1,
+            type: 'Web3CardanoV1',
           }),
       });
 
@@ -50,7 +50,7 @@ describe('healthCheckService', () => {
           Promise.resolve({
             identifier: 'wrong-id',
             registry: mockRegistryId,
-            type: $Enums.RegistryEntryType.Web3CardanoV1,
+            type: 'Web3CardanoV1',
           }),
       });
 
@@ -77,7 +77,6 @@ describe('checkAndVerifyRegistryEntry', () => {
       status: $Enums.Status.Online,
       RegistrySource: {
         policyId: 'registry-id',
-        type: $Enums.RegistryEntryType.Web3CardanoV1,
       },
     };
     (global.fetch as jest.Mock).mockResolvedValueOnce({
@@ -103,7 +102,6 @@ describe('checkAndVerifyRegistryEntry', () => {
       status: $Enums.Status.Offline,
       RegistrySource: {
         policyId: 'registry',
-        type: $Enums.RegistryEntryType.Web3CardanoV1,
       },
     };
     mockRegistryEntry.lastUptimeCheck = new Date(Date.now() - 1000); // 1 second ago
@@ -113,7 +111,7 @@ describe('checkAndVerifyRegistryEntry', () => {
       json: () =>
         Promise.resolve({
           agentIdentifier: 'registry-assetname',
-          type: $Enums.RegistryEntryType.Web3CardanoV1,
+          type: 'Web3CardanoV1',
         }),
     });
 
@@ -133,7 +131,6 @@ describe('checkAndVerifyRegistryEntry', () => {
       status: $Enums.Status.Online,
       RegistrySource: {
         policyId: 'registry-id',
-        type: $Enums.RegistryEntryType.Web3CardanoV1,
       },
     };
     (global.fetch as jest.Mock).mockResolvedValueOnce({
@@ -156,7 +153,6 @@ describe('checkAndVerifyRegistryEntry', () => {
       status: $Enums.Status.Online,
       RegistrySource: {
         policyId: 'registry-id',
-        type: $Enums.RegistryEntryType.Web3CardanoV1,
       },
     };
     (global.fetch as jest.Mock).mockResolvedValueOnce({

@@ -1,6 +1,6 @@
 import { z } from '@/utils/zod-openapi';
 import { ez } from 'express-zod-api';
-import { $Enums, InboxAgentRegistrationStatus, Network } from '@prisma/client';
+import { InboxAgentRegistrationStatus, Network } from '@prisma/client';
 
 export const queryInboxAgentRegistrationSchemaInput = z.object({
   network: z.nativeEnum(Network),
@@ -49,7 +49,6 @@ export const inboxAgentRegistrationSchemaOutput = z
     metadataVersion: z.number().int(),
     RegistrySource: z.object({
       id: z.string(),
-      type: z.literal($Enums.RegistryEntryType.MasumiInboxV1),
       policyId: z.string().nullable(),
       url: z.string().nullable(),
     }),
@@ -73,7 +72,6 @@ export type InboxAgentRegistrationSerializable = {
   metadataVersion: number;
   RegistrySource: {
     id: string;
-    type: $Enums.RegistryEntryType;
     policyId: string | null;
     url: string | null;
   };
@@ -102,7 +100,6 @@ export function serializeInboxAgentRegistrations(
       metadataVersion: registration.metadataVersion,
       RegistrySource: {
         id: registration.RegistrySource.id,
-        type: $Enums.RegistryEntryType.MasumiInboxV1,
         policyId: registration.RegistrySource.policyId,
         url: registration.RegistrySource.url,
       },

@@ -43,7 +43,6 @@ import {
 import {
   InboxAgentRegistrationStatus,
   PaymentType,
-  RegistryEntryType,
   Status,
   PricingType,
   Network,
@@ -92,7 +91,6 @@ export function generateOpenAPI() {
           RegistrySource: {
             id: 'unique_cuid_v2',
             policyId: 'policy_id',
-            type: RegistryEntryType.Web3CardanoV1,
             url: 'https://example.com/api/',
           },
           Capability: {
@@ -137,7 +135,6 @@ export function generateOpenAPI() {
           RegistrySource: {
             id: 'unique_cuid_v2',
             policyId: 'policy_id',
-            type: RegistryEntryType.MasumiInboxV1,
             url: 'https://example.com/registry.json',
           },
         },
@@ -149,7 +146,6 @@ export function generateOpenAPI() {
   const registrySourceResponseExample = {
     data: {
       id: 'unique-cuid-v2-auto-generated',
-      type: RegistryEntryType.Web3CardanoV1,
       network: Network.Preprod,
       url: 'https://example.com/api/',
       policyId: 'policy_id',
@@ -220,7 +216,6 @@ export function generateOpenAPI() {
                     description: 'Example Capability description',
                     status: 'Online',
                     RegistrySource: {
-                      type: 'Web3CardanoV1',
                       policyId:
                         '0000000000000000000000000000000000000000000000000000000000000000',
                       url: null,
@@ -494,7 +489,6 @@ export function generateOpenAPI() {
                     sources: [
                       {
                         id: 'unique-cuid-v2-auto-generated',
-                        type: 'Web3CardanoV1',
                         policyId: 'policyId',
                         url: 'optional_url',
                         note: 'optional_note',
@@ -526,7 +520,6 @@ export function generateOpenAPI() {
           'application/json': {
             schema: addRegistrySourceSchemaInput.openapi({
               example: {
-                type: 'Web3CardanoV1',
                 policyId: 'policyId',
                 rpcProviderApiKey: 'apikey',
                 note: 'optional_note',
