@@ -10,6 +10,7 @@ import {
   queryRegistrySchemaInput,
   queryRegistrySchemaOutput,
   registryDiffSchemaInput,
+  searchRegistrySchemaInput,
 } from '@/routes/api/registry-entry/schemas';
 import {
   queryInboxAgentRegistrationSchemaInput,
@@ -132,6 +133,7 @@ export function generateOpenAPI() {
           agentSlug: 'inbox-agent',
           agentIdentifier:
             '333333333333333333333333333333333333333333333333333333333333333333',
+          providerUrl: 'https://agentmessenger.io',
           linkedEmail: 'agent@example.com',
           encryptionPublicKey: 'encryption_public_key',
           encryptionKeyVersion: 'enc-v1',
@@ -329,6 +331,68 @@ export function generateOpenAPI() {
     responses: {
       200: {
         description: 'Registry entries',
+        content: {
+          'application/json': {
+            schema: z
+              .object({ data: queryRegistrySchemaOutput, status: z.string() })
+              .openapi({
+                example: registryEntriesResponseExample,
+              }),
+          },
+        },
+      },
+      400: {
+        description: 'Bad Request (possible parameters missing or invalid)',
+      },
+      401: {
+        description: 'Unauthorized',
+      },
+      500: {
+        description: 'Internal Server Error',
+      },
+    },
+  });
+
+  registry.registerPath({
+    method: 'post',
+    path: '/registry-entry-search/',
+    description:
+      'Fuzzy-search online (or explicitly filtered) registry entries by core metadata, capability, asset identifier, api base URL, and tags. Supports the same pagination, structured filters, and optional health-check refresh as the standard registry query endpoint.',
+    summary: 'REQUIRES API KEY Authentication (+user)',
+    tags: ['registry-entry'],
+    request: {
+      body: {
+        description: '',
+        content: {
+          'application/json': {
+            schema: searchRegistrySchemaInput.openapi({
+              example: {
+                limit: 10,
+                cursorId: 'last_paginated_item',
+                network: 'Preprod',
+                query: 'example capability',
+                filter: {
+                  policyId: 'policy_id',
+                  tags: ['tag1', 'tag2'],
+                  assetIdentifier: 'asset_identifier',
+                  paymentTypes: [PaymentType.Web3CardanoV1],
+                  status: [Status.Online, Status.Offline],
+                  capability: {
+                    name: 'Example Capability',
+                    version: 'Optional version',
+                  },
+                },
+                minHealthCheckDate: new Date(0).toISOString(),
+              },
+            }),
+          },
+        },
+      },
+    },
+    security: [{ [apiKeyAuth.name]: [] }],
+    responses: {
+      200: {
+        description: 'Registry entries matching the fuzzy search',
         content: {
           'application/json': {
             schema: z

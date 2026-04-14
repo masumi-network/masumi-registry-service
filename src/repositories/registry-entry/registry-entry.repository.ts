@@ -1,41 +1,52 @@
 import { prisma } from '@/utils/db';
 import { Network, PaymentType, Status } from '@prisma/client';
 
-async function getRegistryEntry(
+type RegistryEntryQueryParams = {
   capability:
     | { name: string | undefined; version: string | undefined }
-    | undefined,
-  allowedPaymentTypes: PaymentType[] | undefined,
-  allowedStatuses: Status[],
-  currentRegistryPolicyId: string | undefined,
-  currentAssetIdentifier: string | undefined,
-  tags: string[] | undefined,
-  currentCursorId: string | undefined,
-  limit: number,
-  network: Network
-) {
+    | undefined;
+  allowedPaymentTypes: PaymentType[] | undefined;
+  allowedStatuses: Status[];
+  policyId: string | undefined;
+  assetIdentifier: string | undefined;
+  tags: string[] | undefined;
+  cursorId: string | undefined;
+  limit: number;
+  network: Network;
+  searchQuery?: string;
+};
+
+function buildRegistryEntryWhere(params: RegistryEntryQueryParams) {
+  return {
+    Capability: params.capability,
+    paymentType: params.allowedPaymentTypes
+      ? { in: params.allowedPaymentTypes }
+      : undefined,
+    status: { in: params.allowedStatuses },
+    assetIdentifier: params.assetIdentifier,
+    RegistrySource: {
+      policyId: params.policyId,
+      network: params.network,
+    },
+    tags: params.tags ? { hasSome: params.tags } : undefined,
+    searchText: params.searchQuery
+      ? { contains: params.searchQuery }
+      : undefined,
+  };
+}
+
+async function findRegistryEntries(params: RegistryEntryQueryParams) {
   const networkExists = await prisma.registrySource.findFirst({
     where: {
-      network: network,
+      network: params.network,
     },
   });
   if (!networkExists) {
     throw new Error('Network not found');
   }
+
   return await prisma.registryEntry.findMany({
-    where: {
-      Capability: capability,
-      paymentType: allowedPaymentTypes
-        ? { in: allowedPaymentTypes }
-        : undefined,
-      status: { in: allowedStatuses },
-      assetIdentifier: currentAssetIdentifier,
-      RegistrySource: {
-        policyId: currentRegistryPolicyId,
-        network: network,
-      },
-      tags: tags ? { hasSome: tags } : undefined,
-    },
+    where: buildRegistryEntryWhere(params),
     include: {
       Capability: true,
       RegistrySource: true,
@@ -49,10 +60,18 @@ async function getRegistryEntry(
         id: 'desc',
       },
     ],
-    cursor: currentCursorId ? { id: currentCursorId } : undefined,
+    cursor: params.cursorId ? { id: params.cursorId } : undefined,
     //over-fetching to account for health check failures
-    take: limit,
+    take: params.limit,
   });
+}
+
+async function getRegistryEntry(params: RegistryEntryQueryParams) {
+  return findRegistryEntries(params);
+}
+
+async function searchRegistryEntries(params: RegistryEntryQueryParams) {
+  return findRegistryEntries(params);
 }
 
 async function getRegistryDiffEntries(
@@ -111,5 +130,6 @@ async function getRegistryDiffEntries(
 
 export const registryEntryRepository = {
   getRegistryEntry,
+  searchRegistryEntries,
   getRegistryDiffEntries,
 };

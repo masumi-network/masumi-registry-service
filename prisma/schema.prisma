@@ -84,6 +84,7 @@ model RegistryEntry {
   registrySourceId String
 
   assetIdentifier String       @unique
+  searchText      String       @default("")
   AgentPricing    AgentPricing @relation(fields: [agentPricingId], references: [id])
   agentPricingId  String
 
@@ -105,6 +106,7 @@ model InboxAgentRegistration {
   name                 String
   description          String?
   agentSlug            String
+  providerUrl          String?
   assetIdentifier      String  @unique
   linkedEmail          String?
   encryptionPublicKey  String?
