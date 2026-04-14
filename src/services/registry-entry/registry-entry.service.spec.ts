@@ -111,4 +111,25 @@ describe('registryEntryService.searchRegistryEntries', () => {
       minHealthCheckDate,
     });
   });
+
+  it('escapes like wildcard characters in the search query', async () => {
+    await registryEntryService.searchRegistryEntries({
+      network: Network.Preprod,
+      limit: 10,
+      query: ' 100% _agent\\name ',
+    });
+
+    expect(searchRegistryEntries).toHaveBeenCalledWith({
+      capability: undefined,
+      allowedPaymentTypes: undefined,
+      allowedStatuses: [Status.Online],
+      policyId: undefined,
+      assetIdentifier: undefined,
+      tags: undefined,
+      cursorId: undefined,
+      limit: 20,
+      network: Network.Preprod,
+      searchQuery: '100\\% \\_agent\\\\name',
+    });
+  });
 });

@@ -8,7 +8,7 @@ import { $Enums, Status } from '@prisma/client';
 import { z } from '@/utils/zod-openapi';
 import { cardanoRegistryService } from '@/services/cardano-registry';
 import { healthCheckService } from '@/services/health-check';
-import { normalizeRegistryEntrySearchText } from '@/utils/registry-entry-search-text';
+import { normalizeRegistryEntrySearchQuery } from '@/utils/registry-entry-search-text';
 
 function getFilterParams(
   filter: z.infer<typeof queryRegistrySchemaInput>['filter']
@@ -99,7 +99,7 @@ async function searchRegistryEntries(
 ) {
   return getHealthCheckedRegistryEntries(
     input,
-    normalizeRegistryEntrySearchText(input.query)
+    normalizeRegistryEntrySearchQuery(input.query)
   );
 }
 
