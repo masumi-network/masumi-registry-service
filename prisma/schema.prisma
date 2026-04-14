@@ -84,6 +84,7 @@ model RegistryEntry {
   registrySourceId String
 
   assetIdentifier String       @unique
+  searchText      String       @default("")
   AgentPricing    AgentPricing @relation(fields: [agentPricingId], references: [id])
   agentPricingId  String
 

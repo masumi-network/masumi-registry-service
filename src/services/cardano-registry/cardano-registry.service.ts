@@ -11,6 +11,7 @@ import { healthCheckService } from '@/services/health-check';
 import { logger } from '@/utils/logger';
 import { DEFAULTS } from '@/utils/config';
 import { getBlockfrostInstance } from '@/utils/blockfrost';
+import { buildRegistryEntrySearchText } from '@/utils/registry-entry-search-text';
 import {
   getInboxAgentRegistrationVerificationDataReset,
   INBOX_REGISTRY_METADATA_TYPE,
@@ -111,6 +112,30 @@ type SyncableRegistrySource = {
     rpcProviderApiKey: string;
   };
 };
+
+function getCapabilityRelationWrite(params: {
+  capabilityName: string | null;
+  capabilityVersion: string | null;
+}) {
+  if (params.capabilityName == null || params.capabilityVersion == null) {
+    return undefined;
+  }
+
+  return {
+    connectOrCreate: {
+      create: {
+        name: params.capabilityName,
+        version: params.capabilityVersion,
+      },
+      where: {
+        name_version: {
+          name: params.capabilityName,
+          version: params.capabilityVersion,
+        },
+      },
+    },
+  };
+}
 
 const healthMutex = new Mutex();
 export async function updateHealthCheck(onlyEntriesAfter?: Date | undefined) {
@@ -358,9 +383,30 @@ async function syncWeb3CardanoRegistryEntry(params: {
       ? $Enums.PaymentType.None
       : $Enums.PaymentType.Web3CardanoV1;
 
-  const endpoint = metadataStringConvert(parsedMetadata.data.api_base_url)!;
+  const name = metadataStringConvert(parsedMetadata.data.name)!;
+  const description = metadataStringConvert(parsedMetadata.data.description);
+  const apiBaseUrl = metadataStringConvert(parsedMetadata.data.api_base_url)!;
+  const authorName = metadataStringConvert(parsedMetadata.data.author?.name);
+  const authorOrganization = metadataStringConvert(
+    parsedMetadata.data.author?.organization
+  );
+  const authorContactEmail = metadataStringConvert(
+    parsedMetadata.data.author?.contact_email
+  );
+  const authorContactOther = metadataStringConvert(
+    parsedMetadata.data.author?.contact_other
+  );
+  const image = metadataStringConvert(parsedMetadata.data.image)!;
+  const privacyPolicy = metadataStringConvert(
+    parsedMetadata.data.legal?.privacy_policy
+  );
+  const termsAndCondition = metadataStringConvert(
+    parsedMetadata.data.legal?.terms
+  );
+  const otherLegal = metadataStringConvert(parsedMetadata.data.legal?.other);
+  const tags = parsedMetadata.data.tags;
   const isAvailable = await healthCheckService.checkAndVerifyEndpoint({
-    api_url: endpoint,
+    api_url: apiBaseUrl,
   });
   const status =
     isAvailable.returnedAgentIdentifier != null
@@ -374,27 +420,23 @@ async function syncWeb3CardanoRegistryEntry(params: {
   const capability_version = metadataStringConvert(
     parsedMetadata.data.capability?.version
   )!;
+  const capabilityRelationWrite = getCapabilityRelationWrite({
+    capabilityName: capability_name,
+    capabilityVersion: capability_version,
+  });
   const sharedQuery = {
     status: status,
-    name: metadataStringConvert(parsedMetadata.data.name)!,
-    description: metadataStringConvert(parsedMetadata.data.description),
-    apiBaseUrl: metadataStringConvert(parsedMetadata.data.api_base_url)!,
-    authorName: metadataStringConvert(parsedMetadata.data.author?.name),
-    authorOrganization: metadataStringConvert(
-      parsedMetadata.data.author?.organization
-    ),
-    authorContactEmail: metadataStringConvert(
-      parsedMetadata.data.author?.contact_email
-    ),
-    authorContactOther: metadataStringConvert(
-      parsedMetadata.data.author?.contact_other
-    ),
-    image: metadataStringConvert(parsedMetadata.data.image)!,
-    privacyPolicy: metadataStringConvert(
-      parsedMetadata.data.legal?.privacy_policy
-    ),
-    termsAndCondition: metadataStringConvert(parsedMetadata.data.legal?.terms),
-    otherLegal: metadataStringConvert(parsedMetadata.data.legal?.other),
+    name,
+    description,
+    apiBaseUrl,
+    authorName,
+    authorOrganization,
+    authorContactEmail,
+    authorContactOther,
+    image,
+    privacyPolicy,
+    termsAndCondition,
+    otherLegal,
     ExampleOutput:
       parsedMetadata.data.example_output &&
       parsedMetadata.data.example_output.length > 0
@@ -408,7 +450,7 @@ async function syncWeb3CardanoRegistryEntry(params: {
             },
           }
         : undefined,
-    tags: parsedMetadata.data.tags,
+    tags,
     metadataVersion: DEFAULTS.METADATA_VERSION,
     AgentPricing: {
       create:
@@ -435,29 +477,24 @@ async function syncWeb3CardanoRegistryEntry(params: {
             },
     },
     assetIdentifier: params.asset,
+    searchText: buildRegistryEntrySearchText({
+      name,
+      description,
+      authorName,
+      authorOrganization,
+      apiBaseUrl,
+      assetIdentifier: params.asset,
+      capabilityName: capability_name,
+      capabilityVersion: capability_version,
+      tags,
+    }),
     paymentType: paymentType,
     RegistrySource: { connect: { id: params.source.id } },
-    Capability:
-      capability_name == null || capability_version == null
-        ? undefined
-        : {
-            connectOrCreate: {
-              create: {
-                name: capability_name,
-                version: capability_version,
-              },
-              where: {
-                name_version: {
-                  name: capability_name,
-                  version: capability_version,
-                },
-              },
-            },
-          },
   };
 
   const updateData = {
     ...sharedQuery,
+    Capability: capabilityRelationWrite ?? { disconnect: true },
     lastUptimeCheck: new Date(),
     uptimeCount: {
       increment: status == $Enums.Status.Online ? 1 : 0,
@@ -467,6 +504,7 @@ async function syncWeb3CardanoRegistryEntry(params: {
 
   const createData = {
     ...sharedQuery,
+    Capability: capabilityRelationWrite,
     lastUptimeCheck: new Date(),
     uptimeCount: status == $Enums.Status.Online ? 1 : 0,
     uptimeCheckCount: 1,

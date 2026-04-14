@@ -2,11 +2,13 @@ import { registryEntryRepository } from '@/repositories/registry-entry';
 import {
   queryRegistrySchemaInput,
   registryDiffSchemaInput,
+  searchRegistrySchemaInput,
 } from '@/routes/api/registry-entry/schemas';
 import { $Enums, Status } from '@prisma/client';
 import { z } from '@/utils/zod-openapi';
 import { cardanoRegistryService } from '@/services/cardano-registry';
 import { healthCheckService } from '@/services/health-check';
+import { normalizeRegistryEntrySearchText } from '@/utils/registry-entry-search-text';
 
 function getFilterParams(
   filter: z.infer<typeof queryRegistrySchemaInput>['filter']
@@ -28,29 +30,47 @@ function getFilterParams(
   return { allowedPaymentTypes, allowedStatuses, capability };
 }
 
-async function getRegistryEntries(
-  input: z.infer<typeof queryRegistrySchemaInput>
+async function getHealthCheckedRegistryEntries(
+  input:
+    | z.infer<typeof queryRegistrySchemaInput>
+    | z.infer<typeof searchRegistrySchemaInput>,
+  searchQuery?: string
 ) {
   await cardanoRegistryService.updateLatestCardanoRegistryEntries();
 
-  const healthCheckedEntries = [];
+  const healthCheckedEntries: Awaited<
+    ReturnType<typeof healthCheckService.checkVerifyAndUpdateRegistryEntries>
+  > = [];
   let currentCursorId = input.cursorId;
   const { allowedPaymentTypes, allowedStatuses, capability } = getFilterParams(
     input.filter
   );
 
   while (healthCheckedEntries.length < input.limit) {
-    const registryEntries = await registryEntryRepository.getRegistryEntry(
-      capability,
-      allowedPaymentTypes,
-      allowedStatuses,
-      input.filter?.policyId,
-      input.filter?.assetIdentifier,
-      input.filter?.tags,
-      currentCursorId,
-      input.limit * 2,
-      input.network
-    );
+    const registryEntries = searchQuery
+      ? await registryEntryRepository.searchRegistryEntries({
+          capability,
+          allowedPaymentTypes,
+          allowedStatuses,
+          policyId: input.filter?.policyId,
+          assetIdentifier: input.filter?.assetIdentifier,
+          tags: input.filter?.tags,
+          cursorId: currentCursorId,
+          limit: input.limit * 2,
+          network: input.network,
+          searchQuery,
+        })
+      : await registryEntryRepository.getRegistryEntry({
+          capability,
+          allowedPaymentTypes,
+          allowedStatuses,
+          policyId: input.filter?.policyId,
+          assetIdentifier: input.filter?.assetIdentifier,
+          tags: input.filter?.tags,
+          cursorId: currentCursorId,
+          limit: input.limit * 2,
+          network: input.network,
+        });
 
     const result = await healthCheckService.checkVerifyAndUpdateRegistryEntries(
       {
@@ -68,6 +88,21 @@ async function getRegistryEntries(
   return healthCheckedEntries;
 }
 
+async function getRegistryEntries(
+  input: z.infer<typeof queryRegistrySchemaInput>
+) {
+  return getHealthCheckedRegistryEntries(input);
+}
+
+async function searchRegistryEntries(
+  input: z.infer<typeof searchRegistrySchemaInput>
+) {
+  return getHealthCheckedRegistryEntries(
+    input,
+    normalizeRegistryEntrySearchText(input.query)
+  );
+}
+
 async function getRegistryDiffEntries(
   input: z.infer<typeof registryDiffSchemaInput>
 ) {
@@ -82,5 +117,6 @@ async function getRegistryDiffEntries(
 
 export const registryEntryService = {
   getRegistryEntries,
+  searchRegistryEntries,
   getRegistryDiffEntries,
 };
