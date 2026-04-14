@@ -19,15 +19,60 @@ const INBOX_AGENT_IDENTIFIER_KEYS = new Set([
   'agentIdentifier',
   'masumiAgentIdentifier',
 ]);
+const INBOX_AGENT_LINKED_EMAIL_KEY = 'linkedEmail';
+const INBOX_AGENT_ENCRYPTION_PUBLIC_KEY_KEY = 'encryptionPublicKey';
+const INBOX_AGENT_ENCRYPTION_KEY_VERSION_KEY = 'encryptionKeyVersion';
+const INBOX_AGENT_SIGNING_PUBLIC_KEY_KEY = 'signingPublicKey';
+const INBOX_AGENT_SIGNING_KEY_VERSION_KEY = 'signingKeyVersion';
 
-function collectIdentifierValues(
-  value: unknown,
-  foundIdentifiers: Set<string>
-): void {
+type InboxAgentVerificationData = {
+  linkedEmail: string | null;
+  encryptionPublicKey: string | null;
+  encryptionKeyVersion: string | null;
+  signingPublicKey: string | null;
+  signingKeyVersion: string | null;
+};
+
+type InboxAgentVerificationDecision = {
+  status: InboxAgentRegistrationStatus;
+  preserveExistingVerificationData: boolean;
+  verificationData: InboxAgentVerificationData;
+};
+
+type InboxAgentPublicEndpointResult =
+  | {
+      outcome: 'resolved';
+      returnedAgentIdentifiers: string[];
+      verificationData: InboxAgentVerificationData;
+    }
+  | {
+      outcome: 'pending';
+      returnedAgentIdentifiers: [];
+    }
+  | {
+      outcome: 'unavailable';
+      returnedAgentIdentifiers: [];
+    };
+
+type InboxAgentRegistrationWithSource = InboxAgentRegistration & {
+  RegistrySource: RegistrySource;
+};
+
+function getEmptyInboxAgentVerificationData(): InboxAgentVerificationData {
+  return {
+    linkedEmail: null,
+    encryptionPublicKey: null,
+    encryptionKeyVersion: null,
+    signingPublicKey: null,
+    signingKeyVersion: null,
+  };
+}
+
+function collectStringValues(value: unknown, foundValues: Set<string>): void {
   if (typeof value === 'string') {
     const trimmedValue = value.trim();
     if (trimmedValue) {
-      foundIdentifiers.add(trimmedValue);
+      foundValues.add(trimmedValue);
     }
     return;
   }
@@ -37,18 +82,18 @@ function collectIdentifierValues(
   }
 
   for (const item of value) {
-    collectIdentifierValues(item, foundIdentifiers);
+    collectStringValues(item, foundValues);
   }
 }
 
-function collectInboxAgentIdentifiers(
+function collectInboxVerificationStrings(
   value: unknown,
-  foundIdentifiers: Set<string>,
+  bucket: Record<string, Set<string>>,
   visitedObjects: WeakSet<object>
 ): void {
   if (Array.isArray(value)) {
     for (const item of value) {
-      collectInboxAgentIdentifiers(item, foundIdentifiers, visitedObjects);
+      collectInboxVerificationStrings(item, bucket, visitedObjects);
     }
     return;
   }
@@ -63,18 +108,75 @@ function collectInboxAgentIdentifiers(
   visitedObjects.add(value);
 
   for (const [key, nestedValue] of Object.entries(value)) {
-    if (INBOX_AGENT_IDENTIFIER_KEYS.has(key)) {
-      collectIdentifierValues(nestedValue, foundIdentifiers);
+    if (bucket[key] != null) {
+      collectStringValues(nestedValue, bucket[key]);
     }
 
-    collectInboxAgentIdentifiers(nestedValue, foundIdentifiers, visitedObjects);
+    collectInboxVerificationStrings(nestedValue, bucket, visitedObjects);
   }
 }
 
-function extractInboxAgentIdentifiers(value: unknown): string[] {
-  const foundIdentifiers = new Set<string>();
-  collectInboxAgentIdentifiers(value, foundIdentifiers, new WeakSet<object>());
-  return Array.from(foundIdentifiers);
+function getFirstCollectedString(
+  bucket: Record<string, Set<string>>,
+  key: string
+): string | null {
+  const values = bucket[key];
+  if (values == null || values.size === 0) {
+    return null;
+  }
+
+  return Array.from(values)[0] ?? null;
+}
+
+function extractInboxAgentPublicVerification(value: unknown): {
+  returnedAgentIdentifiers: string[];
+  verificationData: InboxAgentVerificationData;
+} {
+  const bucket: Record<string, Set<string>> = {
+    agentIdentifier: new Set<string>(),
+    masumiAgentIdentifier: new Set<string>(),
+    [INBOX_AGENT_LINKED_EMAIL_KEY]: new Set<string>(),
+    [INBOX_AGENT_ENCRYPTION_PUBLIC_KEY_KEY]: new Set<string>(),
+    [INBOX_AGENT_ENCRYPTION_KEY_VERSION_KEY]: new Set<string>(),
+    [INBOX_AGENT_SIGNING_PUBLIC_KEY_KEY]: new Set<string>(),
+    [INBOX_AGENT_SIGNING_KEY_VERSION_KEY]: new Set<string>(),
+  };
+
+  collectInboxVerificationStrings(value, bucket, new WeakSet<object>());
+
+  const returnedAgentIdentifiers = Array.from(
+    new Set(
+      Array.from(INBOX_AGENT_IDENTIFIER_KEYS).flatMap((key) =>
+        Array.from(bucket[key] ?? [])
+      )
+    )
+  );
+
+  return {
+    returnedAgentIdentifiers,
+    verificationData: {
+      linkedEmail: getFirstCollectedString(
+        bucket,
+        INBOX_AGENT_LINKED_EMAIL_KEY
+      ),
+      encryptionPublicKey: getFirstCollectedString(
+        bucket,
+        INBOX_AGENT_ENCRYPTION_PUBLIC_KEY_KEY
+      ),
+      encryptionKeyVersion: getFirstCollectedString(
+        bucket,
+        INBOX_AGENT_ENCRYPTION_KEY_VERSION_KEY
+      ),
+      signingPublicKey: getFirstCollectedString(
+        bucket,
+        INBOX_AGENT_SIGNING_PUBLIC_KEY_KEY
+      ),
+      signingKeyVersion: getFirstCollectedString(
+        bucket,
+        INBOX_AGENT_SIGNING_KEY_VERSION_KEY
+      ),
+    },
+  };
 }
 
 async function checkAndVerifyEndpoint({ api_url }: { api_url: string }) {
@@ -116,13 +218,11 @@ async function checkAndVerifyEndpoint({ api_url }: { api_url: string }) {
     timeoutId = null;
 
     if (!endpointResponse.ok) {
-      // Consume the response body to allow connection reuse and prevent memory leaks
       try {
         await endpointResponse.text();
       } catch {
         // Ignore errors when consuming body
       }
-      //if the endpoint is offline, we probably want to do some later on checks if it is back up again
       return {
         returnedAgentIdentifier: null,
         status: $Enums.Status.Offline,
@@ -130,8 +230,6 @@ async function checkAndVerifyEndpoint({ api_url }: { api_url: string }) {
     }
 
     const responseBody = await endpointResponse.json();
-    //we need to verify the registry points to the correct url to prevent a later registry providing a wrong payment address
-    //if the registry is wrong, we usually want to invalidate the entry in the database and exclude it from further checks
     if (responseBody.agentIdentifier && responseBody.agentIdentifier != '') {
       return {
         returnedAgentIdentifier: responseBody.agentIdentifier,
@@ -152,12 +250,10 @@ async function checkAndVerifyEndpoint({ api_url }: { api_url: string }) {
       status: $Enums.Status.Offline,
     };
   } finally {
-    // Ensure cleanup of abort controller and timeout
     if (timeoutId) {
       clearTimeout(timeoutId);
     }
     if (controller) {
-      // Abort any pending request to free resources
       try {
         controller.abort();
       } catch {
@@ -166,6 +262,7 @@ async function checkAndVerifyEndpoint({ api_url }: { api_url: string }) {
     }
   }
 }
+
 async function checkAndVerifyRegistryEntry({
   registryEntry,
   minHealthCheckDate,
@@ -329,7 +426,6 @@ async function checkVerifyAndUpdateRegistryEntries({
       updatedEntries.push(
         await prisma.registryEntry.update({
           where: { id: s.id },
-          //select all fields
           include: {
             AgentPricing: {
               include: { FixedPricing: { include: { Amounts: true } } },
@@ -368,24 +464,6 @@ async function checkVerifyAndUpdateRegistryEntries({
   );
   return updatedEntries;
 }
-
-type InboxAgentRegistrationWithSource = InboxAgentRegistration & {
-  RegistrySource: RegistrySource;
-};
-
-type InboxAgentPublicEndpointResult =
-  | {
-      outcome: 'resolved';
-      returnedAgentIdentifiers: string[];
-    }
-  | {
-      outcome: 'pending';
-      returnedAgentIdentifiers: [];
-    }
-  | {
-      outcome: 'unavailable';
-      returnedAgentIdentifiers: [];
-    };
 
 async function checkAndVerifyInboxAgentPublicEndpoint(params: {
   network: $Enums.Network;
@@ -433,14 +511,15 @@ async function checkAndVerifyInboxAgentPublicEndpoint(params: {
       return { outcome: 'unavailable', returnedAgentIdentifiers: [] };
     }
 
-    const returnedAgentIdentifiers = extractInboxAgentIdentifiers(responseBody);
-    if (returnedAgentIdentifiers.length === 0) {
+    const responseData = extractInboxAgentPublicVerification(responseBody);
+    if (responseData.returnedAgentIdentifiers.length === 0) {
       return { outcome: 'pending', returnedAgentIdentifiers: [] };
     }
 
     return {
       outcome: 'resolved',
-      returnedAgentIdentifiers,
+      returnedAgentIdentifiers: responseData.returnedAgentIdentifiers,
+      verificationData: responseData.verificationData,
     };
   } catch {
     return { outcome: 'unavailable', returnedAgentIdentifiers: [] };
@@ -467,27 +546,49 @@ async function checkAndVerifyInboxAgentRegistration(params: {
   };
   currentStatus?: InboxAgentRegistrationStatus;
   lookupResult?: InboxAgentPublicEndpointResult;
-}) {
+}): Promise<InboxAgentVerificationDecision> {
   const lookupResult =
     params.lookupResult ??
     (await checkAndVerifyInboxAgentPublicEndpoint({
       network: params.inboxAgentRegistration.RegistrySource.network,
       agentSlug: params.inboxAgentRegistration.agentSlug,
     }));
+  const currentStatus =
+    params.currentStatus ?? InboxAgentRegistrationStatus.Pending;
 
   if (lookupResult.outcome === 'unavailable') {
-    return params.currentStatus ?? InboxAgentRegistrationStatus.Pending;
+    return {
+      status: currentStatus,
+      preserveExistingVerificationData: true,
+      verificationData: getEmptyInboxAgentVerificationData(),
+    };
   }
 
   if (lookupResult.outcome === 'pending') {
-    return InboxAgentRegistrationStatus.Pending;
+    return {
+      status: InboxAgentRegistrationStatus.Pending,
+      preserveExistingVerificationData: false,
+      verificationData: getEmptyInboxAgentVerificationData(),
+    };
   }
 
-  return lookupResult.returnedAgentIdentifiers.includes(
-    params.inboxAgentRegistration.assetIdentifier
-  )
-    ? InboxAgentRegistrationStatus.Verified
-    : InboxAgentRegistrationStatus.Invalid;
+  if (
+    lookupResult.returnedAgentIdentifiers.includes(
+      params.inboxAgentRegistration.assetIdentifier
+    )
+  ) {
+    return {
+      status: InboxAgentRegistrationStatus.Verified,
+      preserveExistingVerificationData: false,
+      verificationData: lookupResult.verificationData,
+    };
+  }
+
+  return {
+    status: InboxAgentRegistrationStatus.Invalid,
+    preserveExistingVerificationData: false,
+    verificationData: getEmptyInboxAgentVerificationData(),
+  };
 }
 
 async function checkVerifyAndUpdateInboxAgentRegistrations(params: {
@@ -535,14 +636,13 @@ async function checkVerifyAndUpdateInboxAgentRegistrations(params: {
   const data = await Promise.allSettled(
     params.inboxAgentRegistrations.map(async (registration) => {
       const lookupKey = `${registration.RegistrySource.network}:${registration.agentSlug}`;
-      const lookupResult = lookupMap.get(lookupKey) ?? {
-        outcome: 'unavailable',
-        returnedAgentIdentifiers: [],
-      };
-      const status = await checkAndVerifyInboxAgentRegistration({
+      const decision = await checkAndVerifyInboxAgentRegistration({
         inboxAgentRegistration: registration,
         currentStatus: registration.status,
-        lookupResult,
+        lookupResult: lookupMap.get(lookupKey) ?? {
+          outcome: 'unavailable',
+          returnedAgentIdentifiers: [],
+        },
       });
 
       return prisma.inboxAgentRegistration.update({
@@ -551,8 +651,24 @@ async function checkVerifyAndUpdateInboxAgentRegistrations(params: {
           RegistrySource: true,
         },
         data: {
-          status,
-          statusUpdatedAt: status !== registration.status ? now : undefined,
+          status: decision.status,
+          linkedEmail: decision.preserveExistingVerificationData
+            ? undefined
+            : decision.verificationData.linkedEmail,
+          encryptionPublicKey: decision.preserveExistingVerificationData
+            ? undefined
+            : decision.verificationData.encryptionPublicKey,
+          encryptionKeyVersion: decision.preserveExistingVerificationData
+            ? undefined
+            : decision.verificationData.encryptionKeyVersion,
+          signingPublicKey: decision.preserveExistingVerificationData
+            ? undefined
+            : decision.verificationData.signingPublicKey,
+          signingKeyVersion: decision.preserveExistingVerificationData
+            ? undefined
+            : decision.verificationData.signingKeyVersion,
+          statusUpdatedAt:
+            decision.status !== registration.status ? now : undefined,
         },
       });
     })

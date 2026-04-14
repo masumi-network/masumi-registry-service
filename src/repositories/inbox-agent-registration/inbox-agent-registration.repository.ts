@@ -45,6 +45,7 @@ async function getInboxAgentRegistrations(params: {
 async function searchInboxAgentRegistrations(params: {
   nameQuery: string;
   agentSlugQuery: string;
+  linkedEmailQuery: string;
   allowedStatuses: InboxAgentRegistrationStatus[];
   policyId?: string;
   cursorId?: string;
@@ -73,6 +74,12 @@ async function searchInboxAgentRegistrations(params: {
         {
           name: {
             contains: params.nameQuery,
+            mode: 'insensitive',
+          },
+        },
+        {
+          linkedEmail: {
+            contains: params.linkedEmailQuery,
             mode: 'insensitive',
           },
         },

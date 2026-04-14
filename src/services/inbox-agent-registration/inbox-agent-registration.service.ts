@@ -56,6 +56,7 @@ async function searchInboxAgentRegistrations(
   return inboxAgentRegistrationRepository.searchInboxAgentRegistrations({
     nameQuery: input.query,
     agentSlugQuery: normalizedSlugQuery,
+    linkedEmailQuery: input.query,
     allowedStatuses: getAllowedQueryStatuses(input.filter),
     policyId: input.filter?.policyId,
     cursorId: input.cursorId,

@@ -132,6 +132,11 @@ export function generateOpenAPI() {
           agentSlug: 'inbox-agent',
           agentIdentifier:
             '333333333333333333333333333333333333333333333333333333333333333333',
+          linkedEmail: 'agent@example.com',
+          encryptionPublicKey: 'encryption_public_key',
+          encryptionKeyVersion: 'enc-v1',
+          signingPublicKey: 'signing_public_key',
+          signingKeyVersion: 'sig-v1',
           metadataVersion: 1,
           RegistrySource: {
             id: 'unique_cuid_v2',
@@ -407,7 +412,7 @@ export function generateOpenAPI() {
     method: 'post',
     path: '/inbox-agent-registration-search/',
     description:
-      'Fuzzy-search blockchain-tracked Masumi inbox registrations by slug or name. By default, only pending and verified registrations are returned. Supports pagination and optional filtering by status and policy id.',
+      'Fuzzy-search blockchain-tracked Masumi inbox registrations by slug, name, or linked email. By default, only pending and verified registrations are returned. Supports pagination and optional filtering by status and policy id.',
     summary: 'REQUIRES API KEY Authentication (+user)',
     tags: ['inbox-agent-registration'],
     request: {
@@ -420,7 +425,7 @@ export function generateOpenAPI() {
                 limit: 10,
                 cursorId: 'last_paginated_item',
                 network: 'Preprod',
-                query: 'inbox',
+                query: 'agent@example.com',
                 filter: {
                   policyId: 'policy_id',
                   status: ['Pending', 'Verified'],

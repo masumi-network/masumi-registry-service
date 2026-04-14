@@ -26,7 +26,7 @@ describe('inboxAgentRegistrationService.searchInboxAgentRegistrations', () => {
     updateLatestCardanoRegistryEntries.mockResolvedValue(undefined);
   });
 
-  it('normalizes the search query for slug matching while preserving the raw name query', async () => {
+  it('normalizes the search query for slug matching while preserving raw name and email queries', async () => {
     await inboxAgentRegistrationService.searchInboxAgentRegistrations({
       network: Network.Preprod,
       limit: 10,
@@ -37,6 +37,7 @@ describe('inboxAgentRegistrationService.searchInboxAgentRegistrations', () => {
     expect(searchInboxAgentRegistrations).toHaveBeenCalledWith({
       nameQuery: 'Inbox Agent',
       agentSlugQuery: 'inbox-agent',
+      linkedEmailQuery: 'Inbox Agent',
       allowedStatuses: [
         InboxAgentRegistrationStatus.Pending,
         InboxAgentRegistrationStatus.Verified,
@@ -48,12 +49,12 @@ describe('inboxAgentRegistrationService.searchInboxAgentRegistrations', () => {
     });
   });
 
-  it('passes through explicit status filters for fuzzy search', async () => {
+  it('passes through explicit status filters and email search text', async () => {
     await inboxAgentRegistrationService.searchInboxAgentRegistrations({
       network: Network.Mainnet,
       limit: 5,
       cursorId: 'cursor-1',
-      query: 'agent',
+      query: 'agent@example.com',
       filter: {
         policyId: 'policy-id',
         status: [InboxAgentRegistrationStatus.Invalid],
@@ -61,8 +62,9 @@ describe('inboxAgentRegistrationService.searchInboxAgentRegistrations', () => {
     });
 
     expect(searchInboxAgentRegistrations).toHaveBeenCalledWith({
-      nameQuery: 'agent',
-      agentSlugQuery: 'agent',
+      nameQuery: 'agent@example.com',
+      agentSlugQuery: 'agent-example-com',
+      linkedEmailQuery: 'agent@example.com',
       allowedStatuses: [InboxAgentRegistrationStatus.Invalid],
       policyId: 'policy-id',
       cursorId: 'cursor-1',
