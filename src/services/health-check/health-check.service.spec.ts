@@ -225,6 +225,34 @@ describe('checkAndVerifyInboxAgentRegistration', () => {
     expect(result).toBe(InboxAgentRegistrationStatus.Verified);
   });
 
+  it('should use the mainnet inbox base url for non-preprod registrations', async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: false,
+      text: () => Promise.resolve('Inbox slug not found'),
+    });
+
+    const result =
+      await healthCheckService.checkAndVerifyInboxAgentRegistration({
+        inboxAgentRegistration: {
+          assetIdentifier: 'asset-123',
+          agentSlug: 'mainnet-agent',
+          RegistrySource: {
+            network: $Enums.Network.Mainnet,
+          },
+        },
+      });
+
+    expect(result).toBe(InboxAgentRegistrationStatus.Pending);
+    expect(global.fetch).toHaveBeenCalledWith(
+      'https://agentmessenger.io/mainnet-agent/public',
+      expect.objectContaining({
+        headers: {
+          Accept: 'application/json',
+        },
+      })
+    );
+  });
+
   it('should verify inbox agent registration when a nested masumiAgentIdentifier matches assetIdentifier', async () => {
     (global.fetch as jest.Mock).mockResolvedValueOnce({
       ok: true,

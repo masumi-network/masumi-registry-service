@@ -18,6 +18,27 @@ export const queryInboxAgentRegistrationSchemaInput = z.object({
     .optional(),
 });
 
+export const searchInboxAgentRegistrationSchemaInput = z.object({
+  network: z.nativeEnum(Network),
+  limit: z.number({ coerce: true }).int().min(1).max(50).default(10),
+  cursorId: z.string().min(1).max(50).optional(),
+  query: z
+    .string()
+    .trim()
+    .min(1)
+    .max(120)
+    .describe('Case-insensitive fuzzy match against inbox agent slug or name.'),
+  filter: z
+    .object({
+      status: z
+        .array(z.nativeEnum(InboxAgentRegistrationStatus))
+        .max(4)
+        .optional(),
+      policyId: z.string().min(1).max(250).optional(),
+    })
+    .optional(),
+});
+
 export const inboxAgentRegistrationDiffSchemaInput = z.object({
   network: z.nativeEnum(Network),
   statusUpdatedAfter: ez.dateIn(),

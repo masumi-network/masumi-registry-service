@@ -111,8 +111,11 @@ model InboxAgentRegistration {
   RegistrySource   RegistrySource @relation(fields: [registrySourceId], references: [id], onDelete: Cascade)
   registrySourceId String
 
+  @@index([name])
   @@index([agentSlug])
   @@index([status])
+  @@index([registrySourceId])
+  @@index([registrySourceId, status, updatedAt])
   @@index([statusUpdatedAt])
   @@index([statusUpdatedAt, id])
 }
