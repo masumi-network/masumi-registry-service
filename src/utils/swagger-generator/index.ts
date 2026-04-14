@@ -132,6 +132,7 @@ export function generateOpenAPI() {
           agentSlug: 'inbox-agent',
           agentIdentifier:
             '333333333333333333333333333333333333333333333333333333333333333333',
+          providerUrl: 'https://agentmessenger.io',
           linkedEmail: 'agent@example.com',
           encryptionPublicKey: 'encryption_public_key',
           encryptionKeyVersion: 'enc-v1',

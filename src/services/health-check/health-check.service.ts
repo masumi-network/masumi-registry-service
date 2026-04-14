@@ -468,11 +468,16 @@ async function checkVerifyAndUpdateRegistryEntries({
 async function checkAndVerifyInboxAgentPublicEndpoint(params: {
   network: $Enums.Network;
   agentSlug: string;
+  providerUrl?: string | null;
 }): Promise<InboxAgentPublicEndpointResult> {
-  const baseUrl = INBOX_AGENT_PUBLIC_BASE_URLS[params.network];
-  if (!baseUrl) {
+  const configuredBaseUrl =
+    params.providerUrl ?? INBOX_AGENT_PUBLIC_BASE_URLS[params.network];
+  if (!configuredBaseUrl) {
     return { outcome: 'unavailable', returnedAgentIdentifiers: [] };
   }
+  const baseUrl = configuredBaseUrl.endsWith('/')
+    ? configuredBaseUrl.slice(0, -1)
+    : configuredBaseUrl;
 
   let controller: AbortController | null = null;
   let timeoutId: NodeJS.Timeout | null = null;
@@ -542,6 +547,7 @@ async function checkAndVerifyInboxAgentRegistration(params: {
     InboxAgentRegistrationWithSource,
     'assetIdentifier' | 'agentSlug'
   > & {
+    providerUrl?: string | null;
     RegistrySource: Pick<RegistrySource, 'network'>;
   };
   currentStatus?: InboxAgentRegistrationStatus;
@@ -552,6 +558,7 @@ async function checkAndVerifyInboxAgentRegistration(params: {
     (await checkAndVerifyInboxAgentPublicEndpoint({
       network: params.inboxAgentRegistration.RegistrySource.network,
       agentSlug: params.inboxAgentRegistration.agentSlug,
+      providerUrl: params.inboxAgentRegistration.providerUrl,
     }));
   const currentStatus =
     params.currentStatus ?? InboxAgentRegistrationStatus.Pending;
@@ -601,15 +608,20 @@ async function checkVerifyAndUpdateInboxAgentRegistrations(params: {
   const lookupMap = new Map<string, InboxAgentPublicEndpointResult>();
   const neededLookups = new Map<
     string,
-    { network: $Enums.Network; agentSlug: string }
+    {
+      network: $Enums.Network;
+      agentSlug: string;
+      providerUrl: string | null;
+    }
   >();
 
   for (const registration of params.inboxAgentRegistrations) {
-    const lookupKey = `${registration.RegistrySource.network}:${registration.agentSlug}`;
+    const lookupKey = `${registration.RegistrySource.network}:${registration.providerUrl ?? ''}:${registration.agentSlug}`;
     if (!neededLookups.has(lookupKey)) {
       neededLookups.set(lookupKey, {
         network: registration.RegistrySource.network,
         agentSlug: registration.agentSlug,
+        providerUrl: registration.providerUrl,
       });
     }
   }
@@ -635,7 +647,7 @@ async function checkVerifyAndUpdateInboxAgentRegistrations(params: {
   const now = new Date();
   const data = await Promise.allSettled(
     params.inboxAgentRegistrations.map(async (registration) => {
-      const lookupKey = `${registration.RegistrySource.network}:${registration.agentSlug}`;
+      const lookupKey = `${registration.RegistrySource.network}:${registration.providerUrl ?? ''}:${registration.agentSlug}`;
       const decision = await checkAndVerifyInboxAgentRegistration({
         inboxAgentRegistration: registration,
         currentStatus: registration.status,

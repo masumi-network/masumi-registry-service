@@ -9,6 +9,7 @@ const METADATA_VERSION = 1;
 const MAX_NAME_LENGTH = 120;
 const MAX_DESCRIPTION_LENGTH = 500;
 const MAX_AGENT_SLUG_LENGTH = 80;
+const INVALID_PROVIDER_URL_HOSTNAMES = new Set(['localhost', '127.0.0.1']);
 
 export const inboxAgentRegistrationMetadataSchema = z.object({
   type: z.literal(INBOX_REGISTRY_METADATA_TYPE),
@@ -21,6 +22,7 @@ export const inboxAgentRegistrationMetadataSchema = z.object({
     .string()
     .min(1)
     .or(z.array(z.string().min(1))),
+  provider_url: z.string().or(z.array(z.string())).optional(),
   metadata_version: z
     .number({ coerce: true })
     .int()
@@ -32,12 +34,13 @@ export type NormalizedInboxAgentRegistrationMetadata = {
   name: string;
   description: string | null;
   agentSlug: string;
+  providerUrl: string | null;
   metadataVersion: number;
 };
 
 type InboxAgentRegistrationContent = Pick<
   NormalizedInboxAgentRegistrationMetadata,
-  'name' | 'description' | 'agentSlug'
+  'name' | 'description' | 'agentSlug' | 'providerUrl'
 >;
 
 function requireStringValue(
@@ -117,6 +120,48 @@ function normalizeAgentSlug(value: string | string[] | undefined): string {
   return normalizedSlug;
 }
 
+function normalizeProviderUrl(
+  value: string | string[] | undefined
+): string | null {
+  if (value == null) return null;
+
+  const rawValue = metadataStringConvert(value);
+  const trimmedValue = rawValue?.trim();
+  if (!trimmedValue) {
+    throw new Error('provider_url must not be blank');
+  }
+
+  let normalizedUrl: URL;
+  try {
+    normalizedUrl = new URL(trimmedValue);
+  } catch {
+    throw new Error('provider_url must be a valid absolute URL');
+  }
+
+  if (
+    normalizedUrl.protocol !== 'https:' &&
+    normalizedUrl.protocol !== 'http:'
+  ) {
+    throw new Error('provider_url must use http or https');
+  }
+  if (INVALID_PROVIDER_URL_HOSTNAMES.has(normalizedUrl.hostname)) {
+    throw new Error('provider_url hostname is not allowed');
+  }
+  if (normalizedUrl.search) {
+    throw new Error('provider_url must not contain a query string');
+  }
+  if (normalizedUrl.hash) {
+    throw new Error('provider_url must not contain a fragment');
+  }
+
+  let canonicalUrl = normalizedUrl.toString();
+  if (canonicalUrl.endsWith('/')) {
+    canonicalUrl = canonicalUrl.slice(0, -1);
+  }
+
+  return canonicalUrl;
+}
+
 export function normalizeInboxAgentRegistrationMetadata(
   metadata: z.infer<typeof inboxAgentRegistrationMetadataSchema>
 ): NormalizedInboxAgentRegistrationMetadata {
@@ -128,6 +173,7 @@ export function normalizeInboxAgentRegistrationMetadata(
       MAX_DESCRIPTION_LENGTH
     ),
     agentSlug: normalizeAgentSlug(metadata.agentslug),
+    providerUrl: normalizeProviderUrl(metadata.provider_url),
     metadataVersion: metadata.metadata_version,
   };
 }
@@ -155,7 +201,8 @@ export function hasInboxAgentRegistrationContentChanged(
   return (
     current.name !== next.name ||
     current.description !== next.description ||
-    current.agentSlug !== next.agentSlug
+    current.agentSlug !== next.agentSlug ||
+    current.providerUrl !== next.providerUrl
   );
 }
 
@@ -174,4 +221,24 @@ export function nextInboxAgentRegistrationStatus(params: {
   }
 
   return InboxAgentRegistrationStatus.Pending;
+}
+
+export function getInboxAgentRegistrationVerificationDataReset(params: {
+  changed: boolean;
+  nextStatus: InboxAgentRegistrationStatus;
+}) {
+  if (
+    !params.changed ||
+    params.nextStatus !== InboxAgentRegistrationStatus.Pending
+  ) {
+    return {};
+  }
+
+  return {
+    linkedEmail: null,
+    encryptionPublicKey: null,
+    encryptionKeyVersion: null,
+    signingPublicKey: null,
+    signingKeyVersion: null,
+  };
 }

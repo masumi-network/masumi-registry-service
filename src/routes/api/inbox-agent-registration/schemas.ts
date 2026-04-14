@@ -69,6 +69,7 @@ export const inboxAgentRegistrationSchemaOutput = z
     description: z.string().nullable(),
     agentSlug: z.string(),
     agentIdentifier: z.string(),
+    providerUrl: z.string().nullable(),
     linkedEmail: z.string().nullable(),
     encryptionPublicKey: z.string().nullable(),
     encryptionKeyVersion: z.string().nullable(),
@@ -97,6 +98,7 @@ export type InboxAgentRegistrationSerializable = {
   description: string | null;
   agentSlug: string;
   assetIdentifier: string;
+  providerUrl: string | null;
   linkedEmail: string | null;
   encryptionPublicKey: string | null;
   encryptionKeyVersion: string | null;
@@ -130,6 +132,7 @@ export function serializeInboxAgentRegistrations(
       description: registration.description,
       agentSlug: registration.agentSlug,
       agentIdentifier: registration.assetIdentifier,
+      providerUrl: registration.providerUrl,
       linkedEmail: registration.linkedEmail,
       encryptionPublicKey: registration.encryptionPublicKey,
       encryptionKeyVersion: registration.encryptionKeyVersion,

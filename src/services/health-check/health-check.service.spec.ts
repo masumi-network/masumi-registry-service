@@ -1,4 +1,5 @@
 import { $Enums, InboxAgentRegistrationStatus } from '@prisma/client';
+import { prisma } from '@/utils/db';
 import { healthCheckService } from './health-check.service';
 
 describe('healthCheckService', () => {
@@ -317,6 +318,36 @@ describe('checkAndVerifyInboxAgentRegistration', () => {
     );
   });
 
+  it('should use providerUrl as the primary inbox verification base url when present', async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: false,
+      status: 404,
+      text: () => Promise.resolve('Inbox slug not found'),
+    });
+
+    const result =
+      await healthCheckService.checkAndVerifyInboxAgentRegistration({
+        inboxAgentRegistration: {
+          assetIdentifier: 'asset-123',
+          agentSlug: 'custom-agent',
+          providerUrl: 'https://provider.example.com/base',
+          RegistrySource: {
+            network: $Enums.Network.Preprod,
+          },
+        },
+      });
+
+    expect(result.status).toBe(InboxAgentRegistrationStatus.Pending);
+    expect(global.fetch).toHaveBeenCalledWith(
+      'https://provider.example.com/base/custom-agent/public',
+      expect.objectContaining({
+        headers: {
+          Accept: 'application/json',
+        },
+      })
+    );
+  });
+
   it('should verify inbox agent registration when a nested masumiAgentIdentifier matches assetIdentifier', async () => {
     (global.fetch as jest.Mock).mockResolvedValueOnce({
       ok: true,
@@ -483,5 +514,130 @@ describe('checkAndVerifyInboxAgentRegistration', () => {
         signingKeyVersion: null,
       },
     });
+  });
+});
+
+describe('checkVerifyAndUpdateInboxAgentRegistrations', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    global.fetch = jest.fn();
+  });
+
+  it('does not reuse inbox lookup results across different provider urls', async () => {
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            agentIdentifier: 'asset-123',
+          }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            agentIdentifier: 'asset-456',
+          }),
+      });
+
+    const updateSpy = jest
+      .spyOn(prisma.inboxAgentRegistration, 'update')
+      .mockResolvedValue({} as never);
+
+    await healthCheckService.checkVerifyAndUpdateInboxAgentRegistrations({
+      inboxAgentRegistrations: [
+        {
+          id: 'registration-1',
+          assetIdentifier: 'asset-123',
+          agentSlug: 'shared-agent',
+          providerUrl: 'https://provider-a.example.com',
+          status: InboxAgentRegistrationStatus.Pending,
+          RegistrySource: {
+            id: 'source-1',
+            network: $Enums.Network.Preprod,
+            url: null,
+            policyId: 'policy-id',
+            registrySourceConfigId: 'config-1',
+            createdAt: new Date(0),
+            updatedAt: new Date(0),
+            note: null,
+            lastTxId: null,
+            lastCheckedPage: 1,
+          },
+          createdAt: new Date(0),
+          updatedAt: new Date(0),
+          statusUpdatedAt: new Date(0),
+          name: 'Agent A',
+          description: null,
+          linkedEmail: null,
+          encryptionPublicKey: null,
+          encryptionKeyVersion: null,
+          signingPublicKey: null,
+          signingKeyVersion: null,
+          metadataVersion: 1,
+          registrySourceId: 'source-1',
+        },
+        {
+          id: 'registration-2',
+          assetIdentifier: 'asset-456',
+          agentSlug: 'shared-agent',
+          providerUrl: 'https://provider-b.example.com',
+          status: InboxAgentRegistrationStatus.Pending,
+          RegistrySource: {
+            id: 'source-1',
+            network: $Enums.Network.Preprod,
+            url: null,
+            policyId: 'policy-id',
+            registrySourceConfigId: 'config-1',
+            createdAt: new Date(0),
+            updatedAt: new Date(0),
+            note: null,
+            lastTxId: null,
+            lastCheckedPage: 1,
+          },
+          createdAt: new Date(0),
+          updatedAt: new Date(0),
+          statusUpdatedAt: new Date(0),
+          name: 'Agent B',
+          description: null,
+          linkedEmail: null,
+          encryptionPublicKey: null,
+          encryptionKeyVersion: null,
+          signingPublicKey: null,
+          signingKeyVersion: null,
+          metadataVersion: 1,
+          registrySourceId: 'source-1',
+        },
+      ],
+    });
+
+    expect(global.fetch).toHaveBeenNthCalledWith(
+      1,
+      'https://provider-a.example.com/shared-agent/public',
+      expect.any(Object)
+    );
+    expect(global.fetch).toHaveBeenNthCalledWith(
+      2,
+      'https://provider-b.example.com/shared-agent/public',
+      expect.any(Object)
+    );
+    expect(updateSpy).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        where: { id: 'registration-1' },
+        data: expect.objectContaining({
+          status: InboxAgentRegistrationStatus.Verified,
+        }),
+      })
+    );
+    expect(updateSpy).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        where: { id: 'registration-2' },
+        data: expect.objectContaining({
+          status: InboxAgentRegistrationStatus.Verified,
+        }),
+      })
+    );
   });
 });
