@@ -11,7 +11,6 @@ import { healthCheckService } from '@/services/health-check';
 import { logger } from '@/utils/logger';
 import { DEFAULTS } from '@/utils/config';
 import { getBlockfrostInstance } from '@/utils/blockfrost';
-import { buildRegistryEntrySearchText } from '@/utils/registry-entry-search-text';
 import {
   getInboxAgentRegistrationVerificationDataReset,
   INBOX_REGISTRY_METADATA_TYPE,
@@ -477,17 +476,6 @@ async function syncWeb3CardanoRegistryEntry(params: {
             },
     },
     assetIdentifier: params.asset,
-    searchText: buildRegistryEntrySearchText({
-      name,
-      description,
-      authorName,
-      authorOrganization,
-      apiBaseUrl,
-      assetIdentifier: params.asset,
-      capabilityName: capability_name,
-      capabilityVersion: capability_version,
-      tags,
-    }),
     paymentType: paymentType,
     RegistrySource: { connect: { id: params.source.id } },
   };
