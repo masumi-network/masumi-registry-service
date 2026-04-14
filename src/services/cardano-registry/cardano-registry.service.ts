@@ -253,6 +253,36 @@ export async function updateHealthCheck(onlyEntriesAfter?: Date | undefined) {
           registryEntries: combinedEntries,
           minHealthCheckDate: onlyEntriesAfter,
         });
+
+        const inboxAgentRegistrations =
+          source.network === $Enums.Network.Preprod
+            ? await prisma.inboxAgentRegistration.findMany({
+                where: {
+                  registrySourceId: source.id,
+                  status: {
+                    in: [
+                      InboxAgentRegistrationStatus.Pending,
+                      InboxAgentRegistrationStatus.Verified,
+                      InboxAgentRegistrationStatus.Invalid,
+                    ],
+                  },
+                  updatedAt: {
+                    lte: onlyEntriesAfter,
+                  },
+                },
+                orderBy: { updatedAt: 'asc' },
+                take: 50,
+                include: {
+                  RegistrySource: true,
+                },
+              })
+            : [];
+        logger.info(
+          `Found ${inboxAgentRegistrations.length} inbox agent registrations eligible for verification`
+        );
+        await healthCheckService.checkVerifyAndUpdateInboxAgentRegistrations({
+          inboxAgentRegistrations,
+        });
       })
     );
   } finally {
