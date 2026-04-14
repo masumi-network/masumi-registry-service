@@ -15,6 +15,10 @@ const INBOX_AGENT_PUBLIC_BASE_URLS: Partial<Record<$Enums.Network, string>> = {
   [$Enums.Network.Mainnet]: 'https://agentmessenger.io',
 };
 
+const INBOX_AGENT_IDENTIFIER_KEYS = new Set([
+  'agentIdentifier',
+  'masumiAgentIdentifier',
+]);
 const INBOX_AGENT_LINKED_EMAIL_KEY = 'linkedEmail';
 const INBOX_AGENT_ENCRYPTION_PUBLIC_KEY_KEY = 'encryptionPublicKey';
 const INBOX_AGENT_ENCRYPTION_KEY_VERSION_KEY = 'encryptionKeyVersion';
@@ -141,10 +145,11 @@ function extractInboxAgentPublicVerification(value: unknown): {
   collectInboxVerificationStrings(value, bucket, new WeakSet<object>());
 
   const returnedAgentIdentifiers = Array.from(
-    new Set([
-      ...Array.from(bucket.agentIdentifier),
-      ...Array.from(bucket.masumiAgentIdentifier),
-    ])
+    new Set(
+      Array.from(INBOX_AGENT_IDENTIFIER_KEYS).flatMap((key) =>
+        Array.from(bucket[key] ?? [])
+      )
+    )
   );
 
   return {
