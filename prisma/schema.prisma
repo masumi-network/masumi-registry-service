@@ -18,7 +18,6 @@ model ApiKey {
   id                      String       @id @default(cuid())
   createdAt               DateTime     @default(now())
   updatedAt               DateTime     @updatedAt
-  token                   String       @unique
   tokenHash               String       @unique
   status                  APIKeyStatus
   permission              Permission
@@ -26,8 +25,6 @@ model ApiKey {
   accumulatedUsageCredits Float        @default(0)
   maxUsageCredits         Float?
   Usage                   UsageEntry[]
-
-  @@index([token])
 }
 
 enum APIKeyStatus {

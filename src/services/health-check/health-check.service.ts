@@ -9,6 +9,10 @@ import {
   RegistryEntry,
   RegistrySource,
 } from '@prisma/client';
+import {
+  PublicUrlValidationError,
+  validatePublicUrl,
+} from '@/utils/public-url';
 
 const INBOX_AGENT_PUBLIC_BASE_URLS: Partial<Record<$Enums.Network, string>> = {
   [$Enums.Network.Preprod]: 'https://masumi-inbox-dev-ivi44.ondigitalocean.app',
@@ -66,6 +70,13 @@ function getEmptyInboxAgentVerificationData(): InboxAgentVerificationData {
     signingPublicKey: null,
     signingKeyVersion: null,
   };
+}
+
+function isUnsafePublicUrl(error: unknown): boolean {
+  return (
+    error instanceof PublicUrlValidationError &&
+    error.code !== 'unresolvable_hostname'
+  );
 }
 
 function collectStringValues(value: unknown, foundValues: Set<string>): void {
@@ -184,34 +195,11 @@ async function checkAndVerifyEndpoint({ api_url }: { api_url: string }) {
   let timeoutId: NodeJS.Timeout | null = null;
 
   try {
-    const invalidHostname = ['localhost', '127.0.0.1'];
-    const url = new URL(api_url);
-    if (invalidHostname.includes(url.hostname)) {
-      return {
-        returnedAgentIdentifier: null,
-        status: $Enums.Status.Invalid,
-      };
-    }
-    if (url.protocol !== 'https:' && url.protocol !== 'http:') {
-      return {
-        returnedAgentIdentifier: null,
-        status: $Enums.Status.Invalid,
-      };
-    }
-
-    if (url.search != '') {
-      return {
-        returnedAgentIdentifier: null,
-        status: $Enums.Status.Invalid,
-      };
-    }
-    let urlString = url.toString();
-    if (urlString.endsWith('/')) {
-      urlString = urlString.slice(0, -1);
-    }
+    const { normalizedUrl } = await validatePublicUrl(api_url);
     controller = new AbortController();
     timeoutId = setTimeout(() => controller?.abort(), 7500);
-    const endpointResponse = await fetch(`${urlString}/availability`, {
+    const endpointResponse = await fetch(`${normalizedUrl}/availability`, {
+      redirect: 'manual',
       signal: controller.signal,
     });
     clearTimeout(timeoutId);
@@ -244,10 +232,12 @@ async function checkAndVerifyEndpoint({ api_url }: { api_url: string }) {
           ? $Enums.Status.Online
           : $Enums.Status.Invalid,
     };
-  } catch {
+  } catch (error) {
     return {
       returnedAgentIdentifier: null,
-      status: $Enums.Status.Offline,
+      status: isUnsafePublicUrl(error)
+        ? $Enums.Status.Invalid
+        : $Enums.Status.Offline,
     };
   } finally {
     if (timeoutId) {
@@ -475,19 +465,18 @@ async function checkAndVerifyInboxAgentPublicEndpoint(params: {
   if (!configuredBaseUrl) {
     return { outcome: 'unavailable', returnedAgentIdentifiers: [] };
   }
-  const baseUrl = configuredBaseUrl.endsWith('/')
-    ? configuredBaseUrl.slice(0, -1)
-    : configuredBaseUrl;
 
   let controller: AbortController | null = null;
   let timeoutId: NodeJS.Timeout | null = null;
 
   try {
+    const { normalizedUrl } = await validatePublicUrl(configuredBaseUrl);
     controller = new AbortController();
     timeoutId = setTimeout(() => controller?.abort(), 7500);
     const endpointResponse = await fetch(
-      `${baseUrl}/${encodeURIComponent(params.agentSlug)}/public`,
+      `${normalizedUrl}/${encodeURIComponent(params.agentSlug)}/public`,
       {
+        redirect: 'manual',
         signal: controller.signal,
         headers: {
           Accept: 'application/json',

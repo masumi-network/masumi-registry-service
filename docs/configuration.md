@@ -5,6 +5,7 @@ variables
 
 - **DATABASE_URL**: The endpoint for a PostgreSQL database to be used
 - **PORT**: The port to run the server on (default is 3000)
+- **CORS_ALLOWED_ORIGINS**: A comma-separated allowlist of additional browser origins that may call the API cross-origin. Leave unset to avoid wildcard browser CORS exposure.
 
 If you're setting up the database for the first time (or want to provide some initial data) you also need the
 following variables before seeding:

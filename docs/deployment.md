@@ -9,8 +9,8 @@ We recommend also using a PostgreSQL database service and do backups of the data
 
 ## Run with Docker
 
-1. Create the `.env` file with the correct values or inject the values to docker (migrate the database and
-   optionally seed it first)
+1. Create the `.env` file with the correct values or inject the values at container runtime (migrate the database and
+   optionally seed it first). The production image does not copy `.env` files into the container.
 2. Build:
 
    ```

@@ -742,9 +742,6 @@
                     "id": {
                         "type": "string"
                     },
-                    "token": {
-                        "type": "string"
-                    },
                     "permission": {
                         "type": "string",
                         "enum": [
@@ -777,12 +774,60 @@
                 },
                 "required": [
                     "id",
-                    "token",
                     "permission",
                     "usageLimited",
                     "maxUsageCredits",
                     "accumulatedUsageCredits",
                     "status"
+                ]
+            },
+            "APIKeyWithToken": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "permission": {
+                        "type": "string",
+                        "enum": [
+                            "User",
+                            "Admin"
+                        ]
+                    },
+                    "usageLimited": {
+                        "type": "boolean"
+                    },
+                    "maxUsageCredits": {
+                        "type": "integer",
+                        "nullable": true,
+                        "minimum": 0,
+                        "maximum": 1000000
+                    },
+                    "accumulatedUsageCredits": {
+                        "type": "integer",
+                        "nullable": true,
+                        "minimum": 0,
+                        "maximum": 1000000
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "Active",
+                            "Revoked"
+                        ]
+                    },
+                    "token": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "id",
+                    "permission",
+                    "usageLimited",
+                    "maxUsageCredits",
+                    "accumulatedUsageCredits",
+                    "status",
+                    "token"
                 ]
             }
         },
@@ -2598,7 +2643,6 @@
                                     "example": {
                                         "data": {
                                             "id": "unique-cuid-v2-auto-generated",
-                                            "token": "masumi-registry-api-key-secret",
                                             "permission": "Admin",
                                             "usageLimited": true,
                                             "maxUsageCredits": 1000000,
@@ -2683,7 +2727,6 @@
                                             "apiKeys": [
                                                 {
                                                     "id": "unique-cuid-v2-auto-generated",
-                                                    "token": "masumi-registry-api-key-secret",
                                                     "permission": "Admin",
                                                     "usageLimited": true,
                                                     "maxUsageCredits": 1000000,
@@ -2765,7 +2808,7 @@
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/components/schemas/APIKey"
+                                            "$ref": "#/components/schemas/APIKeyWithToken"
                                         },
                                         "status": {
                                             "type": "string"
@@ -2878,7 +2921,6 @@
                                     "example": {
                                         "data": {
                                             "id": "unique-cuid-v2-auto-generated",
-                                            "token": "masumi-registry-api-key-secret",
                                             "permission": "User",
                                             "usageLimited": true,
                                             "maxUsageCredits": 1000000,
@@ -2957,7 +2999,6 @@
                                     "example": {
                                         "data": {
                                             "id": "unique-cuid-v2-auto-generated",
-                                            "token": "deleted-masumi-registry-api-key-secret",
                                             "permission": "User",
                                             "usageLimited": true,
                                             "maxUsageCredits": 1000000,

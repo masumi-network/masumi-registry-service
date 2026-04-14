@@ -23,6 +23,14 @@ export const authMiddleware = (requiresAdmin: boolean) =>
         where: {
           tokenHash: hashToken(sentKey),
         },
+        select: {
+          id: true,
+          permission: true,
+          accumulatedUsageCredits: true,
+          maxUsageCredits: true,
+          status: true,
+          usageLimited: true,
+        },
       });
 
       if (!apiKey) {

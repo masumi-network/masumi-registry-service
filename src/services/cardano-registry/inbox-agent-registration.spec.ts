@@ -91,6 +91,16 @@ describe('inbox agent registration helpers', () => {
         type: INBOX_REGISTRY_METADATA_TYPE,
         name: 'Inbox Agent',
         agentslug: 'inbox-agent',
+        provider_url: 'http://10.0.0.1/provider',
+        metadata_version: 1,
+      })
+    ).toBeNull();
+
+    expect(
+      parseInboxAgentRegistrationMetadata({
+        type: INBOX_REGISTRY_METADATA_TYPE,
+        name: 'Inbox Agent',
+        agentslug: 'inbox-agent',
         provider_url: 'https://agentmessenger.io?foo=bar',
         metadata_version: 1,
       })

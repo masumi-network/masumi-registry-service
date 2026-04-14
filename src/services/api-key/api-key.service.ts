@@ -13,16 +13,21 @@ async function addApiKey(
   usageLimited: boolean,
   maxUsageCredits: number
 ) {
-  const apiKey =
+  const apiKeyToken =
     'masumi-registry-' +
     (permission == Permission.Admin ? 'admin-' : 'user-') +
     createId();
-  return await apiKeyRepository.addApiKey(
-    apiKey,
+  const createdApiKey = await apiKeyRepository.addApiKey(
+    apiKeyToken,
     permission,
     usageLimited,
     maxUsageCredits
   );
+
+  return {
+    ...createdApiKey,
+    token: apiKeyToken,
+  };
 }
 async function updateApiKey(
   apiKey: string,
