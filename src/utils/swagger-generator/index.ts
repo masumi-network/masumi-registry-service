@@ -15,6 +15,7 @@ import {
   queryInboxAgentRegistrationSchemaInput,
   queryInboxAgentRegistrationSchemaOutput,
   inboxAgentRegistrationDiffSchemaInput,
+  searchInboxAgentRegistrationSchemaInput,
 } from '@/routes/api/inbox-agent-registration';
 import {
   capabilitySchemaInput,
@@ -131,6 +132,11 @@ export function generateOpenAPI() {
           agentSlug: 'inbox-agent',
           agentIdentifier:
             '333333333333333333333333333333333333333333333333333333333333333333',
+          linkedEmail: 'agent@example.com',
+          encryptionPublicKey: 'encryption_public_key',
+          encryptionKeyVersion: 'enc-v1',
+          signingPublicKey: 'signing_public_key',
+          signingKeyVersion: 'sig-v1',
           metadataVersion: 1,
           RegistrySource: {
             id: 'unique_cuid_v2',
@@ -377,6 +383,63 @@ export function generateOpenAPI() {
     responses: {
       200: {
         description: 'Inbox agent registrations',
+        content: {
+          'application/json': {
+            schema: z
+              .object({
+                data: queryInboxAgentRegistrationSchemaOutput,
+                status: z.string(),
+              })
+              .openapi({
+                example: inboxAgentRegistrationsResponseExample,
+              }),
+          },
+        },
+      },
+      400: {
+        description: 'Bad Request (possible parameters missing or invalid)',
+      },
+      401: {
+        description: 'Unauthorized',
+      },
+      500: {
+        description: 'Internal Server Error',
+      },
+    },
+  });
+
+  registry.registerPath({
+    method: 'post',
+    path: '/inbox-agent-registration-search/',
+    description:
+      'Fuzzy-search blockchain-tracked Masumi inbox registrations by slug, name, or linked email. By default, only pending and verified registrations are returned. Supports pagination and optional filtering by status and policy id.',
+    summary: 'REQUIRES API KEY Authentication (+user)',
+    tags: ['inbox-agent-registration'],
+    request: {
+      body: {
+        description: '',
+        content: {
+          'application/json': {
+            schema: searchInboxAgentRegistrationSchemaInput.openapi({
+              example: {
+                limit: 10,
+                cursorId: 'last_paginated_item',
+                network: 'Preprod',
+                query: 'agent@example.com',
+                filter: {
+                  policyId: 'policy_id',
+                  status: ['Pending', 'Verified'],
+                },
+              },
+            }),
+          },
+        },
+      },
+    },
+    security: [{ [apiKeyAuth.name]: [] }],
+    responses: {
+      200: {
+        description: 'Inbox agent registrations matching the fuzzy search',
         content: {
           'application/json': {
             schema: z

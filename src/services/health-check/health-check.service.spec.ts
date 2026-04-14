@@ -1,5 +1,5 @@
+import { $Enums, InboxAgentRegistrationStatus } from '@prisma/client';
 import { healthCheckService } from './health-check.service';
-import { $Enums } from '@prisma/client';
 
 describe('healthCheckService', () => {
   beforeEach(() => {
@@ -63,6 +63,7 @@ describe('healthCheckService', () => {
     });
   });
 });
+
 describe('checkAndVerifyRegistryEntry', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -82,8 +83,8 @@ describe('checkAndVerifyRegistryEntry', () => {
     (global.fetch as jest.Mock).mockResolvedValueOnce({
       ok: false,
     });
-    const minHealthCheckDate = new Date(Date.now() - 1000); // 1 second ago
-    mockRegistryEntry.lastUptimeCheck = new Date(); // current time
+    const minHealthCheckDate = new Date(Date.now() - 1000);
+    mockRegistryEntry.lastUptimeCheck = new Date();
 
     const result = await healthCheckService.checkAndVerifyRegistryEntry({
       registryEntry: mockRegistryEntry,
@@ -104,7 +105,7 @@ describe('checkAndVerifyRegistryEntry', () => {
         policyId: 'registry',
       },
     };
-    mockRegistryEntry.lastUptimeCheck = new Date(Date.now() - 1000); // 1 second ago
+    mockRegistryEntry.lastUptimeCheck = new Date(Date.now() - 1000);
 
     (global.fetch as jest.Mock).mockResolvedValueOnce({
       ok: true,
@@ -165,5 +166,322 @@ describe('checkAndVerifyRegistryEntry', () => {
     });
 
     expect(result).toBe($Enums.Status.Offline);
+  });
+});
+
+describe('checkAndVerifyInboxAgentRegistration', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    global.fetch = jest.fn();
+  });
+
+  it('should keep inbox agent registration pending when the slug is not yet public', async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: false,
+      status: 404,
+      text: () => Promise.resolve('Inbox slug not found'),
+    });
+
+    const result =
+      await healthCheckService.checkAndVerifyInboxAgentRegistration({
+        inboxAgentRegistration: {
+          assetIdentifier: 'asset-123',
+          agentSlug: 'inbox-agent',
+          RegistrySource: {
+            network: $Enums.Network.Preprod,
+          },
+        },
+      });
+
+    expect(result).toEqual({
+      status: InboxAgentRegistrationStatus.Pending,
+      preserveExistingVerificationData: false,
+      verificationData: {
+        linkedEmail: null,
+        encryptionPublicKey: null,
+        encryptionKeyVersion: null,
+        signingPublicKey: null,
+        signingKeyVersion: null,
+      },
+    });
+    expect(global.fetch).toHaveBeenCalledWith(
+      'https://masumi-inbox-dev-ivi44.ondigitalocean.app/inbox-agent/public',
+      expect.objectContaining({
+        headers: {
+          Accept: 'application/json',
+        },
+      })
+    );
+  });
+
+  it('should verify inbox agent registration and capture verification-derived fields', async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          registration: {
+            agentIdentifier: 'asset-123',
+            linkedEmail: 'agent@example.com',
+            encryptionPublicKey: 'encryption_public_key',
+            encryptionKeyVersion: 'enc-v1',
+            signingPublicKey: 'signing_public_key',
+            signingKeyVersion: 'sig-v1',
+          },
+        }),
+    });
+
+    const result =
+      await healthCheckService.checkAndVerifyInboxAgentRegistration({
+        inboxAgentRegistration: {
+          assetIdentifier: 'asset-123',
+          agentSlug: 'inbox-agent',
+          RegistrySource: {
+            network: $Enums.Network.Preprod,
+          },
+        },
+      });
+
+    expect(result).toEqual({
+      status: InboxAgentRegistrationStatus.Verified,
+      preserveExistingVerificationData: false,
+      verificationData: {
+        linkedEmail: 'agent@example.com',
+        encryptionPublicKey: 'encryption_public_key',
+        encryptionKeyVersion: 'enc-v1',
+        signingPublicKey: 'signing_public_key',
+        signingKeyVersion: 'sig-v1',
+      },
+    });
+  });
+
+  it('should store missing optional verification fields as null', async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          agentIdentifier: 'asset-123',
+          signingPublicKey: 'signing_public_key',
+        }),
+    });
+
+    const result =
+      await healthCheckService.checkAndVerifyInboxAgentRegistration({
+        inboxAgentRegistration: {
+          assetIdentifier: 'asset-123',
+          agentSlug: 'inbox-agent',
+          RegistrySource: {
+            network: $Enums.Network.Preprod,
+          },
+        },
+      });
+
+    expect(result).toEqual({
+      status: InboxAgentRegistrationStatus.Verified,
+      preserveExistingVerificationData: false,
+      verificationData: {
+        linkedEmail: null,
+        encryptionPublicKey: null,
+        encryptionKeyVersion: null,
+        signingPublicKey: 'signing_public_key',
+        signingKeyVersion: null,
+      },
+    });
+  });
+
+  it('should use the mainnet inbox base url for non-preprod registrations', async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: false,
+      status: 404,
+      text: () => Promise.resolve('Inbox slug not found'),
+    });
+
+    const result =
+      await healthCheckService.checkAndVerifyInboxAgentRegistration({
+        inboxAgentRegistration: {
+          assetIdentifier: 'asset-123',
+          agentSlug: 'mainnet-agent',
+          RegistrySource: {
+            network: $Enums.Network.Mainnet,
+          },
+        },
+      });
+
+    expect(result.status).toBe(InboxAgentRegistrationStatus.Pending);
+    expect(global.fetch).toHaveBeenCalledWith(
+      'https://agentmessenger.io/mainnet-agent/public',
+      expect.objectContaining({
+        headers: {
+          Accept: 'application/json',
+        },
+      })
+    );
+  });
+
+  it('should verify inbox agent registration when a nested masumiAgentIdentifier matches assetIdentifier', async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          registration: {
+            masumiAgentIdentifier: 'asset-123',
+          },
+        }),
+    });
+
+    const result =
+      await healthCheckService.checkAndVerifyInboxAgentRegistration({
+        inboxAgentRegistration: {
+          assetIdentifier: 'asset-123',
+          agentSlug: 'inbox-agent',
+          RegistrySource: {
+            network: $Enums.Network.Preprod,
+          },
+        },
+      });
+
+    expect(result).toEqual({
+      status: InboxAgentRegistrationStatus.Verified,
+      preserveExistingVerificationData: false,
+      verificationData: {
+        linkedEmail: null,
+        encryptionPublicKey: null,
+        encryptionKeyVersion: null,
+        signingPublicKey: null,
+        signingKeyVersion: null,
+      },
+    });
+  });
+
+  it('should invalidate inbox agent registration and clear verification-derived fields when a different agent identifier is returned', async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          registration: {
+            agentIdentifier: 'asset-999',
+            linkedEmail: 'wrong@example.com',
+            signingPublicKey: 'wrong_key',
+          },
+        }),
+    });
+
+    const result =
+      await healthCheckService.checkAndVerifyInboxAgentRegistration({
+        inboxAgentRegistration: {
+          assetIdentifier: 'asset-123',
+          agentSlug: 'inbox-agent',
+          RegistrySource: {
+            network: $Enums.Network.Preprod,
+          },
+        },
+      });
+
+    expect(result).toEqual({
+      status: InboxAgentRegistrationStatus.Invalid,
+      preserveExistingVerificationData: false,
+      verificationData: {
+        linkedEmail: null,
+        encryptionPublicKey: null,
+        encryptionKeyVersion: null,
+        signingPublicKey: null,
+        signingKeyVersion: null,
+      },
+    });
+  });
+
+  it('should keep inbox agent registration pending and clear verification-derived fields when the payload has no identifier keys', async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          linkedEmail: 'agent@example.com',
+          signingPublicKey: 'signing_public_key',
+        }),
+    });
+
+    const result =
+      await healthCheckService.checkAndVerifyInboxAgentRegistration({
+        inboxAgentRegistration: {
+          assetIdentifier: 'asset-123',
+          agentSlug: 'inbox-agent',
+          RegistrySource: {
+            network: $Enums.Network.Preprod,
+          },
+        },
+      });
+
+    expect(result).toEqual({
+      status: InboxAgentRegistrationStatus.Pending,
+      preserveExistingVerificationData: false,
+      verificationData: {
+        linkedEmail: null,
+        encryptionPublicKey: null,
+        encryptionKeyVersion: null,
+        signingPublicKey: null,
+        signingKeyVersion: null,
+      },
+    });
+  });
+
+  it('should preserve verified status and existing verification data on transient endpoint failure', async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: false,
+      status: 500,
+      text: () => Promise.resolve('temporary failure'),
+    });
+
+    const result =
+      await healthCheckService.checkAndVerifyInboxAgentRegistration({
+        inboxAgentRegistration: {
+          assetIdentifier: 'asset-123',
+          agentSlug: 'inbox-agent',
+          RegistrySource: {
+            network: $Enums.Network.Preprod,
+          },
+        },
+        currentStatus: InboxAgentRegistrationStatus.Verified,
+      });
+
+    expect(result).toEqual({
+      status: InboxAgentRegistrationStatus.Verified,
+      preserveExistingVerificationData: true,
+      verificationData: {
+        linkedEmail: null,
+        encryptionPublicKey: null,
+        encryptionKeyVersion: null,
+        signingPublicKey: null,
+        signingKeyVersion: null,
+      },
+    });
+  });
+
+  it('should preserve invalid status and existing verification data on network lookup failure', async () => {
+    (global.fetch as jest.Mock).mockRejectedValueOnce(
+      new Error('network down')
+    );
+
+    const result =
+      await healthCheckService.checkAndVerifyInboxAgentRegistration({
+        inboxAgentRegistration: {
+          assetIdentifier: 'asset-123',
+          agentSlug: 'inbox-agent',
+          RegistrySource: {
+            network: $Enums.Network.Preprod,
+          },
+        },
+        currentStatus: InboxAgentRegistrationStatus.Invalid,
+      });
+
+    expect(result).toEqual({
+      status: InboxAgentRegistrationStatus.Invalid,
+      preserveExistingVerificationData: true,
+      verificationData: {
+        linkedEmail: null,
+        encryptionPublicKey: null,
+        encryptionKeyVersion: null,
+        signingPublicKey: null,
+        signingKeyVersion: null,
+      },
+    });
   });
 });

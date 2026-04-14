@@ -2,6 +2,7 @@ import { inboxAgentRegistrationRepository } from '@/repositories/inbox-agent-reg
 import {
   queryInboxAgentRegistrationSchemaInput,
   inboxAgentRegistrationDiffSchemaInput,
+  searchInboxAgentRegistrationSchemaInput,
 } from '@/routes/api/inbox-agent-registration';
 import { cardanoRegistryService } from '@/services/cardano-registry';
 import { normalizeInboxSlug } from '@/utils/inbox-slug';
@@ -46,6 +47,24 @@ async function getInboxAgentRegistrations(
   });
 }
 
+async function searchInboxAgentRegistrations(
+  input: z.infer<typeof searchInboxAgentRegistrationSchemaInput>
+) {
+  await cardanoRegistryService.updateLatestCardanoRegistryEntries();
+  const normalizedSlugQuery = normalizeInboxSlug(input.query) || input.query;
+
+  return inboxAgentRegistrationRepository.searchInboxAgentRegistrations({
+    nameQuery: input.query,
+    agentSlugQuery: normalizedSlugQuery,
+    linkedEmailQuery: input.query,
+    allowedStatuses: getAllowedQueryStatuses(input.filter),
+    policyId: input.filter?.policyId,
+    cursorId: input.cursorId,
+    limit: input.limit,
+    network: input.network,
+  });
+}
+
 async function getInboxAgentRegistrationDiffEntries(
   input: z.infer<typeof inboxAgentRegistrationDiffSchemaInput>
 ) {
@@ -57,5 +76,6 @@ async function getInboxAgentRegistrationDiffEntries(
 
 export const inboxAgentRegistrationService = {
   getInboxAgentRegistrations,
+  searchInboxAgentRegistrations,
   getInboxAgentRegistrationDiffEntries,
 };
