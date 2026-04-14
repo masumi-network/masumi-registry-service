@@ -177,6 +177,7 @@ describe('checkAndVerifyInboxAgentRegistration', () => {
   it('should keep inbox agent registration pending when the slug is not yet public', async () => {
     (global.fetch as jest.Mock).mockResolvedValueOnce({
       ok: false,
+      status: 404,
       text: () => Promise.resolve('Inbox slug not found'),
     });
 
@@ -228,6 +229,7 @@ describe('checkAndVerifyInboxAgentRegistration', () => {
   it('should use the mainnet inbox base url for non-preprod registrations', async () => {
     (global.fetch as jest.Mock).mockResolvedValueOnce({
       ok: false,
+      status: 404,
       text: () => Promise.resolve('Inbox slug not found'),
     });
 
@@ -324,5 +326,47 @@ describe('checkAndVerifyInboxAgentRegistration', () => {
       });
 
     expect(result).toBe(InboxAgentRegistrationStatus.Pending);
+  });
+
+  it('should preserve verified status on transient endpoint failure', async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: false,
+      status: 500,
+      text: () => Promise.resolve('temporary failure'),
+    });
+
+    const result =
+      await healthCheckService.checkAndVerifyInboxAgentRegistration({
+        inboxAgentRegistration: {
+          assetIdentifier: 'asset-123',
+          agentSlug: 'inbox-agent',
+          RegistrySource: {
+            network: $Enums.Network.Preprod,
+          },
+        },
+        currentStatus: InboxAgentRegistrationStatus.Verified,
+      });
+
+    expect(result).toBe(InboxAgentRegistrationStatus.Verified);
+  });
+
+  it('should preserve invalid status on network lookup failure', async () => {
+    (global.fetch as jest.Mock).mockRejectedValueOnce(
+      new Error('network down')
+    );
+
+    const result =
+      await healthCheckService.checkAndVerifyInboxAgentRegistration({
+        inboxAgentRegistration: {
+          assetIdentifier: 'asset-123',
+          agentSlug: 'inbox-agent',
+          RegistrySource: {
+            network: $Enums.Network.Preprod,
+          },
+        },
+        currentStatus: InboxAgentRegistrationStatus.Invalid,
+      });
+
+    expect(result).toBe(InboxAgentRegistrationStatus.Invalid);
   });
 });

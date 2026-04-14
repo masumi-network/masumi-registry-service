@@ -373,13 +373,27 @@ type InboxAgentRegistrationWithSource = InboxAgentRegistration & {
   RegistrySource: RegistrySource;
 };
 
+type InboxAgentPublicEndpointResult =
+  | {
+      outcome: 'resolved';
+      returnedAgentIdentifiers: string[];
+    }
+  | {
+      outcome: 'pending';
+      returnedAgentIdentifiers: [];
+    }
+  | {
+      outcome: 'unavailable';
+      returnedAgentIdentifiers: [];
+    };
+
 async function checkAndVerifyInboxAgentPublicEndpoint(params: {
   network: $Enums.Network;
   agentSlug: string;
-}): Promise<{ returnedAgentIdentifiers: string[] }> {
+}): Promise<InboxAgentPublicEndpointResult> {
   const baseUrl = INBOX_AGENT_PUBLIC_BASE_URLS[params.network];
   if (!baseUrl) {
-    return { returnedAgentIdentifiers: [] };
+    return { outcome: 'unavailable', returnedAgentIdentifiers: [] };
   }
 
   let controller: AbortController | null = null;
@@ -401,26 +415,35 @@ async function checkAndVerifyInboxAgentPublicEndpoint(params: {
     timeoutId = null;
 
     if (!endpointResponse.ok) {
+      const responseStatus = endpointResponse.status;
       try {
         await endpointResponse.text();
       } catch {
         // Ignore response body consumption errors for pending inbox agents
       }
-      return { returnedAgentIdentifiers: [] };
+      return responseStatus === 404
+        ? { outcome: 'pending', returnedAgentIdentifiers: [] }
+        : { outcome: 'unavailable', returnedAgentIdentifiers: [] };
     }
 
     let responseBody: unknown;
     try {
       responseBody = await endpointResponse.json();
     } catch {
-      return { returnedAgentIdentifiers: [] };
+      return { outcome: 'unavailable', returnedAgentIdentifiers: [] };
+    }
+
+    const returnedAgentIdentifiers = extractInboxAgentIdentifiers(responseBody);
+    if (returnedAgentIdentifiers.length === 0) {
+      return { outcome: 'pending', returnedAgentIdentifiers: [] };
     }
 
     return {
-      returnedAgentIdentifiers: extractInboxAgentIdentifiers(responseBody),
+      outcome: 'resolved',
+      returnedAgentIdentifiers,
     };
   } catch {
-    return { returnedAgentIdentifiers: [] };
+    return { outcome: 'unavailable', returnedAgentIdentifiers: [] };
   } finally {
     if (timeoutId) {
       clearTimeout(timeoutId);
@@ -442,22 +465,25 @@ async function checkAndVerifyInboxAgentRegistration(params: {
   > & {
     RegistrySource: Pick<RegistrySource, 'network'>;
   };
-  returnedAgentIdentifiers?: string[];
+  currentStatus?: InboxAgentRegistrationStatus;
+  lookupResult?: InboxAgentPublicEndpointResult;
 }) {
-  const returnedAgentIdentifiers =
-    params.returnedAgentIdentifiers ??
-    (
-      await checkAndVerifyInboxAgentPublicEndpoint({
-        network: params.inboxAgentRegistration.RegistrySource.network,
-        agentSlug: params.inboxAgentRegistration.agentSlug,
-      })
-    ).returnedAgentIdentifiers;
+  const lookupResult =
+    params.lookupResult ??
+    (await checkAndVerifyInboxAgentPublicEndpoint({
+      network: params.inboxAgentRegistration.RegistrySource.network,
+      agentSlug: params.inboxAgentRegistration.agentSlug,
+    }));
 
-  if (returnedAgentIdentifiers.length === 0) {
+  if (lookupResult.outcome === 'unavailable') {
+    return params.currentStatus ?? InboxAgentRegistrationStatus.Pending;
+  }
+
+  if (lookupResult.outcome === 'pending') {
     return InboxAgentRegistrationStatus.Pending;
   }
 
-  return returnedAgentIdentifiers.includes(
+  return lookupResult.returnedAgentIdentifiers.includes(
     params.inboxAgentRegistration.assetIdentifier
   )
     ? InboxAgentRegistrationStatus.Verified
@@ -471,7 +497,7 @@ async function checkVerifyAndUpdateInboxAgentRegistrations(params: {
     return [];
   }
 
-  const lookupMap = new Map<string, string[]>();
+  const lookupMap = new Map<string, InboxAgentPublicEndpointResult>();
   const neededLookups = new Map<
     string,
     { network: $Enums.Network; agentSlug: string }
@@ -496,10 +522,7 @@ async function checkVerifyAndUpdateInboxAgentRegistrations(params: {
 
   for (const lookup of completedLookups) {
     if (lookup.status === 'fulfilled') {
-      lookupMap.set(
-        lookup.value.lookupKey,
-        lookup.value.result.returnedAgentIdentifiers
-      );
+      lookupMap.set(lookup.value.lookupKey, lookup.value.result);
     }
   }
 
@@ -512,10 +535,14 @@ async function checkVerifyAndUpdateInboxAgentRegistrations(params: {
   const data = await Promise.allSettled(
     params.inboxAgentRegistrations.map(async (registration) => {
       const lookupKey = `${registration.RegistrySource.network}:${registration.agentSlug}`;
-      const returnedAgentIdentifiers = lookupMap.get(lookupKey) ?? [];
+      const lookupResult = lookupMap.get(lookupKey) ?? {
+        outcome: 'unavailable',
+        returnedAgentIdentifiers: [],
+      };
       const status = await checkAndVerifyInboxAgentRegistration({
         inboxAgentRegistration: registration,
-        returnedAgentIdentifiers,
+        currentStatus: registration.status,
+        lookupResult,
       });
 
       return prisma.inboxAgentRegistration.update({
