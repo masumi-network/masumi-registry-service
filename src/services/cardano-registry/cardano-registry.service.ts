@@ -253,6 +253,34 @@ export async function updateHealthCheck(onlyEntriesAfter?: Date | undefined) {
           registryEntries: combinedEntries,
           minHealthCheckDate: onlyEntriesAfter,
         });
+
+        const inboxAgentRegistrations =
+          await prisma.inboxAgentRegistration.findMany({
+            where: {
+              registrySourceId: source.id,
+              status: {
+                in: [
+                  InboxAgentRegistrationStatus.Pending,
+                  InboxAgentRegistrationStatus.Verified,
+                  InboxAgentRegistrationStatus.Invalid,
+                ],
+              },
+              updatedAt: {
+                lte: onlyEntriesAfter,
+              },
+            },
+            orderBy: { updatedAt: 'asc' },
+            take: 50,
+            include: {
+              RegistrySource: true,
+            },
+          });
+        logger.info(
+          `Found ${inboxAgentRegistrations.length} inbox agent registrations eligible for verification`
+        );
+        await healthCheckService.checkVerifyAndUpdateInboxAgentRegistrations({
+          inboxAgentRegistrations,
+        });
       })
     );
   } finally {
@@ -531,7 +559,14 @@ async function markAssetDeregistered(params: {
     }),
     prisma.inboxAgentRegistration.updateMany({
       where: { assetIdentifier: params.asset },
-      data: { status: InboxAgentRegistrationStatus.Deregistered },
+      data: {
+        status: InboxAgentRegistrationStatus.Deregistered,
+        linkedEmail: null,
+        encryptionPublicKey: null,
+        encryptionKeyVersion: null,
+        signingPublicKey: null,
+        signingKeyVersion: null,
+      },
     }),
   ]);
 }

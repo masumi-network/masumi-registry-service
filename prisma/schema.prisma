@@ -102,17 +102,26 @@ model InboxAgentRegistration {
   status          InboxAgentRegistrationStatus @default(Pending)
   statusUpdatedAt DateTime                     @default(now())
 
-  name            String
-  description     String?
-  agentSlug       String
-  assetIdentifier String  @unique
-  metadataVersion Int
+  name                 String
+  description          String?
+  agentSlug            String
+  assetIdentifier      String  @unique
+  linkedEmail          String?
+  encryptionPublicKey  String?
+  encryptionKeyVersion String?
+  signingPublicKey     String?
+  signingKeyVersion    String?
+  metadataVersion      Int
 
   RegistrySource   RegistrySource @relation(fields: [registrySourceId], references: [id], onDelete: Cascade)
   registrySourceId String
 
+  @@index([name])
   @@index([agentSlug])
+  @@index([linkedEmail])
   @@index([status])
+  @@index([registrySourceId])
+  @@index([registrySourceId, status, updatedAt])
   @@index([statusUpdatedAt])
   @@index([statusUpdatedAt, id])
 }

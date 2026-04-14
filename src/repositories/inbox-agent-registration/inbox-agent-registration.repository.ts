@@ -42,6 +42,66 @@ async function getInboxAgentRegistrations(params: {
   });
 }
 
+async function searchInboxAgentRegistrations(params: {
+  nameQuery: string;
+  agentSlugQuery: string;
+  linkedEmailQuery: string;
+  allowedStatuses: InboxAgentRegistrationStatus[];
+  policyId?: string;
+  cursorId?: string;
+  limit: number;
+  network: Network;
+}) {
+  const networkExists = await prisma.registrySource.findFirst({
+    where: {
+      network: params.network,
+    },
+  });
+  if (!networkExists) {
+    throw new Error('Network not found');
+  }
+
+  return prisma.inboxAgentRegistration.findMany({
+    where: {
+      status: { in: params.allowedStatuses },
+      OR: [
+        {
+          agentSlug: {
+            contains: params.agentSlugQuery,
+            mode: 'insensitive',
+          },
+        },
+        {
+          name: {
+            contains: params.nameQuery,
+            mode: 'insensitive',
+          },
+        },
+        {
+          linkedEmail: {
+            contains: params.linkedEmailQuery,
+            mode: 'insensitive',
+          },
+        },
+      ],
+      RegistrySource: {
+        network: params.network,
+        policyId: params.policyId,
+      },
+    },
+    include: {
+      RegistrySource: true,
+    },
+    orderBy: [
+      {
+        id: 'desc',
+      },
+    ],
+    cursor: params.cursorId ? { id: params.cursorId } : undefined,
+    take: params.limit,
+  });
+}
+
 async function getInboxAgentRegistrationDiffEntries(
   input: z.infer<typeof inboxAgentRegistrationDiffSchemaInput>
 ) {
@@ -91,5 +151,6 @@ async function getInboxAgentRegistrationDiffEntries(
 
 export const inboxAgentRegistrationRepository = {
   getInboxAgentRegistrations,
+  searchInboxAgentRegistrations,
   getInboxAgentRegistrationDiffEntries,
 };

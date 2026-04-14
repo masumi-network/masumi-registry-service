@@ -18,6 +18,29 @@ export const queryInboxAgentRegistrationSchemaInput = z.object({
     .optional(),
 });
 
+export const searchInboxAgentRegistrationSchemaInput = z.object({
+  network: z.nativeEnum(Network),
+  limit: z.number({ coerce: true }).int().min(1).max(50).default(10),
+  cursorId: z.string().min(1).max(50).optional(),
+  query: z
+    .string()
+    .trim()
+    .min(1)
+    .max(120)
+    .describe(
+      'Case-insensitive fuzzy match against inbox agent slug, name, or linked email.'
+    ),
+  filter: z
+    .object({
+      status: z
+        .array(z.nativeEnum(InboxAgentRegistrationStatus))
+        .max(4)
+        .optional(),
+      policyId: z.string().min(1).max(250).optional(),
+    })
+    .optional(),
+});
+
 export const inboxAgentRegistrationDiffSchemaInput = z.object({
   network: z.nativeEnum(Network),
   statusUpdatedAfter: ez.dateIn(),
@@ -46,6 +69,11 @@ export const inboxAgentRegistrationSchemaOutput = z
     description: z.string().nullable(),
     agentSlug: z.string(),
     agentIdentifier: z.string(),
+    linkedEmail: z.string().nullable(),
+    encryptionPublicKey: z.string().nullable(),
+    encryptionKeyVersion: z.string().nullable(),
+    signingPublicKey: z.string().nullable(),
+    signingKeyVersion: z.string().nullable(),
     metadataVersion: z.number().int(),
     RegistrySource: z.object({
       id: z.string(),
@@ -69,6 +97,11 @@ export type InboxAgentRegistrationSerializable = {
   description: string | null;
   agentSlug: string;
   assetIdentifier: string;
+  linkedEmail: string | null;
+  encryptionPublicKey: string | null;
+  encryptionKeyVersion: string | null;
+  signingPublicKey: string | null;
+  signingKeyVersion: string | null;
   metadataVersion: number;
   RegistrySource: {
     id: string;
@@ -97,6 +130,11 @@ export function serializeInboxAgentRegistrations(
       description: registration.description,
       agentSlug: registration.agentSlug,
       agentIdentifier: registration.assetIdentifier,
+      linkedEmail: registration.linkedEmail,
+      encryptionPublicKey: registration.encryptionPublicKey,
+      encryptionKeyVersion: registration.encryptionKeyVersion,
+      signingPublicKey: registration.signingPublicKey,
+      signingKeyVersion: registration.signingKeyVersion,
       metadataVersion: registration.metadataVersion,
       RegistrySource: {
         id: registration.RegistrySource.id,
