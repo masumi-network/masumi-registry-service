@@ -105,6 +105,7 @@ model InboxAgentRegistration {
   name                 String
   description          String?
   agentSlug            String
+  providerUrl          String?
   assetIdentifier      String  @unique
   linkedEmail          String?
   encryptionPublicKey  String?

@@ -12,6 +12,7 @@ import { logger } from '@/utils/logger';
 import { DEFAULTS } from '@/utils/config';
 import { getBlockfrostInstance } from '@/utils/blockfrost';
 import {
+  getInboxAgentRegistrationVerificationDataReset,
   INBOX_REGISTRY_METADATA_TYPE,
   hasInboxAgentRegistrationContentChanged,
   nextInboxAgentRegistrationStatus,
@@ -513,6 +514,7 @@ async function syncInboxAgentRegistration(params: {
     name: normalizedMetadata.name,
     description: normalizedMetadata.description,
     agentSlug: normalizedMetadata.agentSlug,
+    providerUrl: normalizedMetadata.providerUrl,
     metadataVersion: normalizedMetadata.metadataVersion,
     registrySourceId: params.source.id,
   };
@@ -522,6 +524,10 @@ async function syncInboxAgentRegistration(params: {
     update: {
       ...sharedQuery,
       status,
+      ...getInboxAgentRegistrationVerificationDataReset({
+        changed,
+        nextStatus: status,
+      }),
     },
     create: {
       ...sharedQuery,
