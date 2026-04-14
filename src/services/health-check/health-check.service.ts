@@ -441,17 +441,22 @@ async function checkAndVerifyInboxAgentRegistration(params: {
   > & {
     RegistrySource: Pick<RegistrySource, 'network'>;
   };
+  returnedAgentIdentifiers?: string[];
 }) {
-  const result = await checkAndVerifyInboxAgentPublicEndpoint({
-    network: params.inboxAgentRegistration.RegistrySource.network,
-    agentSlug: params.inboxAgentRegistration.agentSlug,
-  });
+  const returnedAgentIdentifiers =
+    params.returnedAgentIdentifiers ??
+    (
+      await checkAndVerifyInboxAgentPublicEndpoint({
+        network: params.inboxAgentRegistration.RegistrySource.network,
+        agentSlug: params.inboxAgentRegistration.agentSlug,
+      })
+    ).returnedAgentIdentifiers;
 
-  if (result.returnedAgentIdentifiers.length === 0) {
+  if (returnedAgentIdentifiers.length === 0) {
     return InboxAgentRegistrationStatus.Pending;
   }
 
-  return result.returnedAgentIdentifiers.includes(
+  return returnedAgentIdentifiers.includes(
     params.inboxAgentRegistration.assetIdentifier
   )
     ? InboxAgentRegistrationStatus.Verified
@@ -507,12 +512,10 @@ async function checkVerifyAndUpdateInboxAgentRegistrations(params: {
     params.inboxAgentRegistrations.map(async (registration) => {
       const lookupKey = `${registration.RegistrySource.network}:${registration.agentSlug}`;
       const returnedAgentIdentifiers = lookupMap.get(lookupKey) ?? [];
-      const status =
-        returnedAgentIdentifiers.length === 0
-          ? InboxAgentRegistrationStatus.Pending
-          : returnedAgentIdentifiers.includes(registration.assetIdentifier)
-            ? InboxAgentRegistrationStatus.Verified
-            : InboxAgentRegistrationStatus.Invalid;
+      const status = await checkAndVerifyInboxAgentRegistration({
+        inboxAgentRegistration: registration,
+        returnedAgentIdentifiers,
+      });
 
       return prisma.inboxAgentRegistration.update({
         where: { id: registration.id },
