@@ -1,6 +1,9 @@
 import { DependsOnMethod, Routing } from 'express-zod-api';
 import { healthEndpointGet } from '@/routes/api/health';
-import { queryRegistryEntryPost } from '@/routes/api/registry-entry';
+import {
+  queryRegistryEntryPost,
+  searchRegistryEntryPost,
+} from '@/routes/api/registry-entry';
 import {
   queryAPIKeyEndpointGet as queryCentralizedRegistrySourceGet,
   addAPIKeyEndpointPost as addCentralizedRegistrySourceEndpointPost,
@@ -27,6 +30,9 @@ export const apiRouter: Routing = {
     health: healthEndpointGet,
     'registry-entry': new DependsOnMethod({
       post: queryRegistryEntryPost,
+    }),
+    'registry-entry-search': new DependsOnMethod({
+      post: searchRegistryEntryPost,
     }),
     'registry-diff': new DependsOnMethod({
       post: registryDiffPost,
