@@ -10,6 +10,11 @@ import { generateOpenAPI } from '@/utils/swagger-generator';
 import { cleanupDB, initDB } from '@/utils/db';
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import {
+  applySecurityHeaders,
+  buildSwaggerUiOptions,
+  getCorsHeaders,
+} from '@/utils/http-security';
 
 async function initialize() {
   await initDB();
@@ -32,6 +37,7 @@ initialize()
       beforeRouting: ({ app }) => {
         const docs = generateOpenAPI();
         const docsString = JSON.stringify(docs, undefined, 4);
+        applySecurityHeaders(app);
 
         // Serve static assets from public/assets folder
         // Works in both dev (public) and production (dist/public)
@@ -67,16 +73,10 @@ initialize()
         app.use(
           '/docs',
           ui.serve,
-          ui.setup(JSON.parse(docsString) as JsonObject, {
-            explorer: false,
-            customSiteTitle: 'Registry Service API Documentation',
-            customfavIcon: '/assets/swagger_favicon.svg',
-            customCss: customCss,
-            swaggerOptions: {
-              persistAuthorization: true,
-              tryItOutEnabled: true,
-            },
-          })
+          ui.setup(
+            JSON.parse(docsString) as JsonObject,
+            buildSwaggerUiOptions(customCss)
+          )
         );
         app.get('/api-docs', (_, res) => {
           res.json(JSON.parse(docsString));
@@ -85,14 +85,11 @@ initialize()
       http: {
         listen: PORT,
       },
-      cors: ({ defaultHeaders }) => ({
-        ...defaultHeaders,
-        'Access-Control-Max-Age': '5000',
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, PATCH',
-        'Access-Control-Allow-Headers': '*',
-        'Access-Control-Expose-Headers': 'Content-Range, X-Total-Count',
-      }),
+      cors: ({ request }) =>
+        getCorsHeaders({
+          request,
+          allowedOrigins: CONFIG.CORS_ALLOWED_ORIGINS,
+        }),
       logger: logger,
     });
     createServer(serverConfig, router);

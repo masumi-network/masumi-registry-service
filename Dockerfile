@@ -1,34 +1,30 @@
-FROM node:20-slim AS builder
-RUN apt-get update -y && apt-get install -y openssl
-# Build step
+FROM node:20-slim AS deps
+RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 WORKDIR /usr/src/app
-COPY .env* ./
-
-
 COPY package*.json ./
+RUN npm ci
+
+FROM deps AS builder
+WORKDIR /usr/src/app
 COPY ./src ./src
 COPY ./prisma ./prisma
 COPY tsconfig.json .
 COPY public ./public
-
-RUN npm install
 RUN npx prisma generate
 RUN npm run build
+RUN npm prune --omit=dev
 
-# Serve step
 FROM node:20-slim AS runner
-RUN apt-get update -y && apt-get install -y openssl
+RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 WORKDIR /usr/src/app
 
-COPY --from=builder /usr/src/app/dist ./dist
-COPY --from=builder /usr/src/app/node_modules ./node_modules
-COPY --from=builder /usr/src/app/package*.json ./
-COPY --from=builder /usr/src/app/prisma ./prisma
-COPY --from=builder /usr/src/app/src ./src
+ENV NODE_ENV=production
 
-#optional copy env file
-COPY .env* ./
+COPY --from=builder --chown=node:node /usr/src/app/dist ./dist
+COPY --from=builder --chown=node:node /usr/src/app/node_modules ./node_modules
+COPY --from=builder --chown=node:node /usr/src/app/package*.json ./
+
+USER node
 
 EXPOSE 3000
-ENV NODE_ENV=production
-CMD [ "npm", "run", "start" ]
+CMD ["node", "./dist/index.js"]

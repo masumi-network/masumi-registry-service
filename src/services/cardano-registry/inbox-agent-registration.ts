@@ -2,6 +2,7 @@ import { InboxAgentRegistrationStatus } from '@prisma/client';
 import { z } from '@/utils/zod-openapi';
 import { metadataStringConvert } from '@/utils/metadata-string-convert';
 import { isReservedInboxSlug, normalizeInboxSlug } from '@/utils/inbox-slug';
+import { normalizePublicUrl } from '@/utils/public-url';
 
 export const INBOX_REGISTRY_METADATA_TYPE = 'MasumiInboxV1' as const;
 
@@ -9,7 +10,6 @@ const METADATA_VERSION = 1;
 const MAX_NAME_LENGTH = 120;
 const MAX_DESCRIPTION_LENGTH = 500;
 const MAX_AGENT_SLUG_LENGTH = 80;
-const INVALID_PROVIDER_URL_HOSTNAMES = new Set(['localhost', '127.0.0.1']);
 
 export const inboxAgentRegistrationMetadataSchema = z.object({
   type: z.literal(INBOX_REGISTRY_METADATA_TYPE),
@@ -131,35 +131,19 @@ function normalizeProviderUrl(
     throw new Error('provider_url must not be blank');
   }
 
-  let normalizedUrl: URL;
   try {
-    normalizedUrl = new URL(trimmedValue);
-  } catch {
-    throw new Error('provider_url must be a valid absolute URL');
-  }
+    return normalizePublicUrl(trimmedValue).normalizedUrl;
+  } catch (error) {
+    if (!(error instanceof Error)) {
+      throw new Error('provider_url must be a valid absolute URL');
+    }
 
-  if (
-    normalizedUrl.protocol !== 'https:' &&
-    normalizedUrl.protocol !== 'http:'
-  ) {
-    throw new Error('provider_url must use http or https');
-  }
-  if (INVALID_PROVIDER_URL_HOSTNAMES.has(normalizedUrl.hostname)) {
-    throw new Error('provider_url hostname is not allowed');
-  }
-  if (normalizedUrl.search) {
-    throw new Error('provider_url must not contain a query string');
-  }
-  if (normalizedUrl.hash) {
-    throw new Error('provider_url must not contain a fragment');
-  }
+    if (error.message === 'URL host resolves to a non-public IP range') {
+      throw new Error('provider_url hostname is not allowed');
+    }
 
-  let canonicalUrl = normalizedUrl.toString();
-  if (canonicalUrl.endsWith('/')) {
-    canonicalUrl = canonicalUrl.slice(0, -1);
+    throw new Error(error.message.replace(/^URL/, 'provider_url'));
   }
-
-  return canonicalUrl;
 }
 
 export function normalizeInboxAgentRegistrationMetadata(

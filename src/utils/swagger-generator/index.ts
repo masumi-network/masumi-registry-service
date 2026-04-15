@@ -24,6 +24,7 @@ import {
 } from '@/routes/api/capability';
 import {
   apiKeySchemaOutput,
+  apiKeyCreateSchemaOutput,
   addAPIKeySchemaInput,
   getAPIKeySchemaInput,
   getAPIKeySchemaOutput,
@@ -884,7 +885,6 @@ export function generateOpenAPI() {
                 example: {
                   data: {
                     id: 'unique-cuid-v2-auto-generated',
-                    token: 'masumi-registry-api-key-secret',
                     permission: 'Admin',
                     usageLimited: true,
                     maxUsageCredits: 1000000,
@@ -929,7 +929,6 @@ export function generateOpenAPI() {
                     apiKeys: [
                       {
                         id: 'unique-cuid-v2-auto-generated',
-                        token: 'masumi-registry-api-key-secret',
                         permission: 'Admin',
                         usageLimited: true,
                         maxUsageCredits: 1000000,
@@ -985,7 +984,10 @@ export function generateOpenAPI() {
         content: {
           'application/json': {
             schema: z
-              .object({ data: apiKeySchemaOutput, status: z.string() })
+              .object({
+                data: apiKeyCreateSchemaOutput,
+                status: z.string(),
+              })
               .openapi({
                 example: {
                   data: {
@@ -1049,7 +1051,6 @@ export function generateOpenAPI() {
                 example: {
                   data: {
                     id: 'unique-cuid-v2-auto-generated',
-                    token: 'masumi-registry-api-key-secret',
                     permission: 'User',
                     usageLimited: true,
                     maxUsageCredits: 1000000,
@@ -1106,7 +1107,6 @@ export function generateOpenAPI() {
                 example: {
                   data: {
                     id: 'unique-cuid-v2-auto-generated',
-                    token: 'deleted-masumi-registry-api-key-secret',
                     permission: 'User',
                     usageLimited: true,
                     maxUsageCredits: 1000000,

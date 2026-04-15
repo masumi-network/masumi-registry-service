@@ -1,11 +1,19 @@
 import { $Enums, InboxAgentRegistrationStatus } from '@prisma/client';
+import { lookup } from 'node:dns/promises';
 import { prisma } from '@/utils/db';
 import { healthCheckService } from './health-check.service';
+
+jest.mock('node:dns/promises', () => ({
+  lookup: jest.fn(),
+}));
 
 describe('healthCheckService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     global.fetch = jest.fn();
+    (lookup as jest.Mock).mockResolvedValue([
+      { address: '93.184.216.34', family: 4 },
+    ]);
   });
 
   describe('checkAndVerifyEndpoint', () => {
@@ -42,6 +50,12 @@ describe('healthCheckService', () => {
       expect(result.returnedAgentIdentifier).toBe(
         `${mockRegistryId}${mockIdentifier}`
       );
+      expect(global.fetch).toHaveBeenCalledWith(
+        `${mockUrl}/availability`,
+        expect.objectContaining({
+          redirect: 'manual',
+        })
+      );
     });
 
     it('should return Invalid status when decentralized verification fails', async () => {
@@ -61,6 +75,30 @@ describe('healthCheckService', () => {
 
       expect(result.status).toBe($Enums.Status.Invalid);
       expect(result.returnedAgentIdentifier).toBe(null);
+    });
+
+    it('should return Invalid status when endpoint resolves to a blocked private address', async () => {
+      (lookup as jest.Mock).mockResolvedValueOnce([
+        { address: '10.0.0.5', family: 4 },
+      ]);
+
+      const result = await healthCheckService.checkAndVerifyEndpoint({
+        api_url: mockUrl,
+      });
+
+      expect(result.status).toBe($Enums.Status.Invalid);
+      expect(global.fetch).not.toHaveBeenCalled();
+    });
+
+    it('should return Offline status when hostname resolution fails', async () => {
+      (lookup as jest.Mock).mockRejectedValueOnce(new Error('dns failed'));
+
+      const result = await healthCheckService.checkAndVerifyEndpoint({
+        api_url: mockUrl,
+      });
+
+      expect(result.status).toBe($Enums.Status.Offline);
+      expect(global.fetch).not.toHaveBeenCalled();
     });
   });
 });
@@ -211,6 +249,7 @@ describe('checkAndVerifyInboxAgentRegistration', () => {
         headers: {
           Accept: 'application/json',
         },
+        redirect: 'manual',
       })
     );
   });
@@ -314,6 +353,7 @@ describe('checkAndVerifyInboxAgentRegistration', () => {
         headers: {
           Accept: 'application/json',
         },
+        redirect: 'manual',
       })
     );
   });
@@ -344,8 +384,37 @@ describe('checkAndVerifyInboxAgentRegistration', () => {
         headers: {
           Accept: 'application/json',
         },
+        redirect: 'manual',
       })
     );
+  });
+
+  it('should not fetch inbox verification data from blocked provider urls', async () => {
+    const result =
+      await healthCheckService.checkAndVerifyInboxAgentRegistration({
+        inboxAgentRegistration: {
+          assetIdentifier: 'asset-123',
+          agentSlug: 'custom-agent',
+          providerUrl: 'http://127.0.0.1',
+          RegistrySource: {
+            network: $Enums.Network.Preprod,
+          },
+        },
+        currentStatus: InboxAgentRegistrationStatus.Verified,
+      });
+
+    expect(result).toEqual({
+      status: InboxAgentRegistrationStatus.Verified,
+      preserveExistingVerificationData: true,
+      verificationData: {
+        linkedEmail: null,
+        encryptionPublicKey: null,
+        encryptionKeyVersion: null,
+        signingPublicKey: null,
+        signingKeyVersion: null,
+      },
+    });
+    expect(global.fetch).not.toHaveBeenCalled();
   });
 
   it('should verify inbox agent registration when a nested masumiAgentIdentifier matches assetIdentifier', async () => {

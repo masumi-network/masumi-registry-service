@@ -16,21 +16,20 @@ export const seed = async (prisma: PrismaClient) => {
   const adminKey = process.env.ADMIN_KEY;
   if (adminKey != null) {
     if (adminKey.length < 15) throw Error('API-KEY is insecure');
+    const adminKeyHash = hashToken(adminKey);
     console.log('Admin_KEY is seeded');
     await prisma.apiKey.upsert({
       create: {
-        token: adminKey,
         permission: 'Admin',
         status: 'Active',
-        tokenHash: hashToken(adminKey),
+        tokenHash: adminKeyHash,
       },
       update: {
-        token: adminKey,
         permission: 'Admin',
         status: 'Active',
-        tokenHash: hashToken(adminKey),
+        tokenHash: adminKeyHash,
       },
-      where: { token: adminKey },
+      where: { tokenHash: adminKeyHash },
     });
   } else {
     console.log('Admin_KEY is seeded');
