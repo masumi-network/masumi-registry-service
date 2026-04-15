@@ -16,7 +16,7 @@ import {
 
 const INBOX_AGENT_PUBLIC_BASE_URLS: Partial<Record<$Enums.Network, string>> = {
   [$Enums.Network.Preprod]: 'https://masumi-inbox-dev-ivi44.ondigitalocean.app',
-  [$Enums.Network.Mainnet]: 'https://agentmessenger.io',
+  [$Enums.Network.Mainnet]: 'https://www.agent-messenger.io/',
 };
 
 const INBOX_AGENT_IDENTIFIER_KEYS = new Set([

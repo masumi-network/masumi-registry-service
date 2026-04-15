@@ -348,7 +348,7 @@ describe('checkAndVerifyInboxAgentRegistration', () => {
 
     expect(result.status).toBe(InboxAgentRegistrationStatus.Pending);
     expect(global.fetch).toHaveBeenCalledWith(
-      'https://agentmessenger.io/mainnet-agent/public',
+      'https://www.agent-messenger.io/mainnet-agent/public',
       expect.objectContaining({
         headers: {
           Accept: 'application/json',
