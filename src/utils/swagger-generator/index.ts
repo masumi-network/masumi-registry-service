@@ -166,7 +166,6 @@ export function generateOpenAPI() {
           RegistrySource: {
             id: 'unique_cuid_v2',
             policyId: 'policy_id',
-            type: RegistryEntryType.Web3CardanoV1,
             url: null,
           },
           Capability: null,
