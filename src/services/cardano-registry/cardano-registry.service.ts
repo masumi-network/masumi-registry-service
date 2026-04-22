@@ -1,7 +1,9 @@
 import {
   $Enums,
+  InboxAgentRegistration,
   InboxAgentRegistrationStatus,
   PricingType,
+  RegistrySource,
 } from '@prisma/client';
 import { Mutex, tryAcquire, MutexInterface } from 'async-mutex';
 import { prisma } from '@/utils/db';
@@ -111,6 +113,18 @@ type SyncableRegistrySource = {
     rpcProviderApiKey: string;
   };
 };
+type InboxAgentRegistrationWithSource = InboxAgentRegistration & {
+  RegistrySource: RegistrySource;
+};
+type SyncInboxAgentRegistrationResult =
+  | {
+      synced: false;
+    }
+  | {
+      synced: true;
+      shouldVerifyImmediately: boolean;
+      inboxAgentRegistration: InboxAgentRegistrationWithSource;
+    };
 
 function getCapabilityRelationWrite(params: {
   capabilityName: string | null;
@@ -511,13 +525,13 @@ async function syncInboxAgentRegistration(params: {
   source: SyncableRegistrySource;
   asset: string;
   onchainMetadata: unknown;
-}): Promise<boolean> {
+}): Promise<SyncInboxAgentRegistrationResult> {
   const normalizedMetadata = parseInboxAgentRegistrationMetadata(
     params.onchainMetadata
   );
 
   if (!normalizedMetadata) {
-    return false;
+    return { synced: false };
   }
 
   const existing = await prisma.inboxAgentRegistration.findUnique({
@@ -535,6 +549,11 @@ async function syncInboxAgentRegistration(params: {
         changed,
       })
     : InboxAgentRegistrationStatus.Pending;
+  const shouldVerifyImmediately =
+    existing == null ||
+    (status === InboxAgentRegistrationStatus.Pending &&
+      (changed ||
+        existing.status === InboxAgentRegistrationStatus.Deregistered));
 
   const sharedQuery = {
     name: normalizedMetadata.name,
@@ -545,8 +564,11 @@ async function syncInboxAgentRegistration(params: {
     registrySourceId: params.source.id,
   };
 
-  await prisma.inboxAgentRegistration.upsert({
+  const inboxAgentRegistration = await prisma.inboxAgentRegistration.upsert({
     where: { assetIdentifier: params.asset },
+    include: {
+      RegistrySource: true,
+    },
     update: {
       ...sharedQuery,
       status,
@@ -562,7 +584,11 @@ async function syncInboxAgentRegistration(params: {
     },
   });
 
-  return true;
+  return {
+    synced: true,
+    shouldVerifyImmediately,
+    inboxAgentRegistration,
+  };
 }
 
 async function syncMintedAsset(params: {
@@ -573,7 +599,17 @@ async function syncMintedAsset(params: {
   const metadataType = getRegistryMetadataType(params.onchainMetadata);
 
   if (metadataType === INBOX_REGISTRY_METADATA_TYPE) {
-    await syncInboxAgentRegistration(params);
+    const syncResult = await syncInboxAgentRegistration(params);
+    if (syncResult.synced && syncResult.shouldVerifyImmediately) {
+      logger.info('Trying immediate inbox agent registration verification', {
+        assetIdentifier: params.asset,
+        agentSlug: syncResult.inboxAgentRegistration.agentSlug,
+        registrySourceId: params.source.id,
+      });
+      await healthCheckService.checkVerifyAndUpdateInboxAgentRegistrations({
+        inboxAgentRegistrations: [syncResult.inboxAgentRegistration],
+      });
+    }
     return;
   }
 
