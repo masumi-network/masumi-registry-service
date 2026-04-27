@@ -198,7 +198,7 @@ async function checkAndVerifyEndpoint({ api_url }: { api_url: string }) {
   try {
     const { normalizedUrl } = await validatePublicUrl(api_url);
     controller = new AbortController();
-    timeoutId = setTimeout(() => controller?.abort(), 7500);
+    timeoutId = setTimeout(() => controller?.abort(), 32000);
     const endpointResponse = await fetch(`${normalizedUrl}/availability`, {
       redirect: 'manual',
       signal: controller.signal,
@@ -473,7 +473,7 @@ async function checkAndVerifyInboxAgentPublicEndpoint(params: {
   try {
     const { normalizedUrl } = await validatePublicUrl(configuredBaseUrl);
     controller = new AbortController();
-    timeoutId = setTimeout(() => controller?.abort(), 7500);
+    timeoutId = setTimeout(() => controller?.abort(), 32000);
     const endpointResponse = await fetch(
       `${normalizedUrl}/${encodeURIComponent(params.agentSlug)}/public`,
       {
