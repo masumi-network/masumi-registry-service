@@ -644,6 +644,247 @@ export async function updateLatestCardanoRegistryEntries() {
   //we do not need any isolation level here as worst case we have a few duplicate checks in the next run but no data loss. Advantage we do not need to lock the table
   let sources = await getSyncableRegistrySources();
 
+  const preferredSourcesByPolicyId = new Map<string, SyncableRegistrySource>();
+  for (const source of sources) {
+    const sourceKey = `${source.network}:${source.policyId}`;
+    if (!preferredSourcesByPolicyId.has(sourceKey)) {
+      preferredSourcesByPolicyId.set(sourceKey, source);
+    }
+  }
+
+  return [...preferredSourcesByPolicyId.values()];
+}
+
+async function syncWeb3CardanoRegistryEntry(params: {
+  source: SyncableRegistrySource;
+  asset: string;
+  onchainMetadata: unknown;
+}): Promise<boolean> {
+  const parsedMetadata = web3CardanoMetadataSchema.safeParse(
+    params.onchainMetadata
+  );
+
+  if (!parsedMetadata.success) {
+    return false;
+  }
+
+  const paymentType =
+    parsedMetadata.data.agentPricing.pricingType == 'Free'
+      ? $Enums.PaymentType.None
+      : $Enums.PaymentType.Web3CardanoV1;
+
+  const endpoint = metadataStringConvert(parsedMetadata.data.api_base_url)!;
+  const isAvailable = await healthCheckService.checkAndVerifyEndpoint({
+    api_url: endpoint,
+  });
+  const status =
+    isAvailable.returnedAgentIdentifier != null
+      ? isAvailable.returnedAgentIdentifier == params.asset
+        ? isAvailable.status
+        : $Enums.Status.Invalid
+      : isAvailable.status;
+  const capability_name = metadataStringConvert(
+    parsedMetadata.data.capability?.name
+  )!;
+  const capability_version = metadataStringConvert(
+    parsedMetadata.data.capability?.version
+  )!;
+  const sharedQuery = {
+    status: status,
+    name: metadataStringConvert(parsedMetadata.data.name)!,
+    description: metadataStringConvert(parsedMetadata.data.description),
+    apiBaseUrl: metadataStringConvert(parsedMetadata.data.api_base_url)!,
+    authorName: metadataStringConvert(parsedMetadata.data.author?.name),
+    authorOrganization: metadataStringConvert(
+      parsedMetadata.data.author?.organization
+    ),
+    authorContactEmail: metadataStringConvert(
+      parsedMetadata.data.author?.contact_email
+    ),
+    authorContactOther: metadataStringConvert(
+      parsedMetadata.data.author?.contact_other
+    ),
+    image: metadataStringConvert(parsedMetadata.data.image)!,
+    privacyPolicy: metadataStringConvert(
+      parsedMetadata.data.legal?.privacy_policy
+    ),
+    termsAndCondition: metadataStringConvert(parsedMetadata.data.legal?.terms),
+    otherLegal: metadataStringConvert(parsedMetadata.data.legal?.other),
+    ExampleOutput:
+      parsedMetadata.data.example_output &&
+      parsedMetadata.data.example_output.length > 0
+        ? {
+            createMany: {
+              data: parsedMetadata.data.example_output.map((example) => ({
+                name: metadataStringConvert(example.name)!,
+                mimeType: metadataStringConvert(example.mime_type)!,
+                url: metadataStringConvert(example.url)!,
+              })),
+            },
+          }
+        : undefined,
+    tags: parsedMetadata.data.tags,
+    metadataVersion: DEFAULTS.METADATA_VERSION,
+    AgentPricing: {
+      create:
+        parsedMetadata.data.agentPricing.pricingType === PricingType.Fixed
+          ? {
+              pricingType: PricingType.Fixed,
+              FixedPricing: {
+                create: {
+                  Amounts: {
+                    createMany: {
+                      data: parsedMetadata.data.agentPricing.fixedPricing.map(
+                        (price) => ({
+                          amount: price.amount,
+                          unit: metadataStringConvert(price.unit)!,
+                        })
+                      ),
+                    },
+                  },
+                },
+              },
+            }
+          : {
+              pricingType: parsedMetadata.data.agentPricing.pricingType,
+            },
+    },
+    assetIdentifier: params.asset,
+    paymentType: paymentType,
+    RegistrySource: { connect: { id: params.source.id } },
+    Capability:
+      capability_name == null || capability_version == null
+        ? undefined
+        : {
+            connectOrCreate: {
+              create: {
+                name: capability_name,
+                version: capability_version,
+              },
+              where: {
+                name_version: {
+                  name: capability_name,
+                  version: capability_version,
+                },
+              },
+            },
+          },
+  };
+
+  const updateData = {
+    ...sharedQuery,
+    lastUptimeCheck: new Date(),
+    uptimeCount: {
+      increment: status == $Enums.Status.Online ? 1 : 0,
+    },
+    uptimeCheckCount: { increment: 1 },
+  };
+
+  const createData = {
+    ...sharedQuery,
+    lastUptimeCheck: new Date(),
+    uptimeCount: status == $Enums.Status.Online ? 1 : 0,
+    uptimeCheckCount: 1,
+  };
+
+  await prisma.registryEntry.upsert({
+    where: { assetIdentifier: params.asset },
+    update: updateData,
+    create: createData,
+  });
+
+  return true;
+}
+
+async function syncInboxAgentRegistration(params: {
+  source: SyncableRegistrySource;
+  asset: string;
+  onchainMetadata: unknown;
+}): Promise<boolean> {
+  const normalizedMetadata = parseInboxAgentRegistrationMetadata(
+    params.onchainMetadata
+  );
+
+  if (!normalizedMetadata) {
+    return false;
+  }
+
+  const existing = await prisma.inboxAgentRegistration.findUnique({
+    where: {
+      assetIdentifier: params.asset,
+    },
+  });
+
+  const changed = existing
+    ? hasInboxAgentRegistrationContentChanged(existing, normalizedMetadata)
+    : true;
+  const status = existing
+    ? nextInboxAgentRegistrationStatus({
+        currentStatus: existing.status,
+        changed,
+      })
+    : InboxAgentRegistrationStatus.Pending;
+
+  const sharedQuery = {
+    name: normalizedMetadata.name,
+    description: normalizedMetadata.description,
+    agentSlug: normalizedMetadata.agentSlug,
+    metadataVersion: normalizedMetadata.metadataVersion,
+    registrySourceId: params.source.id,
+  };
+
+  await prisma.inboxAgentRegistration.upsert({
+    where: { assetIdentifier: params.asset },
+    update: {
+      ...sharedQuery,
+      status,
+    },
+    create: {
+      ...sharedQuery,
+      assetIdentifier: params.asset,
+      status: InboxAgentRegistrationStatus.Pending,
+    },
+  });
+
+  return true;
+}
+
+async function syncMintedAsset(params: {
+  source: SyncableRegistrySource;
+  asset: string;
+  onchainMetadata: unknown;
+}) {
+  const metadataType = getRegistryMetadataType(params.onchainMetadata);
+
+  if (metadataType === INBOX_REGISTRY_METADATA_TYPE) {
+    await syncInboxAgentRegistration(params);
+    return;
+  }
+
+  await syncWeb3CardanoRegistryEntry(params);
+}
+
+async function markAssetDeregistered(params: {
+  source: SyncableRegistrySource;
+  asset: string;
+}) {
+  await Promise.all([
+    prisma.registryEntry.updateMany({
+      where: { assetIdentifier: params.asset },
+      data: { status: $Enums.Status.Deregistered },
+    }),
+    prisma.inboxAgentRegistration.updateMany({
+      where: { assetIdentifier: params.asset },
+      data: { status: InboxAgentRegistrationStatus.Deregistered },
+    }),
+  ]);
+}
+
+const updateMutex = new Mutex();
+export async function updateLatestCardanoRegistryEntries() {
+  //we do not need any isolation level here as worst case we have a few duplicate checks in the next run but no data loss. Advantage we do not need to lock the table
+  let sources = await getSyncableRegistrySources();
+
   if (sources.length == 0) return;
 
   let release: MutexInterface.Releaser | null;
