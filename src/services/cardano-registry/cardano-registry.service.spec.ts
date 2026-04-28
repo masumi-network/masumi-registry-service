@@ -57,19 +57,6 @@ describe('updateLatestCardanoRegistryEntries', () => {
     },
   };
 
-  const registrySource = {
-    id: source.id,
-    network: source.network,
-    url: null,
-    policyId: source.policyId,
-    registrySourceConfigId: 'config-1',
-    createdAt: new Date(0),
-    updatedAt: new Date(0),
-    note: null,
-    lastTxId: null,
-    lastCheckedPage: 1,
-  };
-
   beforeEach(() => {
     jest.clearAllMocks();
     global.fetch = jest.fn();
@@ -77,7 +64,7 @@ describe('updateLatestCardanoRegistryEntries', () => {
     (prisma.registrySource.update as jest.Mock).mockResolvedValue(source);
   });
 
-  it('tries immediate verification when a new inbox agent registration is found', async () => {
+  it('syncs a new inbox agent registration to the database', async () => {
     const assetIdentifier = `${source.policyId}asset-name`;
     const createdRegistration = {
       id: 'registration-1',
@@ -88,16 +75,9 @@ describe('updateLatestCardanoRegistryEntries', () => {
       name: 'Inbox Agent',
       description: null,
       agentSlug: 'inbox-agent',
-      providerUrl: null,
       assetIdentifier,
-      linkedEmail: null,
-      encryptionPublicKey: null,
-      encryptionKeyVersion: null,
-      signingPublicKey: null,
-      signingKeyVersion: null,
       metadataVersion: 1,
       registrySourceId: source.id,
-      RegistrySource: registrySource,
     };
 
     (global.fetch as jest.Mock)
@@ -149,17 +129,11 @@ describe('updateLatestCardanoRegistryEntries', () => {
     (prisma.inboxAgentRegistration.upsert as jest.Mock).mockResolvedValue(
       createdRegistration
     );
-    (
-      healthCheckService.checkVerifyAndUpdateInboxAgentRegistrations as jest.Mock
-    ).mockResolvedValue([createdRegistration]);
 
     await updateLatestCardanoRegistryEntries();
 
     expect(prisma.inboxAgentRegistration.upsert).toHaveBeenCalledWith({
       where: { assetIdentifier },
-      include: {
-        RegistrySource: true,
-      },
       update: expect.objectContaining({
         status: InboxAgentRegistrationStatus.Pending,
       }),
@@ -170,8 +144,6 @@ describe('updateLatestCardanoRegistryEntries', () => {
     });
     expect(
       healthCheckService.checkVerifyAndUpdateInboxAgentRegistrations
-    ).toHaveBeenCalledWith({
-      inboxAgentRegistrations: [createdRegistration],
-    });
+    ).not.toHaveBeenCalled();
   });
 });
