@@ -629,13 +629,18 @@
                                 },
                                 "protocolVersion": {
                                     "type": "string"
+                                },
+                                "tenant": {
+                                    "type": "string",
+                                    "nullable": true
                                 }
                             },
                             "required": [
                                 "id",
                                 "url",
                                 "protocolBinding",
-                                "protocolVersion"
+                                "protocolVersion",
+                                "tenant"
                             ]
                         }
                     },
@@ -648,6 +653,10 @@
                                 "nullable": true
                             },
                             "pushNotifications": {
+                                "type": "boolean",
+                                "nullable": true
+                            },
+                            "extendedAgentCard": {
                                 "type": "boolean",
                                 "nullable": true
                             },
@@ -665,6 +674,12 @@
                                         },
                                         "required": {
                                             "type": "boolean"
+                                        },
+                                        "params": {
+                                            "type": "object",
+                                            "additionalProperties": {
+                                                "nullable": true
+                                            }
                                         }
                                     },
                                     "required": [
@@ -676,6 +691,7 @@
                         "required": [
                             "streaming",
                             "pushNotifications",
+                            "extendedAgentCard",
                             "extensions"
                         ]
                     }
@@ -1519,12 +1535,14 @@
                                                             "id": "iface_cuid",
                                                             "url": "https://a2a-agent.example.com/",
                                                             "protocolBinding": "HTTP+JSON",
-                                                            "protocolVersion": "1.0"
+                                                            "protocolVersion": "1.0",
+                                                            "tenant": null
                                                         }
                                                     ],
                                                     "A2ACapabilities": {
                                                         "streaming": false,
                                                         "pushNotifications": false,
+                                                        "extendedAgentCard": false,
                                                         "extensions": [
                                                             {
                                                                 "uri": "https://github.com/google-agentic-commerce/a2a-x402/blob/main/spec/v0.2",
@@ -1901,12 +1919,14 @@
                                                             "id": "iface_cuid",
                                                             "url": "https://a2a-agent.example.com/",
                                                             "protocolBinding": "HTTP+JSON",
-                                                            "protocolVersion": "1.0"
+                                                            "protocolVersion": "1.0",
+                                                            "tenant": null
                                                         }
                                                     ],
                                                     "A2ACapabilities": {
                                                         "streaming": false,
                                                         "pushNotifications": false,
+                                                        "extendedAgentCard": false,
                                                         "extensions": [
                                                             {
                                                                 "uri": "https://github.com/google-agentic-commerce/a2a-x402/blob/main/spec/v0.2",
@@ -3033,12 +3053,14 @@
                                                             "id": "iface_cuid",
                                                             "url": "https://a2a-agent.example.com/",
                                                             "protocolBinding": "HTTP+JSON",
-                                                            "protocolVersion": "1.0"
+                                                            "protocolVersion": "1.0",
+                                                            "tenant": null
                                                         }
                                                     ],
                                                     "A2ACapabilities": {
                                                         "streaming": false,
                                                         "pushNotifications": false,
+                                                        "extendedAgentCard": false,
                                                         "extensions": [
                                                             {
                                                                 "uri": "https://github.com/google-agentic-commerce/a2a-x402/blob/main/spec/v0.2",
