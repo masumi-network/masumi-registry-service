@@ -283,6 +283,7 @@ model A2ASupportedInterface {
   url             String
   protocolBinding String
   protocolVersion String
+  tenant          String?
   RegistryEntry   RegistryEntry @relation(fields: [registryEntryId], references: [id], onDelete: Cascade)
   registryEntryId String
 }
@@ -293,6 +294,7 @@ model A2ACapabilities {
   updatedAt         DateTime      @updatedAt
   streaming         Boolean?
   pushNotifications Boolean?
+  extendedAgentCard Boolean?
   extensions        Json?
   RegistryEntry     RegistryEntry @relation(fields: [registryEntryId], references: [id], onDelete: Cascade)
   registryEntryId   String        @unique

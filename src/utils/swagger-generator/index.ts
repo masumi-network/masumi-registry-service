@@ -191,11 +191,13 @@ export function generateOpenAPI() {
               url: 'https://a2a-agent.example.com/',
               protocolBinding: 'HTTP+JSON',
               protocolVersion: '1.0',
+              tenant: null,
             },
           ],
           A2ACapabilities: {
             streaming: false,
             pushNotifications: false,
+            extendedAgentCard: false,
             extensions: [
               {
                 uri: 'https://github.com/google-agentic-commerce/a2a-x402/blob/main/spec/v0.2',

@@ -15,6 +15,10 @@ import { getBlockfrostInstance } from '@/utils/blockfrost';
 import { agentCardSchema, AgentCard } from '@/utils/a2a-schemas';
 import { timedFetch } from '@/utils/timed-fetch';
 import {
+  validatePublicUrl,
+  PublicUrlValidationError,
+} from '@/utils/public-url';
+import {
   getInboxAgentRegistrationVerificationDataReset,
   INBOX_REGISTRY_METADATA_TYPE,
   hasInboxAgentRegistrationContentChanged,
@@ -132,15 +136,9 @@ async function fetchAndValidateAgentCard(agentCardUrl: string): Promise<{
   agentCard: AgentCard | null;
 }> {
   try {
-    const url = new URL(agentCardUrl);
-    if (['localhost', '127.0.0.1'].includes(url.hostname)) {
-      return { status: $Enums.Status.Invalid, agentCard: null };
-    }
-    if (url.protocol !== 'https:' && url.protocol !== 'http:') {
-      return { status: $Enums.Status.Invalid, agentCard: null };
-    }
+    const { normalizedUrl } = await validatePublicUrl(agentCardUrl);
 
-    const response = await timedFetch(agentCardUrl);
+    const response = await timedFetch(normalizedUrl);
     if (!response.ok) {
       try {
         await response.text();
@@ -155,7 +153,10 @@ async function fetchAndValidateAgentCard(agentCardUrl: string): Promise<{
       return { status: $Enums.Status.Invalid, agentCard: null };
     }
     return { status: $Enums.Status.Online, agentCard: parsed.data };
-  } catch {
+  } catch (e) {
+    if (e instanceof PublicUrlValidationError) {
+      return { status: $Enums.Status.Invalid, agentCard: null };
+    }
     return { status: $Enums.Status.Offline, agentCard: null };
   }
 }
@@ -183,8 +184,8 @@ export async function processMip002Entry(
       description: s.description,
       tags: s.tags,
       examples: s.examples ?? [],
-      inputModes: s.inputModes,
-      outputModes: s.outputModes,
+      inputModes: s.inputModes ?? [],
+      outputModes: s.outputModes ?? [],
     })) ?? [];
 
   const interfacesData =
@@ -192,14 +193,19 @@ export async function processMip002Entry(
       url: i.url,
       protocolBinding: i.protocolBinding,
       protocolVersion: i.protocolVersion,
+      tenant: i.tenant ?? null,
     })) ?? [];
 
   const capabilitiesData = agentCard
     ? {
-        streaming: agentCard.capabilities?.streaming ?? null,
-        pushNotifications: agentCard.capabilities?.pushNotifications ?? null,
-        // Prisma requires Prisma.JsonNull (not JS null) for nullable JSONB fields
-        extensions: agentCard.capabilities?.extensions ?? Prisma.JsonNull,
+        streaming: agentCard.capabilities.streaming ?? null,
+        pushNotifications: agentCard.capabilities.pushNotifications ?? null,
+        extendedAgentCard: agentCard.capabilities.extendedAgentCard ?? null,
+        // Prisma requires Prisma.JsonNull (not JS null) for nullable JSONB fields.
+        // Cast needed because Prisma's InputJsonValue has no index signature on arrays.
+        extensions: agentCard.capabilities.extensions
+          ? (agentCard.capabilities.extensions as Prisma.InputJsonValue)
+          : Prisma.JsonNull,
       }
     : null;
 

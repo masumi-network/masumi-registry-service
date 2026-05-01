@@ -163,18 +163,21 @@ export const registryEntrySchemaOutput = z
         url: z.string(),
         protocolBinding: z.string(),
         protocolVersion: z.string(),
+        tenant: z.string().nullable(),
       })
     ),
     A2ACapabilities: z
       .object({
         streaming: z.boolean().nullable(),
         pushNotifications: z.boolean().nullable(),
+        extendedAgentCard: z.boolean().nullable(),
         extensions: z
           .array(
             z.object({
               uri: z.string(),
               description: z.string().optional(),
               required: z.boolean().optional(),
+              params: z.record(z.unknown()).optional(),
             })
           )
           .nullable(),
