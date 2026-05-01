@@ -114,6 +114,8 @@ describe('checkAndVerifyRegistryEntry', () => {
       assetIdentifier: 'test-id',
       lastUptimeCheck: new Date(Date.now() - 200),
       apiBaseUrl: 'http://test.com',
+      agentCardUrl: null,
+      metadataVersion: 1,
       status: $Enums.Status.Online,
       RegistrySource: {
         policyId: 'registry-id',
@@ -139,6 +141,8 @@ describe('checkAndVerifyRegistryEntry', () => {
       assetIdentifier: 'registry-assetname',
       lastUptimeCheck: new Date(Date.now() - 200),
       apiBaseUrl: 'http://test.com',
+      agentCardUrl: null,
+      metadataVersion: 1,
       status: $Enums.Status.Offline,
       RegistrySource: {
         policyId: 'registry',
@@ -168,6 +172,8 @@ describe('checkAndVerifyRegistryEntry', () => {
       assetIdentifier: 'test-id',
       lastUptimeCheck: new Date(Date.now() - 200),
       apiBaseUrl: 'http://test.com',
+      agentCardUrl: null,
+      metadataVersion: 1,
       status: $Enums.Status.Online,
       RegistrySource: {
         policyId: 'registry-id',
@@ -190,6 +196,8 @@ describe('checkAndVerifyRegistryEntry', () => {
       assetIdentifier: 'test-id',
       lastUptimeCheck: new Date(Date.now() - 200),
       apiBaseUrl: 'http://test.com',
+      agentCardUrl: null,
+      metadataVersion: 1,
       status: $Enums.Status.Online,
       RegistrySource: {
         policyId: 'registry-id',
