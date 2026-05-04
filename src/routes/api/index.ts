@@ -25,6 +25,15 @@ import {
   searchInboxAgentRegistrationPost,
 } from './inbox-agent-registration';
 import { inboxAgentRegistrationDiffPost } from './inbox-agent-registration-diff';
+import {
+  createSimpleApiListingPost,
+  querySimpleApiListingPost,
+  searchSimpleApiListingPost,
+  diffSimpleApiListingPost,
+  updateSimpleApiListingPatch,
+  deleteSimpleApiListingDelete,
+} from './simple-api-listing';
+
 export const apiRouter: Routing = {
   v1: {
     health: healthEndpointGet,
@@ -66,6 +75,20 @@ export const apiRouter: Routing = {
       post: addRegistrySourceEndpointPost,
       patch: updateRegistrySourceEndpointPatch,
       delete: deleteRegistrySourceEndpointDelete,
+    }),
+    'simple-api-listing': new DependsOnMethod({
+      post: createSimpleApiListingPost,
+      patch: updateSimpleApiListingPatch,
+      delete: deleteSimpleApiListingDelete,
+    }),
+    'simple-api-listing-query': new DependsOnMethod({
+      post: querySimpleApiListingPost,
+    }),
+    'simple-api-listing-search': new DependsOnMethod({
+      post: searchSimpleApiListingPost,
+    }),
+    'simple-api-listing-diff': new DependsOnMethod({
+      post: diffSimpleApiListingPost,
     }),
   },
 };

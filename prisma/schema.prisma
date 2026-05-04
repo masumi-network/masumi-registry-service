@@ -246,3 +246,58 @@ model UpdatedRegistryEntriesLog {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+// ---------------------------------------------------------------------------
+// Simple API (x402-gated endpoint) listings
+// ---------------------------------------------------------------------------
+
+enum SimpleApiStatus {
+  Online
+  Offline
+  Invalid
+  Deregistered
+}
+
+model SimpleApiListing {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // User-supplied fields
+  network     Network
+  name        String
+  description String?
+  url         String
+  urlHash     String   @unique
+  category    String?
+  tags        String[]
+
+  // Derived from the endpoint's 402 response (first accepted requirement)
+  scheme            String?
+  x402Network       String?
+  maxAmountRequired BigInt?
+  payTo             String?
+  asset             String?
+  resource          String?
+  mimeType          String?
+  httpMethod        String?
+
+  // Full raw accepts array from the 402 body / manifest
+  rawAccepts Json?
+  // Any vendor-specific extras (outputSchema, etc.)
+  extra      Json?
+
+  // Health / validation state
+  status              SimpleApiStatus @default(Offline)
+  statusUpdatedAt     DateTime        @default(now())
+  lastActiveAt        DateTime?
+  lastValidationError String?
+
+  // Audit — which API key submitted this listing
+  submittedByApiKeyId String?
+
+  @@index([network, status])
+  @@index([statusUpdatedAt, id])
+  @@index([network, category])
+  @@index([network, statusUpdatedAt])
+}

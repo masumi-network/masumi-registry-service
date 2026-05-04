@@ -5,14 +5,18 @@ import {
   Capability,
   InboxAgentRegistration,
   InboxAgentRegistrationStatus,
+  Network,
   PricingType,
   RegistryEntry,
   RegistrySource,
+  SimpleApiStatus,
 } from '@prisma/client';
 import {
   PublicUrlValidationError,
   validatePublicUrl,
 } from '@/utils/public-url';
+import { validateX402Url } from '@/utils/x402-validator';
+import { simpleApiListingRepository } from '@/repositories/simple-api-listing';
 
 const INBOX_AGENT_PUBLIC_BASE_URLS: Partial<Record<$Enums.Network, string>> = {
   [$Enums.Network.Preprod]:
@@ -705,10 +709,81 @@ async function checkVerifyAndUpdateInboxAgentRegistrations(params: {
   return updatedRegistrations;
 }
 
+// ---------------------------------------------------------------------------
+// Simple API listing health-check
+// ---------------------------------------------------------------------------
+
+async function checkAndVerifySimpleApiListing(params: {
+  url: string;
+}): Promise<{ status: SimpleApiStatus; reason?: string }> {
+  const result = await validateX402Url(params.url);
+  if (result.outcome === 'success') {
+    return { status: SimpleApiStatus.Online };
+  }
+  // Distinguish a network-level error from a protocol-level mismatch
+  const isNetworkError =
+    result.reason.startsWith('Network error') ||
+    result.reason.includes('ENOTFOUND') ||
+    result.reason.includes('ECONNREFUSED') ||
+    result.reason.includes('ETIMEDOUT');
+  return {
+    status: isNetworkError ? SimpleApiStatus.Offline : SimpleApiStatus.Invalid,
+    reason: result.reason,
+  };
+}
+
+async function checkVerifyAndUpdateSimpleApiListings(params: {
+  network: Network;
+  limit?: number;
+  beforeLastActiveAt: Date;
+}) {
+  const listings =
+    await simpleApiListingRepository.getSimpleApiListingsForHealthCheck({
+      network: params.network,
+      limit: params.limit ?? 50,
+      beforeLastActiveAt: params.beforeLastActiveAt,
+    });
+
+  if (listings.length === 0) return [];
+
+  const results = await Promise.allSettled(
+    listings.map(async (listing) => {
+      const check = await checkAndVerifySimpleApiListing({
+        url: listing.url,
+      });
+      return simpleApiListingRepository.updateSimpleApiListingStatus({
+        id: listing.id,
+        status: check.status,
+        lastActiveAt:
+          check.status === SimpleApiStatus.Online ? new Date() : null,
+        lastValidationError: check.reason ?? null,
+      });
+    })
+  );
+
+  const failed = results.filter((r) => r.status === 'rejected');
+  for (const f of failed) {
+    logger.error('Failed to update Simple API listing health check', {
+      error: (f as PromiseRejectedResult).reason,
+    });
+  }
+
+  logger.info(
+    `Simple API health check completed ${results.filter((r) => r.status === 'fulfilled').length}/${listings.length}`,
+    { network: params.network }
+  );
+
+  return results
+    .filter((r) => r.status === 'fulfilled')
+    .map((r) => (r as PromiseFulfilledResult<(typeof listings)[0]>).value);
+}
+
 export const healthCheckService = {
   checkAndVerifyEndpoint,
   checkAndVerifyRegistryEntry,
   checkVerifyAndUpdateRegistryEntries,
   checkAndVerifyInboxAgentRegistration,
   checkVerifyAndUpdateInboxAgentRegistrations,
+  checkAndVerifySimpleApiListing,
+  checkVerifyAndUpdateSimpleApiListings,
 };
