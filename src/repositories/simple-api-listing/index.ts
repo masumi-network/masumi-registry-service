@@ -1,1 +1,1 @@
-export { simpleApiListingRepository } from './simple-api-listing.repository.js';
+export { simpleApiListingRepository } from './simple-api-listing.repository';

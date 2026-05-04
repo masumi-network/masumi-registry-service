@@ -1,1 +1,1 @@
-export { simpleApiListingService } from './simple-api-listing.service.js';
+export { simpleApiListingService } from './simple-api-listing.service';
