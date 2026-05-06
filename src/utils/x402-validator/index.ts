@@ -132,13 +132,27 @@ async function tryFetchX402Body(
   }
 
   let body: unknown;
-  try {
-    body = await response.json();
-  } catch {
-    return {
-      outcome: 'failure',
-      reason: 'HTTP 402 response body is not valid JSON',
-    };
+  const paymentRequiredHeader = response.headers.get('PAYMENT-REQUIRED');
+  if (paymentRequiredHeader) {
+    try {
+      body = JSON.parse(
+        Buffer.from(paymentRequiredHeader, 'base64').toString('utf-8')
+      );
+    } catch {
+      return {
+        outcome: 'failure',
+        reason: 'PAYMENT-REQUIRED header is not valid base64 JSON',
+      };
+    }
+  } else {
+    try {
+      body = await response.json();
+    } catch {
+      return {
+        outcome: 'failure',
+        reason: 'HTTP 402 response body is not valid JSON',
+      };
+    }
   }
 
   const parsed = x402BodySchema.safeParse(body);
