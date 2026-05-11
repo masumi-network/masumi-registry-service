@@ -39,6 +39,11 @@ Examples:
   const outputDir = values['output-dir'] ?? './snapshots';
   const policyId = values['policy-id'];
 
+  if (policyId && !/^[0-9a-f]+$/i.test(policyId)) {
+    logger.error('Invalid policy ID: must be a hex string');
+    process.exit(1);
+  }
+
   logger.info('Starting snapshot export...');
   logger.info(`Output directory: ${outputDir}`);
 

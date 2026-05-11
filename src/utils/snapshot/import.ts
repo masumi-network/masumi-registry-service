@@ -6,6 +6,8 @@ import { logger } from '@/utils/logger';
 import { validateSnapshot } from './schema';
 import type { Snapshot, ImportResult } from './types';
 
+const MAX_SNAPSHOT_BYTES = 100 * 1024 * 1024; // 100 MB
+
 async function importSnapshotForSource(
   sourceId: string,
   snapshot: Snapshot,
@@ -203,6 +205,13 @@ export async function importSnapshotsForConfiguredSources(
     try {
       logger.info(`Importing snapshot from ${filePath}`);
 
+      const { size } = await fs.stat(filePath);
+      if (size > MAX_SNAPSHOT_BYTES) {
+        throw new Error(
+          `Snapshot file too large: ${size} bytes (max ${MAX_SNAPSHOT_BYTES})`
+        );
+      }
+
       // Read and parse
       const content = await fs.readFile(filePath, 'utf-8');
       const parsed = JSON.parse(content);
@@ -253,6 +262,14 @@ export async function importSnapshotFile(
   options: { dryRun?: boolean } = {}
 ): Promise<ImportResult> {
   try {
+    const { size } = await fs.stat(filePath);
+    if (size > MAX_SNAPSHOT_BYTES) {
+      return {
+        success: false,
+        reason: `Snapshot file too large: ${size} bytes (max ${MAX_SNAPSHOT_BYTES})`,
+      };
+    }
+
     const content = await fs.readFile(filePath, 'utf-8');
     const parsed = JSON.parse(content);
 

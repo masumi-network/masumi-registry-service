@@ -552,14 +552,21 @@ async function markAssetDeregistered(params: {
   source: SyncableRegistrySource;
   asset: string;
 }) {
-  await Promise.all([
+  await prisma.$transaction([
     prisma.registryEntry.updateMany({
       where: { assetIdentifier: params.asset },
       data: { status: $Enums.Status.Deregistered },
     }),
     prisma.inboxAgentRegistration.updateMany({
       where: { assetIdentifier: params.asset },
-      data: { status: InboxAgentRegistrationStatus.Deregistered },
+      data: {
+        status: InboxAgentRegistrationStatus.Deregistered,
+        linkedEmail: null,
+        encryptionPublicKey: null,
+        encryptionKeyVersion: null,
+        signingPublicKey: null,
+        signingKeyVersion: null,
+      },
     }),
   ]);
 }
