@@ -1,12 +1,17 @@
 import { InboxAgentRegistrationStatus, Network } from '@prisma/client';
 
 const searchInboxAgentRegistrations = jest.fn();
+const getInboxAgentRegistrationByIdentifier = jest.fn();
+const resetInvalidInboxAgentRegistrationForRefresh = jest.fn();
 const updateLatestCardanoRegistryEntries = jest.fn();
+const checkVerifyAndUpdateInboxAgentRegistrations = jest.fn();
 
 jest.mock('@/repositories/inbox-agent-registration', () => ({
   inboxAgentRegistrationRepository: {
     searchInboxAgentRegistrations,
     getInboxAgentRegistrations: jest.fn(),
+    getInboxAgentRegistrationByIdentifier,
+    resetInvalidInboxAgentRegistrationForRefresh,
     getInboxAgentRegistrationDiffEntries: jest.fn(),
   },
 }));
@@ -14,6 +19,12 @@ jest.mock('@/repositories/inbox-agent-registration', () => ({
 jest.mock('@/services/cardano-registry', () => ({
   cardanoRegistryService: {
     updateLatestCardanoRegistryEntries,
+  },
+}));
+
+jest.mock('@/services/health-check', () => ({
+  healthCheckService: {
+    checkVerifyAndUpdateInboxAgentRegistrations,
   },
 }));
 
@@ -71,5 +82,123 @@ describe('inboxAgentRegistrationService.searchInboxAgentRegistrations', () => {
       limit: 5,
       network: Network.Mainnet,
     });
+  });
+});
+
+describe('inboxAgentRegistrationService.refreshInboxAgentRegistration', () => {
+  const invalidRegistration = {
+    id: 'registration-1',
+    status: InboxAgentRegistrationStatus.Invalid,
+    assetIdentifier: 'asset-1',
+    agentSlug: 'inbox-agent',
+    providerUrl: null,
+    RegistrySource: {
+      id: 'source-1',
+      policyId: 'policy-id',
+      url: null,
+      network: Network.Preprod,
+    },
+  };
+
+  const resetRegistration = {
+    ...invalidRegistration,
+    status: InboxAgentRegistrationStatus.Pending,
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    updateLatestCardanoRegistryEntries.mockResolvedValue(undefined);
+    getInboxAgentRegistrationByIdentifier.mockResolvedValue(
+      invalidRegistration
+    );
+    resetInvalidInboxAgentRegistrationForRefresh.mockResolvedValue(
+      resetRegistration
+    );
+    checkVerifyAndUpdateInboxAgentRegistrations.mockResolvedValue([
+      {
+        ...resetRegistration,
+        status: InboxAgentRegistrationStatus.Verified,
+      },
+    ]);
+  });
+
+  it('resets invalid registrations before refreshing inbox verification', async () => {
+    const result =
+      await inboxAgentRegistrationService.refreshInboxAgentRegistration({
+        network: Network.Preprod,
+        agentIdentifier: 'asset-1',
+      });
+
+    expect(updateLatestCardanoRegistryEntries).toHaveBeenCalled();
+    expect(getInboxAgentRegistrationByIdentifier).toHaveBeenCalledWith({
+      network: Network.Preprod,
+      agentIdentifier: 'asset-1',
+    });
+    expect(resetInvalidInboxAgentRegistrationForRefresh).toHaveBeenCalledWith({
+      id: 'registration-1',
+    });
+    expect(checkVerifyAndUpdateInboxAgentRegistrations).toHaveBeenCalledWith({
+      inboxAgentRegistrations: [resetRegistration],
+    });
+    expect(result).toMatchObject({
+      id: 'registration-1',
+      status: InboxAgentRegistrationStatus.Verified,
+    });
+  });
+
+  it('refreshes non-invalid registrations without resetting verification data', async () => {
+    getInboxAgentRegistrationByIdentifier.mockResolvedValue({
+      ...invalidRegistration,
+      status: InboxAgentRegistrationStatus.Pending,
+    });
+
+    await inboxAgentRegistrationService.refreshInboxAgentRegistration({
+      network: Network.Preprod,
+      agentIdentifier: 'asset-1',
+    });
+
+    expect(resetInvalidInboxAgentRegistrationForRefresh).not.toHaveBeenCalled();
+    expect(checkVerifyAndUpdateInboxAgentRegistrations).toHaveBeenCalledWith({
+      inboxAgentRegistrations: [
+        {
+          ...invalidRegistration,
+          status: InboxAgentRegistrationStatus.Pending,
+        },
+      ],
+    });
+  });
+
+  it('returns null when the requested inbox registration does not exist', async () => {
+    getInboxAgentRegistrationByIdentifier.mockResolvedValue(null);
+
+    const result =
+      await inboxAgentRegistrationService.refreshInboxAgentRegistration({
+        network: Network.Preprod,
+        agentIdentifier: 'missing-asset',
+      });
+
+    expect(result).toBeNull();
+    expect(resetInvalidInboxAgentRegistrationForRefresh).not.toHaveBeenCalled();
+    expect(checkVerifyAndUpdateInboxAgentRegistrations).not.toHaveBeenCalled();
+  });
+
+  it('does not refresh deregistered inbox registrations', async () => {
+    getInboxAgentRegistrationByIdentifier.mockResolvedValue({
+      ...invalidRegistration,
+      status: InboxAgentRegistrationStatus.Deregistered,
+    });
+
+    const result =
+      await inboxAgentRegistrationService.refreshInboxAgentRegistration({
+        network: Network.Preprod,
+        agentIdentifier: 'asset-1',
+      });
+
+    expect(result).toMatchObject({
+      id: 'registration-1',
+      status: InboxAgentRegistrationStatus.Deregistered,
+    });
+    expect(resetInvalidInboxAgentRegistrationForRefresh).not.toHaveBeenCalled();
+    expect(checkVerifyAndUpdateInboxAgentRegistrations).not.toHaveBeenCalled();
   });
 });

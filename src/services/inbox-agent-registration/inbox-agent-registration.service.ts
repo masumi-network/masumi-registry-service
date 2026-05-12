@@ -2,9 +2,11 @@ import { inboxAgentRegistrationRepository } from '@/repositories/inbox-agent-reg
 import {
   queryInboxAgentRegistrationSchemaInput,
   inboxAgentRegistrationDiffSchemaInput,
+  refreshInboxAgentRegistrationSchemaInput,
   searchInboxAgentRegistrationSchemaInput,
 } from '@/routes/api/inbox-agent-registration';
 import { cardanoRegistryService } from '@/services/cardano-registry';
+import { healthCheckService } from '@/services/health-check';
 import { normalizeInboxSlug } from '@/utils/inbox-slug';
 import { InboxAgentRegistrationStatus } from '@prisma/client';
 import { z } from '@/utils/zod-openapi';
@@ -65,6 +67,42 @@ async function searchInboxAgentRegistrations(
   });
 }
 
+async function refreshInboxAgentRegistration(
+  input: z.infer<typeof refreshInboxAgentRegistrationSchemaInput>
+) {
+  await cardanoRegistryService.updateLatestCardanoRegistryEntries();
+
+  let inboxAgentRegistration =
+    await inboxAgentRegistrationRepository.getInboxAgentRegistrationByIdentifier(
+      input
+    );
+  if (!inboxAgentRegistration) {
+    return null;
+  }
+
+  if (
+    inboxAgentRegistration.status === InboxAgentRegistrationStatus.Deregistered
+  ) {
+    return inboxAgentRegistration;
+  }
+
+  if (inboxAgentRegistration.status === InboxAgentRegistrationStatus.Invalid) {
+    inboxAgentRegistration =
+      await inboxAgentRegistrationRepository.resetInvalidInboxAgentRegistrationForRefresh(
+        {
+          id: inboxAgentRegistration.id,
+        }
+      );
+  }
+
+  const [updatedRegistration] =
+    await healthCheckService.checkVerifyAndUpdateInboxAgentRegistrations({
+      inboxAgentRegistrations: [inboxAgentRegistration],
+    });
+
+  return updatedRegistration ?? inboxAgentRegistration;
+}
+
 async function getInboxAgentRegistrationDiffEntries(
   input: z.infer<typeof inboxAgentRegistrationDiffSchemaInput>
 ) {
@@ -77,5 +115,6 @@ async function getInboxAgentRegistrationDiffEntries(
 export const inboxAgentRegistrationService = {
   getInboxAgentRegistrations,
   searchInboxAgentRegistrations,
+  refreshInboxAgentRegistration,
   getInboxAgentRegistrationDiffEntries,
 };
