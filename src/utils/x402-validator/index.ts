@@ -16,6 +16,7 @@ export const x402PaymentRequirementSchema = z.object({
   maxAmountRequired: z
     .string()
     .min(1)
+    .max(19)
     .regex(/^\d+$/, 'maxAmountRequired must be a non-negative integer string'),
   resource: z.string().min(1),
   description: z.string().optional().nullable(),
@@ -27,7 +28,7 @@ export const x402PaymentRequirementSchema = z.object({
 
 export const x402BodySchema = z.object({
   x402Version: z.number().int().min(1),
-  accepts: z.array(x402PaymentRequirementSchema).min(1),
+  accepts: z.array(x402PaymentRequirementSchema).min(1).max(20),
   error: z.string().optional().nullable(),
 });
 
@@ -44,8 +45,8 @@ export const bazaarManifestSchema = z.object({
   name: z.string().optional(),
   category: z.string().optional().nullable(),
   x402Version: z.number().int().min(1).optional(),
-  networks: z.array(z.string()).optional(),
-  endpoints: z.array(bazaarEndpointSchema).min(1),
+  networks: z.array(z.string()).max(10).optional(),
+  endpoints: z.array(bazaarEndpointSchema).min(1).max(20),
 });
 
 // ---------------------------------------------------------------------------
@@ -86,6 +87,24 @@ export function computeUrlHash(url: string): string {
 // ---------------------------------------------------------------------------
 
 const FETCH_TIMEOUT_MS = 10_000;
+const MAX_BODY_BYTES = 512_000;
+
+async function readBodyWithCap(response: Response): Promise<unknown> {
+  const buf = await response.arrayBuffer();
+  if (buf.byteLength > MAX_BODY_BYTES) {
+    throw new Error(`Response body too large (${buf.byteLength} bytes)`);
+  }
+  return JSON.parse(Buffer.from(buf).toString('utf-8'));
+}
+
+async function drainBody(response: Response): Promise<void> {
+  try {
+    const buf = await response.arrayBuffer();
+    void buf;
+  } catch {
+    // ignore
+  }
+}
 
 async function fetchWithTimeout(
   url: string,
@@ -120,11 +139,7 @@ async function tryFetchX402Body(
   }
 
   if (response.status !== 402) {
-    try {
-      await response.text();
-    } catch {
-      // ignore
-    }
+    await drainBody(response);
     return {
       outcome: 'failure',
       reason: `Expected HTTP 402 but got ${response.status}`,
@@ -134,6 +149,12 @@ async function tryFetchX402Body(
   let body: unknown;
   const paymentRequiredHeader = response.headers.get('PAYMENT-REQUIRED');
   if (paymentRequiredHeader) {
+    if (paymentRequiredHeader.length > MAX_BODY_BYTES) {
+      return {
+        outcome: 'failure',
+        reason: 'PAYMENT-REQUIRED header is too large',
+      };
+    }
     try {
       body = JSON.parse(
         Buffer.from(paymentRequiredHeader, 'base64').toString('utf-8')
@@ -146,11 +167,14 @@ async function tryFetchX402Body(
     }
   } else {
     try {
-      body = await response.json();
-    } catch {
+      body = await readBodyWithCap(response);
+    } catch (error) {
       return {
         outcome: 'failure',
-        reason: 'HTTP 402 response body is not valid JSON',
+        reason:
+          error instanceof Error
+            ? error.message
+            : 'HTTP 402 response body is not valid JSON',
       };
     }
   }
@@ -191,11 +215,7 @@ async function tryFetchManifest(
   }
 
   if (!response.ok) {
-    try {
-      await response.text();
-    } catch {
-      // ignore
-    }
+    await drainBody(response);
     return {
       outcome: 'failure',
       reason: `${path} returned HTTP ${response.status}`,
@@ -204,11 +224,14 @@ async function tryFetchManifest(
 
   let body: unknown;
   try {
-    body = await response.json();
-  } catch {
+    body = await readBodyWithCap(response);
+  } catch (error) {
     return {
       outcome: 'failure',
-      reason: `${path} response is not valid JSON`,
+      reason:
+        error instanceof Error
+          ? error.message
+          : `${path} response is not valid JSON`,
     };
   }
 

@@ -1,4 +1,4 @@
-import { Network, SimpleApiStatus } from '@prisma/client';
+import { Network, Prisma, SimpleApiStatus } from '@prisma/client';
 import createHttpError from 'http-errors';
 import { simpleApiListingRepository } from '@/repositories/simple-api-listing';
 import { validateX402Url, computeUrlHash } from '@/utils/x402-validator';
@@ -28,7 +28,16 @@ async function submitSimpleApiListing(
         'A listing for this URL already exists in this registry'
       );
     }
-    // Allow re-registration of a deregistered listing
+    // Only the original submitter may re-register a deregistered listing
+    if (
+      existing.submittedByApiKeyId &&
+      existing.submittedByApiKeyId !== submittedByApiKeyId
+    ) {
+      throw createHttpError(
+        403,
+        'Only the original submitter may re-register this listing'
+      );
+    }
     logger.info('Re-registering previously deregistered Simple API listing', {
       id: existing.id,
       url,
@@ -63,19 +72,32 @@ async function submitSimpleApiListing(
     });
   }
 
-  return simpleApiListingRepository.createSimpleApiListing({
-    network,
-    name,
-    description,
-    url,
-    urlHash,
-    category,
-    tags: tags ?? [],
-    accepts: validation.accepts,
-    httpMethod: validation.httpMethod,
-    extra: validation.extra,
-    submittedByApiKeyId,
-  });
+  try {
+    return await simpleApiListingRepository.createSimpleApiListing({
+      network,
+      name,
+      description,
+      url,
+      urlHash,
+      category,
+      tags: tags ?? [],
+      accepts: validation.accepts,
+      httpMethod: validation.httpMethod,
+      extra: validation.extra,
+      submittedByApiKeyId,
+    });
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === 'P2002'
+    ) {
+      throw createHttpError(
+        409,
+        'A listing for this URL already exists in this registry'
+      );
+    }
+    throw error;
+  }
 }
 
 async function getSimpleApiListings(
