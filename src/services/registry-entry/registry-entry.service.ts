@@ -111,13 +111,17 @@ async function searchRegistryEntries(
 async function getRegistryDiffEntries(
   input: z.infer<typeof registryDiffSchemaInput>
 ) {
+  const metadataVersions =
+    input.metadataVersion && input.metadataVersion.length > 0
+      ? input.metadataVersion
+      : undefined;
   return registryEntryRepository.getRegistryDiffEntries(
     input.statusUpdatedAfter,
     input.cursorId,
     input.limit,
     input.network,
     input.policyId,
-    input.metadataVersion
+    metadataVersions
   );
 }
 

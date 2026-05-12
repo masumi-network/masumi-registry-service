@@ -1,11 +1,12 @@
 export async function timedFetch(
   url: string,
+  options: Omit<RequestInit, 'signal'> = {},
   timeoutMs = 7500
 ): Promise<Response> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    return await fetch(url, { signal: controller.signal });
+    return await fetch(url, { ...options, signal: controller.signal });
   } finally {
     clearTimeout(timeoutId);
     try {

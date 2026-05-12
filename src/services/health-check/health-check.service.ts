@@ -210,15 +210,8 @@ async function checkA2AAgentCard({
   agent_card_url: string;
 }): Promise<{ returnedAgentIdentifier: null; status: $Enums.Status }> {
   try {
-    const url = new URL(agent_card_url);
-    if (['localhost', '127.0.0.1'].includes(url.hostname)) {
-      return { returnedAgentIdentifier: null, status: $Enums.Status.Invalid };
-    }
-    if (url.protocol !== 'https:' && url.protocol !== 'http:') {
-      return { returnedAgentIdentifier: null, status: $Enums.Status.Invalid };
-    }
-
-    const response = await timedFetch(agent_card_url);
+    const { normalizedUrl } = await validatePublicUrl(agent_card_url);
+    const response = await timedFetch(normalizedUrl, { redirect: 'manual' });
     if (!response.ok) {
       try {
         await response.text();
@@ -233,7 +226,10 @@ async function checkA2AAgentCard({
       returnedAgentIdentifier: null,
       status: parsed.success ? $Enums.Status.Online : $Enums.Status.Invalid,
     };
-  } catch {
+  } catch (e) {
+    if (e instanceof PublicUrlValidationError) {
+      return { returnedAgentIdentifier: null, status: $Enums.Status.Invalid };
+    }
     return { returnedAgentIdentifier: null, status: $Enums.Status.Offline };
   }
 }

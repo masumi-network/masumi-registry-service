@@ -138,7 +138,7 @@ async function fetchAndValidateAgentCard(agentCardUrl: string): Promise<{
   try {
     const { normalizedUrl } = await validatePublicUrl(agentCardUrl);
 
-    const response = await timedFetch(normalizedUrl);
+    const response = await timedFetch(normalizedUrl, { redirect: 'manual' });
     if (!response.ok) {
       try {
         await response.text();
