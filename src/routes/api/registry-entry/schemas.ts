@@ -41,6 +41,11 @@ export const searchRegistrySchemaInput = z.object({
   minHealthCheckDate: ez.dateIn().optional(),
 });
 
+export const refreshRegistryEntrySchemaInput = z.object({
+  network: z.nativeEnum(Network),
+  agentIdentifier: z.string().min(1).max(250),
+});
+
 export const registryDiffSchemaInput = z.object({
   network: z.nativeEnum(Network),
   statusUpdatedAfter: ez.dateIn(),
@@ -133,6 +138,10 @@ export const registryEntrySchemaOutput = z
 
 export const queryRegistrySchemaOutput = z.object({
   entries: z.array(registryEntrySchemaOutput),
+});
+
+export const refreshRegistryEntrySchemaOutput = z.object({
+  entry: registryEntrySchemaOutput,
 });
 
 export type RegistryEntrySerializable = {
