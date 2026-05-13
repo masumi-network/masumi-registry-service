@@ -6,20 +6,20 @@ A Registry Lookup service for MASUMI AI Nodes on the Cardano blockchain. Provide
 
 | Command | Purpose |
 |---------|---------|
-| `npm run dev` | Start dev server with hot reload (tsx watch) |
-| `npm run build` | Build for production (Prisma generate + tsc + pkgroll) |
-| `npm start` | Run production server |
-| `npm run lint` | Run ESLint with auto-fix |
-| `npm run format` | Format code with Prettier |
-| `npm run test` | Run Jest tests |
-| `npm run test:watch` | Run tests in watch mode |
-| `npm run test:coverage` | Generate coverage report |
-| `npm run prisma:generate` | Generate Prisma client types |
-| `npm run prisma:migrate:dev` | Create new migration |
-| `npm run prisma:migrate` | Apply migrations (production) |
-| `npm run prisma:seed` | Seed the database |
-| `npm run swagger-json` | Generate OpenAPI JSON |
-| `npm run knip` | Find unused code/dependencies |
+| `pnpm dev` | Start dev server with hot reload (tsx watch) |
+| `pnpm build` | Build for production (Prisma generate + tsc + pkgroll) |
+| `pnpm start` | Run production server |
+| `pnpm lint` | Run ESLint with auto-fix |
+| `pnpm format` | Format code with Prettier |
+| `pnpm test` | Run Jest tests |
+| `pnpm test:watch` | Run tests in watch mode |
+| `pnpm test:coverage` | Generate coverage report |
+| `pnpm prisma:generate` | Generate Prisma client types |
+| `pnpm prisma:migrate:dev` | Create new migration |
+| `pnpm prisma:migrate` | Apply migrations (production) |
+| `pnpm prisma:seed` | Seed the database |
+| `pnpm swagger-json` | Generate OpenAPI JSON |
+| `pnpm knip` | Find unused code/dependencies |
 
 ## Tech Stack
 

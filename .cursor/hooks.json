@@ -3,15 +3,15 @@
   "hooks": {
     "afterFileEdit": [
       {
-        "command": "npm run lint",
+        "command": "pnpm lint",
         "pattern": "src/**/*.ts"
       },
       {
-        "command": "npm run format",
+        "command": "pnpm format",
         "pattern": "src/**/*.ts"
       },
       {
-        "command": "npx prisma format",
+        "command": "pnpm exec prisma format",
         "pattern": "prisma/**/*.prisma"
       }
     ]

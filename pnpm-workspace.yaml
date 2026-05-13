@@ -1,9 +1,10 @@
 onlyBuiltDependencies:
+  - '@prisma/client'
   - '@prisma/engines'
+  - esbuild
   - prisma
-  - protobufjs
-  - sharp
+  - ssh2
+  - cpu-features
 
-overrides:
-  libsodium-sumo: 0.7.15
-  libsodium-wrappers-sumo: 0.7.15
+patchedDependencies:
+  libsodium-wrappers-sumo@0.7.16: patches/libsodium-wrappers-sumo@0.7.16.patch

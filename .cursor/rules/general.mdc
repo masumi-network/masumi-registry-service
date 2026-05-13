@@ -49,7 +49,7 @@ Formatting Standards
 - Use single quotes for strings, semicolons are required.
 - Use 2-space indentation with 80 character maximum line width.
 - Use ES5 trailing commas in multiline arrays and objects.
-- Run `npm run lint` and `npm run format` before committing any changes.
+- Run `pnpm run lint` and `pnpm run format` before committing any changes.
 
 Git Workflow
 

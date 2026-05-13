@@ -3,7 +3,7 @@ RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists
 RUN corepack enable && corepack prepare pnpm@10.33.0 --activate
 WORKDIR /usr/src/app
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
-COPY scripts ./scripts
+COPY patches ./patches
 RUN pnpm install --frozen-lockfile
 
 FROM deps AS builder

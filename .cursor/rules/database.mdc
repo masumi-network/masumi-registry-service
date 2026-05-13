@@ -65,10 +65,10 @@ Enum Usage
 
 Migration Workflow
 
-- Run `npm run prisma:migrate:dev` to create new migrations during development.
+- Run `pnpm run prisma:migrate:dev` to create new migrations during development.
 - Provide descriptive names for migrations that explain the change.
-- Run `npm run prisma:migrate` to apply migrations in production.
-- Run `npm run prisma:generate` after any schema changes to regenerate the client.
+- Run `pnpm run prisma:migrate` to apply migrations in production.
+- Run `pnpm run prisma:generate` after any schema changes to regenerate the client.
 
 Connection Management
 

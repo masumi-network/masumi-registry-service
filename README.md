@@ -39,7 +39,7 @@ We are focusing on setting everything up for the **Preprod** Environment of Masu
 ```sh
 git clone https://github.com/masumi-network/masumi-registry-service
 cd masumi-registry-service/
-npm install
+pnpm install
 ```
 
 ### Step 2: Checkout the Latest Stable Version
@@ -68,7 +68,7 @@ Set the Admin Keys yourself.
 ### Step 4: Configure and Seed the PostgreSQL Database
 
 ```sh
-npm run prisma:migrate
+pnpm prisma:migrate
 ```
 
 ### Step 5: Running the Service
@@ -77,11 +77,11 @@ You can start the service in different modes:
 
 1. Build and run in production mode:
    ```sh
-   npm run build && npm start
+   pnpm build && pnpm start
    ```
 2. Run in development mode:
    ```sh
-   npm run dev
+   pnpm dev
    ```
 
 Once running, you can access the OpenAPI Documentation at [http://localhost:3000/docs](http://localhost:3000/docs).

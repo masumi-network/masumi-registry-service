@@ -77,7 +77,7 @@ fi
 
 
 echo "${GREEN}✅ All checks passed!${NC}"
-# Only run lint-staged if it exists in package.json and npx is available
-if command -v npx >/dev/null 2>&1 && grep -q "\"lint-staged\"" package.json 2>/dev/null; then
-    npx --no -- lint-staged
+# Only run lint-staged if it exists in package.json and pnpm is available
+if command -v pnpm >/dev/null 2>&1 && grep -q "\"lint-staged\"" package.json 2>/dev/null; then
+    pnpm exec lint-staged
 fi
