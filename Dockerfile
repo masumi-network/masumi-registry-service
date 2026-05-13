@@ -1,8 +1,9 @@
 FROM node:20-slim AS deps
 RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
-RUN corepack enable && corepack prepare pnpm@10.30.2 --activate
+RUN corepack enable && corepack prepare pnpm@10.33.0 --activate
 WORKDIR /usr/src/app
-COPY package.json pnpm-lock.yaml ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
+COPY patches ./patches
 RUN pnpm install --frozen-lockfile
 
 FROM deps AS builder
@@ -11,8 +12,7 @@ COPY ./src ./src
 COPY ./prisma ./prisma
 COPY tsconfig.json .
 COPY public ./public
-RUN pnpm exec prisma generate
-RUN pnpm build
+RUN pnpm run build
 RUN pnpm prune --prod
 
 FROM node:20-slim AS runner

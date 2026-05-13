@@ -21,8 +21,6 @@ jobs:
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: 10.30.2
 
       - name: Set up Node.js
         uses: actions/setup-node@v3
@@ -34,16 +32,16 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Generate Prisma Client
-        run: pnpm prisma:generate
+        run: pnpm run prisma:generate
 
       - name: Run Jest
-        run: pnpm test
+        run: pnpm run test
 
       - name: Run Build
-        run: pnpm build
+        run: pnpm run build
 
       - name: Run Open API Generator
-        run: pnpm swagger-json
+        run: pnpm run swagger-json
 
       - name: Run ESLint for issues
         id: lint_fix_remaining

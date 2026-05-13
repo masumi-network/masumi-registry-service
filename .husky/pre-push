@@ -69,7 +69,7 @@ echo "${BLUE}🔍 Running ESLint on staged files...${NC}"
 if command -v git-rev-parse >/dev/null 2>&1 && [ -d .git ]; then
     staged_files=$(git diff --cached --name-only --diff-filter=ACMR -- '*.ts' '*.js' '*.tsx' '*.jsx' 2>/dev/null)
     if [ -n "$staged_files" ]; then
-        echo "$staged_files" | tr '\n' '\0' | xargs -0 pnpm lint ||
+        echo "$staged_files" | tr '\n' '\0' | xargs -0 pnpm run lint -- ||
         (
             echo "${RED}❌ ESLint check failed. Please fix the errors and try committing again.${NC}"
             exit 4
@@ -82,7 +82,7 @@ echo "${BLUE}🔍 Running format on staged files...${NC}"
 if command -v git-rev-parse >/dev/null 2>&1 && [ -d .git ]; then
     staged_files=$(git diff --cached --name-only --diff-filter=ACMR -- '*.ts' '*.js' '*.tsx' '*.jsx' 2>/dev/null)
     if [ -n "$staged_files" ]; then
-        echo "$staged_files" | tr '\n' '\0' | xargs -0 pnpm format ||
+        echo "$staged_files" | tr '\n' '\0' | xargs -0 pnpm run format -- ||
         (
             echo "${RED}❌ Formatting failed. Please fix the errors and try committing again.${NC}"
             exit 4
@@ -92,7 +92,7 @@ fi
 
 # Generate Swagger documentation
 echo "${BLUE}🔍 Generating Swagger documentation...${NC}"
-if ! pnpm swagger-json; then
+if ! pnpm run swagger-json; then
     echo "${RED}❌ Swagger documentation generation failed. Please fix any API documentation issues and try again.${NC}"
     exit 6
 fi
