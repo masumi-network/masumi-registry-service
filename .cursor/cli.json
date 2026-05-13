@@ -5,6 +5,7 @@
       "Shell(cat:*)",
       "Shell(git:*)",
       "Shell(npm:*)",
+      "Shell(pnpm:*)",
       "Shell(npx:*)",
       "Read(**/*.ts)",
       "Read(**/*.md)",
