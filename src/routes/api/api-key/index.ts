@@ -9,30 +9,52 @@ export const getAPIKeySchemaInput = z.object({
   limit: z.number({ coerce: true }).int().min(1).max(100).default(10),
 });
 
-export const apiKeySchemaOutput = z
-  .object({
-    id: z.string(),
+const apiKeyMetadataSchema = z.object({
+  id: z.string(),
+  permission: z.nativeEnum(Permission),
+  usageLimited: z.boolean(),
+  maxUsageCredits: z
+    .number({ coerce: true })
+    .int()
+    .min(0)
+    .max(1000000)
+    .nullable(),
+  accumulatedUsageCredits: z.number({ coerce: true }).int().min(0).max(1000000),
+  status: z.nativeEnum(APIKeyStatus),
+});
+
+export const apiKeySchemaOutput = apiKeyMetadataSchema.openapi('APIKey');
+
+export const apiKeyCreateSchemaOutput = apiKeyMetadataSchema
+  .extend({
     token: z.string(),
-    permission: z.nativeEnum(Permission),
-    usageLimited: z.boolean(),
-    maxUsageCredits: z
-      .number({ coerce: true })
-      .int()
-      .min(0)
-      .max(1000000)
-      .nullable(),
-    accumulatedUsageCredits: z
-      .number({ coerce: true })
-      .int()
-      .min(0)
-      .max(1000000),
-    status: z.nativeEnum(APIKeyStatus),
   })
-  .openapi('APIKey');
+  .openapi('APIKeyWithToken');
 
 export const getAPIKeySchemaOutput = z.object({
   apiKeys: z.array(apiKeySchemaOutput),
 });
+
+export function stripApiKeyToken<
+  T extends {
+    accumulatedUsageCredits: number;
+    id: string;
+    maxUsageCredits: number | null;
+    permission: Permission;
+    status: APIKeyStatus;
+    token?: string;
+    usageLimited: boolean;
+  },
+>(apiKey: T): z.infer<typeof apiKeySchemaOutput> {
+  return {
+    id: apiKey.id,
+    permission: apiKey.permission,
+    usageLimited: apiKey.usageLimited,
+    maxUsageCredits: apiKey.maxUsageCredits,
+    accumulatedUsageCredits: apiKey.accumulatedUsageCredits,
+    status: apiKey.status,
+  };
+}
 
 export const queryAPIKeyEndpointGet = adminAuthenticatedEndpointFactory.build({
   method: 'get',
@@ -47,7 +69,7 @@ export const queryAPIKeyEndpointGet = adminAuthenticatedEndpointFactory.build({
 
     if (!data) throw createHttpError(404, 'Not found');
 
-    return { apiKeys: data };
+    return { apiKeys: data.map(stripApiKeyToken) };
   },
 });
 
@@ -65,7 +87,7 @@ export const addAPIKeySchemaInput = z.object({
 export const addAPIKeyEndpointPost = adminAuthenticatedEndpointFactory.build({
   method: 'post',
   input: addAPIKeySchemaInput,
-  output: apiKeySchemaOutput,
+  output: apiKeyCreateSchemaOutput,
   handler: async ({
     input,
   }: {
@@ -110,7 +132,7 @@ export const updateAPIKeyEndpointPatch =
       );
       if (!result) throw createHttpError(404, 'Not found');
 
-      return result;
+      return stripApiKeyToken(result);
     },
   });
 
@@ -132,6 +154,6 @@ export const deleteAPIKeyEndpointDelete =
 
       if (!result) throw createHttpError(404, 'Not found');
 
-      return result;
+      return stripApiKeyToken(result);
     },
   });

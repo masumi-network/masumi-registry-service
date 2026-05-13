@@ -1,4 +1,4 @@
-import { $Enums, Network, PrismaClient, RPCProvider } from '@prisma/client';
+import { Network, PrismaClient, RPCProvider } from '@prisma/client';
 import dotenv from 'dotenv';
 import { DEFAULTS } from '../src/utils/config';
 import { hashToken } from '../src/utils/crypto';
@@ -16,21 +16,20 @@ export const seed = async (prisma: PrismaClient) => {
   const adminKey = process.env.ADMIN_KEY;
   if (adminKey != null) {
     if (adminKey.length < 15) throw Error('API-KEY is insecure');
+    const adminKeyHash = hashToken(adminKey);
     console.log('Admin_KEY is seeded');
     await prisma.apiKey.upsert({
       create: {
-        token: adminKey,
         permission: 'Admin',
         status: 'Active',
-        tokenHash: hashToken(adminKey),
+        tokenHash: adminKeyHash,
       },
       update: {
-        token: adminKey,
         permission: 'Admin',
         status: 'Active',
-        tokenHash: hashToken(adminKey),
+        tokenHash: adminKeyHash,
       },
-      where: { token: adminKey },
+      where: { tokenHash: adminKeyHash },
     });
   } else {
     console.log('Admin_KEY is seeded');
@@ -41,7 +40,6 @@ export const seed = async (prisma: PrismaClient) => {
     console.log('REGISTRY_SOURCE_IDENTIFIER_CARDANO_Preprod is seeded');
     await prisma.registrySource.upsert({
       create: {
-        type: $Enums.RegistryEntryType.Web3CardanoV1,
         network: Network.Preprod,
         note: 'Created via seeding',
         policyId: registryPolicyPreprod,
@@ -54,8 +52,8 @@ export const seed = async (prisma: PrismaClient) => {
       },
       update: {},
       where: {
-        type_policyId: {
-          type: $Enums.RegistryEntryType.Web3CardanoV1,
+        network_policyId: {
+          network: Network.Preprod,
           policyId: registryPolicyPreprod,
         },
       },
@@ -69,7 +67,6 @@ export const seed = async (prisma: PrismaClient) => {
     console.log('REGISTRY_SOURCE_IDENTIFIER_CARDANO_Mainnet is seeded');
     await prisma.registrySource.upsert({
       create: {
-        type: $Enums.RegistryEntryType.Web3CardanoV1,
         network: Network.Mainnet,
         note: 'Created via seeding',
         policyId: registrySourcePolicyMainnet,
@@ -82,8 +79,8 @@ export const seed = async (prisma: PrismaClient) => {
       },
       update: {},
       where: {
-        type_policyId: {
-          type: $Enums.RegistryEntryType.Web3CardanoV1,
+        network_policyId: {
+          network: Network.Mainnet,
           policyId: registrySourcePolicyMainnet,
         },
       },

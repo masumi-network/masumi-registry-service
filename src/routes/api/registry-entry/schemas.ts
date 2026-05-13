@@ -2,27 +2,48 @@ import { z } from '@/utils/zod-openapi';
 import { ez } from 'express-zod-api';
 import { $Enums, Network } from '@prisma/client';
 
+export const registryEntryFilterSchema = z.object({
+  paymentTypes: z.array(z.nativeEnum($Enums.PaymentType)).max(5).optional(),
+  status: z.array(z.nativeEnum($Enums.Status)).max(5).optional(),
+  policyId: z.string().min(1).max(250).optional(),
+  assetIdentifier: z.string().min(1).max(250).optional(),
+  tags: z.array(z.string().min(1).max(150)).optional(),
+  capability: z
+    .object({
+      name: z.string().min(1).max(150),
+      version: z.string().max(150).optional(),
+    })
+    .optional(),
+});
+
 export const queryRegistrySchemaInput = z.object({
   network: z.nativeEnum(Network),
   limit: z.number({ coerce: true }).int().min(1).max(50).default(10),
   //optional data
   cursorId: z.string().min(1).max(50).optional(),
-  filter: z
-    .object({
-      paymentTypes: z.array(z.nativeEnum($Enums.PaymentType)).max(5).optional(),
-      status: z.array(z.nativeEnum($Enums.Status)).max(5).optional(),
-      policyId: z.string().min(1).max(250).optional(),
-      assetIdentifier: z.string().min(1).max(250).optional(),
-      tags: z.array(z.string().min(1).max(150)).optional(),
-      capability: z
-        .object({
-          name: z.string().min(1).max(150),
-          version: z.string().max(150).optional(),
-        })
-        .optional(),
-    })
-    .optional(),
+  filter: registryEntryFilterSchema.optional(),
   minHealthCheckDate: ez.dateIn().optional(),
+});
+
+export const searchRegistrySchemaInput = z.object({
+  network: z.nativeEnum(Network),
+  limit: z.number({ coerce: true }).int().min(1).max(50).default(10),
+  cursorId: z.string().min(1).max(50).optional(),
+  query: z
+    .string()
+    .trim()
+    .min(1)
+    .max(120)
+    .describe(
+      'Case-insensitive fuzzy match against registry entry core metadata, capability, asset identifier, api base URL, and tags.'
+    ),
+  filter: registryEntryFilterSchema.optional(),
+  minHealthCheckDate: ez.dateIn().optional(),
+});
+
+export const refreshRegistryEntrySchemaInput = z.object({
+  network: z.nativeEnum(Network),
+  agentIdentifier: z.string().min(1).max(250),
 });
 
 export const registryDiffSchemaInput = z.object({
@@ -72,7 +93,6 @@ export const registryEntrySchemaOutput = z
     paymentType: z.nativeEnum($Enums.PaymentType),
     RegistrySource: z.object({
       id: z.string(),
-      type: z.nativeEnum($Enums.RegistryEntryType),
       policyId: z.string().nullable(),
       url: z.string().nullable(),
     }),
@@ -120,6 +140,10 @@ export const queryRegistrySchemaOutput = z.object({
   entries: z.array(registryEntrySchemaOutput),
 });
 
+export const refreshRegistryEntrySchemaOutput = z.object({
+  entry: registryEntrySchemaOutput,
+});
+
 export type RegistryEntrySerializable = {
   id: string;
   name: string;
@@ -146,7 +170,6 @@ export type RegistryEntrySerializable = {
   metadataVersion: number;
   RegistrySource: {
     id: string;
-    type: $Enums.RegistryEntryType;
     policyId: string | null;
     url: string | null;
   };

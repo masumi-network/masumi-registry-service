@@ -35,12 +35,6 @@
                     "RegistrySource": {
                         "type": "object",
                         "properties": {
-                            "type": {
-                                "type": "string",
-                                "enum": [
-                                    "Web3CardanoV1"
-                                ]
-                            },
                             "policyId": {
                                 "type": "string",
                                 "nullable": true
@@ -51,7 +45,6 @@
                             }
                         },
                         "required": [
-                            "type",
                             "policyId",
                             "url"
                         ]
@@ -390,12 +383,6 @@
                             "id": {
                                 "type": "string"
                             },
-                            "type": {
-                                "type": "string",
-                                "enum": [
-                                    "Web3CardanoV1"
-                                ]
-                            },
                             "policyId": {
                                 "type": "string",
                                 "nullable": true
@@ -407,7 +394,6 @@
                         },
                         "required": [
                             "id",
-                            "type",
                             "policyId",
                             "url"
                         ]
@@ -562,17 +548,117 @@
                     "updatedAt"
                 ]
             },
-            "RegistrySource": {
+            "InboxAgentRegistration": {
                 "type": "object",
                 "properties": {
                     "id": {
                         "type": "string"
                     },
-                    "type": {
+                    "createdAt": {
+                        "type": "string"
+                    },
+                    "updatedAt": {
+                        "type": "string"
+                    },
+                    "status": {
                         "type": "string",
                         "enum": [
-                            "Web3CardanoV1"
+                            "Pending",
+                            "Verified",
+                            "Invalid",
+                            "Deregistered"
                         ]
+                    },
+                    "statusUpdatedAt": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "agentSlug": {
+                        "type": "string"
+                    },
+                    "agentIdentifier": {
+                        "type": "string"
+                    },
+                    "providerUrl": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "linkedEmail": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "encryptionPublicKey": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "encryptionKeyVersion": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "signingPublicKey": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "signingKeyVersion": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "metadataVersion": {
+                        "type": "integer"
+                    },
+                    "RegistrySource": {
+                        "type": "object",
+                        "properties": {
+                            "id": {
+                                "type": "string"
+                            },
+                            "policyId": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "url": {
+                                "type": "string",
+                                "nullable": true
+                            }
+                        },
+                        "required": [
+                            "id",
+                            "policyId",
+                            "url"
+                        ]
+                    }
+                },
+                "required": [
+                    "id",
+                    "createdAt",
+                    "updatedAt",
+                    "status",
+                    "statusUpdatedAt",
+                    "name",
+                    "description",
+                    "agentSlug",
+                    "agentIdentifier",
+                    "providerUrl",
+                    "linkedEmail",
+                    "encryptionPublicKey",
+                    "encryptionKeyVersion",
+                    "signingPublicKey",
+                    "signingKeyVersion",
+                    "metadataVersion",
+                    "RegistrySource"
+                ]
+            },
+            "RegistrySource": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
                     },
                     "url": {
                         "type": "string",
@@ -611,7 +697,6 @@
                 },
                 "required": [
                     "id",
-                    "type",
                     "url",
                     "policyId",
                     "note",
@@ -657,9 +742,6 @@
                     "id": {
                         "type": "string"
                     },
-                    "token": {
-                        "type": "string"
-                    },
                     "permission": {
                         "type": "string",
                         "enum": [
@@ -692,12 +774,60 @@
                 },
                 "required": [
                     "id",
-                    "token",
                     "permission",
                     "usageLimited",
                     "maxUsageCredits",
                     "accumulatedUsageCredits",
                     "status"
+                ]
+            },
+            "APIKeyWithToken": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "permission": {
+                        "type": "string",
+                        "enum": [
+                            "User",
+                            "Admin"
+                        ]
+                    },
+                    "usageLimited": {
+                        "type": "boolean"
+                    },
+                    "maxUsageCredits": {
+                        "type": "integer",
+                        "nullable": true,
+                        "minimum": 0,
+                        "maximum": 1000000
+                    },
+                    "accumulatedUsageCredits": {
+                        "type": "integer",
+                        "nullable": true,
+                        "minimum": 0,
+                        "maximum": 1000000
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "Active",
+                            "Revoked"
+                        ]
+                    },
+                    "token": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "id",
+                    "permission",
+                    "usageLimited",
+                    "maxUsageCredits",
+                    "accumulatedUsageCredits",
+                    "status",
+                    "token"
                 ]
             }
         },
@@ -804,7 +934,6 @@
                                             "description": "Example Capability description",
                                             "status": "Online",
                                             "RegistrySource": {
-                                                "type": "Web3CardanoV1",
                                                 "policyId": "0000000000000000000000000000000000000000000000000000000000000000",
                                                 "url": null
                                             },
@@ -1082,7 +1211,6 @@
                                                     "RegistrySource": {
                                                         "id": "unique_cuid_v2",
                                                         "policyId": "policy_id",
-                                                        "type": "Web3CardanoV1",
                                                         "url": "https://example.com/api/"
                                                     },
                                                     "Capability": {
@@ -1108,6 +1236,1036 @@
                                                         }
                                                     ],
                                                     "metadataVersion": 1
+                                                }
+                                            ]
+                                        },
+                                        "status": "success"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request (possible parameters missing or invalid)"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
+                    }
+                }
+            }
+        },
+        "/registry-entry-search/": {
+            "post": {
+                "description": "Fuzzy-search online (or explicitly filtered) registry entries by core metadata, capability, asset identifier, api base URL, and tags. Supports the same pagination, structured filters, and optional health-check refresh as the standard registry query endpoint.",
+                "summary": "REQUIRES API KEY Authentication (+user)",
+                "tags": [
+                    "registry-entry"
+                ],
+                "security": [
+                    {
+                        "API-Key": []
+                    }
+                ],
+                "requestBody": {
+                    "description": "",
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "network": {
+                                        "type": "string",
+                                        "enum": [
+                                            "Preprod",
+                                            "Mainnet"
+                                        ]
+                                    },
+                                    "limit": {
+                                        "type": "integer",
+                                        "minimum": 1,
+                                        "maximum": 50,
+                                        "default": 10
+                                    },
+                                    "cursorId": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 50
+                                    },
+                                    "query": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 120,
+                                        "description": "Case-insensitive fuzzy match against registry entry core metadata, capability, asset identifier, api base URL, and tags."
+                                    },
+                                    "filter": {
+                                        "type": "object",
+                                        "properties": {
+                                            "paymentTypes": {
+                                                "type": "array",
+                                                "items": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "Web3CardanoV1",
+                                                        "None"
+                                                    ]
+                                                },
+                                                "maxItems": 5
+                                            },
+                                            "status": {
+                                                "type": "array",
+                                                "items": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "Online",
+                                                        "Offline",
+                                                        "Deregistered",
+                                                        "Invalid"
+                                                    ]
+                                                },
+                                                "maxItems": 5
+                                            },
+                                            "policyId": {
+                                                "type": "string",
+                                                "minLength": 1,
+                                                "maxLength": 250
+                                            },
+                                            "assetIdentifier": {
+                                                "type": "string",
+                                                "minLength": 1,
+                                                "maxLength": 250
+                                            },
+                                            "tags": {
+                                                "type": "array",
+                                                "items": {
+                                                    "type": "string",
+                                                    "minLength": 1,
+                                                    "maxLength": 150
+                                                }
+                                            },
+                                            "capability": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "name": {
+                                                        "type": "string",
+                                                        "minLength": 1,
+                                                        "maxLength": 150
+                                                    },
+                                                    "version": {
+                                                        "type": "string",
+                                                        "maxLength": 150
+                                                    }
+                                                },
+                                                "required": [
+                                                    "name"
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    "minHealthCheckDate": {
+                                        "anyOf": [
+                                            {
+                                                "type": "string",
+                                                "format": "date"
+                                            },
+                                            {
+                                                "type": "string",
+                                                "format": "date-time"
+                                            },
+                                            {
+                                                "type": "string",
+                                                "format": "date-time"
+                                            }
+                                        ]
+                                    }
+                                },
+                                "required": [
+                                    "network",
+                                    "query"
+                                ],
+                                "example": {
+                                    "limit": 10,
+                                    "cursorId": "last_paginated_item",
+                                    "network": "Preprod",
+                                    "query": "example capability",
+                                    "filter": {
+                                        "policyId": "policy_id",
+                                        "tags": [
+                                            "tag1",
+                                            "tag2"
+                                        ],
+                                        "assetIdentifier": "asset_identifier",
+                                        "paymentTypes": [
+                                            "Web3CardanoV1"
+                                        ],
+                                        "status": [
+                                            "Online",
+                                            "Offline"
+                                        ],
+                                        "capability": {
+                                            "name": "Example Capability",
+                                            "version": "Optional version"
+                                        }
+                                    },
+                                    "minHealthCheckDate": "1970-01-01T00:00:00.000Z"
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Registry entries matching the fuzzy search",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "entries": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/components/schemas/RegistryEntry"
+                                                    }
+                                                }
+                                            },
+                                            "required": [
+                                                "entries"
+                                            ]
+                                        },
+                                        "status": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "data",
+                                        "status"
+                                    ],
+                                    "example": {
+                                        "data": {
+                                            "entries": [
+                                                {
+                                                    "id": "unique_cuid_v2",
+                                                    "name": "Example API",
+                                                    "createdAt": "1970-01-01T00:00:00.000Z",
+                                                    "updatedAt": "1970-01-01T00:02:00.000Z",
+                                                    "description": "Example API description",
+                                                    "status": "Online",
+                                                    "statusUpdatedAt": "1970-01-01T00:02:00.000Z",
+                                                    "authorName": null,
+                                                    "authorContactEmail": null,
+                                                    "authorContactOther": null,
+                                                    "image": "testimage.de",
+                                                    "otherLegal": null,
+                                                    "privacyPolicy": null,
+                                                    "tags": [],
+                                                    "termsAndCondition": "If the answer is 42 what was the question",
+                                                    "uptimeCheckCount": 10,
+                                                    "uptimeCount": 8,
+                                                    "lastUptimeCheck": "1970-01-01T00:00:00.000Z",
+                                                    "apiBaseUrl": "https://example.com/api/",
+                                                    "authorOrganization": "MASUMI",
+                                                    "paymentType": "Web3CardanoV1",
+                                                    "agentIdentifier": "222222222222222222222222222222222222222222222222222222222222222222",
+                                                    "RegistrySource": {
+                                                        "id": "unique_cuid_v2",
+                                                        "policyId": "policy_id",
+                                                        "url": "https://example.com/api/"
+                                                    },
+                                                    "Capability": {
+                                                        "name": "Example Capability",
+                                                        "version": "1.0.0"
+                                                    },
+                                                    "AgentPricing": {
+                                                        "pricingType": "Fixed",
+                                                        "FixedPricing": {
+                                                            "Amounts": [
+                                                                {
+                                                                    "amount": "100",
+                                                                    "unit": "USDC"
+                                                                }
+                                                            ]
+                                                        }
+                                                    },
+                                                    "ExampleOutput": [
+                                                        {
+                                                            "name": "Example Output",
+                                                            "mimeType": "image/png",
+                                                            "url": "https://example.com/image.png"
+                                                        }
+                                                    ],
+                                                    "metadataVersion": 1
+                                                }
+                                            ]
+                                        },
+                                        "status": "success"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request (possible parameters missing or invalid)"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
+                    }
+                }
+            }
+        },
+        "/registry-entry-refresh/": {
+            "post": {
+                "description": "Refresh one registry entry by agent identifier. The service first syncs the blockchain cursor, then immediately re-runs the health check for the requested agent and returns the refreshed entry.",
+                "summary": "REQUIRES API KEY Authentication (+user)",
+                "tags": [
+                    "registry-entry"
+                ],
+                "security": [
+                    {
+                        "API-Key": []
+                    }
+                ],
+                "requestBody": {
+                    "description": "",
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "network": {
+                                        "type": "string",
+                                        "enum": [
+                                            "Preprod",
+                                            "Mainnet"
+                                        ]
+                                    },
+                                    "agentIdentifier": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 250
+                                    }
+                                },
+                                "required": [
+                                    "network",
+                                    "agentIdentifier"
+                                ],
+                                "example": {
+                                    "network": "Preprod",
+                                    "agentIdentifier": "222222222222222222222222222222222222222222222222222222222222222222"
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Refreshed registry entry",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "entry": {
+                                                    "$ref": "#/components/schemas/RegistryEntry"
+                                                }
+                                            },
+                                            "required": [
+                                                "entry"
+                                            ]
+                                        },
+                                        "status": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "data",
+                                        "status"
+                                    ],
+                                    "example": {
+                                        "data": {
+                                            "entry": {
+                                                "id": "unique_cuid_v2",
+                                                "name": "Example API",
+                                                "createdAt": "1970-01-01T00:00:00.000Z",
+                                                "updatedAt": "1970-01-01T00:02:00.000Z",
+                                                "description": "Example API description",
+                                                "status": "Online",
+                                                "statusUpdatedAt": "1970-01-01T00:02:00.000Z",
+                                                "authorName": null,
+                                                "authorContactEmail": null,
+                                                "authorContactOther": null,
+                                                "image": "testimage.de",
+                                                "otherLegal": null,
+                                                "privacyPolicy": null,
+                                                "tags": [],
+                                                "termsAndCondition": "If the answer is 42 what was the question",
+                                                "uptimeCheckCount": 10,
+                                                "uptimeCount": 8,
+                                                "lastUptimeCheck": "1970-01-01T00:00:00.000Z",
+                                                "apiBaseUrl": "https://example.com/api/",
+                                                "authorOrganization": "MASUMI",
+                                                "paymentType": "Web3CardanoV1",
+                                                "agentIdentifier": "222222222222222222222222222222222222222222222222222222222222222222",
+                                                "RegistrySource": {
+                                                    "id": "unique_cuid_v2",
+                                                    "policyId": "policy_id",
+                                                    "url": "https://example.com/api/"
+                                                },
+                                                "Capability": {
+                                                    "name": "Example Capability",
+                                                    "version": "1.0.0"
+                                                },
+                                                "AgentPricing": {
+                                                    "pricingType": "Fixed",
+                                                    "FixedPricing": {
+                                                        "Amounts": [
+                                                            {
+                                                                "amount": "100",
+                                                                "unit": "USDC"
+                                                            }
+                                                        ]
+                                                    }
+                                                },
+                                                "ExampleOutput": [
+                                                    {
+                                                        "name": "Example Output",
+                                                        "mimeType": "image/png",
+                                                        "url": "https://example.com/image.png"
+                                                    }
+                                                ],
+                                                "metadataVersion": 1
+                                            }
+                                        },
+                                        "status": "success"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request (possible parameters missing or invalid)"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Registry entry not found"
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
+                    }
+                }
+            }
+        },
+        "/inbox-agent-registration/": {
+            "post": {
+                "description": "Query blockchain-tracked Masumi inbox registrations. By default, only pending and verified registrations are returned. Supports pagination and filtering by slug, status, and policy id.",
+                "summary": "REQUIRES API KEY Authentication (+user)",
+                "tags": [
+                    "inbox-agent-registration"
+                ],
+                "security": [
+                    {
+                        "API-Key": []
+                    }
+                ],
+                "requestBody": {
+                    "description": "",
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "network": {
+                                        "type": "string",
+                                        "enum": [
+                                            "Preprod",
+                                            "Mainnet"
+                                        ]
+                                    },
+                                    "limit": {
+                                        "type": "integer",
+                                        "minimum": 1,
+                                        "maximum": 50,
+                                        "default": 10
+                                    },
+                                    "cursorId": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 50
+                                    },
+                                    "filter": {
+                                        "type": "object",
+                                        "properties": {
+                                            "agentSlug": {
+                                                "type": "string",
+                                                "minLength": 1,
+                                                "maxLength": 80
+                                            },
+                                            "status": {
+                                                "type": "array",
+                                                "items": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "Pending",
+                                                        "Verified",
+                                                        "Invalid",
+                                                        "Deregistered"
+                                                    ]
+                                                },
+                                                "maxItems": 4
+                                            },
+                                            "policyId": {
+                                                "type": "string",
+                                                "minLength": 1,
+                                                "maxLength": 250
+                                            }
+                                        }
+                                    }
+                                },
+                                "required": [
+                                    "network"
+                                ],
+                                "example": {
+                                    "limit": 10,
+                                    "cursorId": "last_paginated_item",
+                                    "network": "Preprod",
+                                    "filter": {
+                                        "policyId": "policy_id",
+                                        "agentSlug": "inbox-agent",
+                                        "status": [
+                                            "Pending",
+                                            "Verified"
+                                        ]
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Inbox agent registrations",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "registrations": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/components/schemas/InboxAgentRegistration"
+                                                    }
+                                                }
+                                            },
+                                            "required": [
+                                                "registrations"
+                                            ]
+                                        },
+                                        "status": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "data",
+                                        "status"
+                                    ],
+                                    "example": {
+                                        "data": {
+                                            "registrations": [
+                                                {
+                                                    "id": "unique_cuid_v2",
+                                                    "createdAt": "1970-01-01T00:00:00.000Z",
+                                                    "updatedAt": "1970-01-01T00:02:00.000Z",
+                                                    "status": "Pending",
+                                                    "statusUpdatedAt": "1970-01-01T00:02:00.000Z",
+                                                    "name": "Inbox Agent",
+                                                    "description": "Masumi inbox identity registration",
+                                                    "agentSlug": "inbox-agent",
+                                                    "agentIdentifier": "333333333333333333333333333333333333333333333333333333333333333333",
+                                                    "providerUrl": "https://agentmessenger.io",
+                                                    "linkedEmail": "agent@example.com",
+                                                    "encryptionPublicKey": "encryption_public_key",
+                                                    "encryptionKeyVersion": "enc-v1",
+                                                    "signingPublicKey": "signing_public_key",
+                                                    "signingKeyVersion": "sig-v1",
+                                                    "metadataVersion": 1,
+                                                    "RegistrySource": {
+                                                        "id": "unique_cuid_v2",
+                                                        "policyId": "policy_id",
+                                                        "url": "https://example.com/registry.json"
+                                                    }
+                                                }
+                                            ]
+                                        },
+                                        "status": "success"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request (possible parameters missing or invalid)"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
+                    }
+                }
+            }
+        },
+        "/inbox-agent-registration-search/": {
+            "post": {
+                "description": "Fuzzy-search blockchain-tracked Masumi inbox registrations by slug, name, or linked email. By default, only pending and verified registrations are returned. Supports pagination and optional filtering by status and policy id.",
+                "summary": "REQUIRES API KEY Authentication (+user)",
+                "tags": [
+                    "inbox-agent-registration"
+                ],
+                "security": [
+                    {
+                        "API-Key": []
+                    }
+                ],
+                "requestBody": {
+                    "description": "",
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "network": {
+                                        "type": "string",
+                                        "enum": [
+                                            "Preprod",
+                                            "Mainnet"
+                                        ]
+                                    },
+                                    "limit": {
+                                        "type": "integer",
+                                        "minimum": 1,
+                                        "maximum": 50,
+                                        "default": 10
+                                    },
+                                    "cursorId": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 50
+                                    },
+                                    "query": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 120,
+                                        "description": "Case-insensitive fuzzy match against inbox agent slug, name, or linked email."
+                                    },
+                                    "filter": {
+                                        "type": "object",
+                                        "properties": {
+                                            "status": {
+                                                "type": "array",
+                                                "items": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "Pending",
+                                                        "Verified",
+                                                        "Invalid",
+                                                        "Deregistered"
+                                                    ]
+                                                },
+                                                "maxItems": 4
+                                            },
+                                            "policyId": {
+                                                "type": "string",
+                                                "minLength": 1,
+                                                "maxLength": 250
+                                            }
+                                        }
+                                    }
+                                },
+                                "required": [
+                                    "network",
+                                    "query"
+                                ],
+                                "example": {
+                                    "limit": 10,
+                                    "cursorId": "last_paginated_item",
+                                    "network": "Preprod",
+                                    "query": "agent@example.com",
+                                    "filter": {
+                                        "policyId": "policy_id",
+                                        "status": [
+                                            "Pending",
+                                            "Verified"
+                                        ]
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Inbox agent registrations matching the fuzzy search",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "registrations": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/components/schemas/InboxAgentRegistration"
+                                                    }
+                                                }
+                                            },
+                                            "required": [
+                                                "registrations"
+                                            ]
+                                        },
+                                        "status": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "data",
+                                        "status"
+                                    ],
+                                    "example": {
+                                        "data": {
+                                            "registrations": [
+                                                {
+                                                    "id": "unique_cuid_v2",
+                                                    "createdAt": "1970-01-01T00:00:00.000Z",
+                                                    "updatedAt": "1970-01-01T00:02:00.000Z",
+                                                    "status": "Pending",
+                                                    "statusUpdatedAt": "1970-01-01T00:02:00.000Z",
+                                                    "name": "Inbox Agent",
+                                                    "description": "Masumi inbox identity registration",
+                                                    "agentSlug": "inbox-agent",
+                                                    "agentIdentifier": "333333333333333333333333333333333333333333333333333333333333333333",
+                                                    "providerUrl": "https://agentmessenger.io",
+                                                    "linkedEmail": "agent@example.com",
+                                                    "encryptionPublicKey": "encryption_public_key",
+                                                    "encryptionKeyVersion": "enc-v1",
+                                                    "signingPublicKey": "signing_public_key",
+                                                    "signingKeyVersion": "sig-v1",
+                                                    "metadataVersion": 1,
+                                                    "RegistrySource": {
+                                                        "id": "unique_cuid_v2",
+                                                        "policyId": "policy_id",
+                                                        "url": "https://example.com/registry.json"
+                                                    }
+                                                }
+                                            ]
+                                        },
+                                        "status": "success"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request (possible parameters missing or invalid)"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
+                    }
+                }
+            }
+        },
+        "/inbox-agent-registration-refresh/": {
+            "post": {
+                "description": "Refresh one inbox agent registration by agent identifier. If the registration was invalid, the service clears verification-derived fields, moves it back to pending, and immediately re-runs inbox verification.",
+                "summary": "REQUIRES API KEY Authentication (+user)",
+                "tags": [
+                    "inbox-agent-registration"
+                ],
+                "security": [
+                    {
+                        "API-Key": []
+                    }
+                ],
+                "requestBody": {
+                    "description": "",
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "network": {
+                                        "type": "string",
+                                        "enum": [
+                                            "Preprod",
+                                            "Mainnet"
+                                        ]
+                                    },
+                                    "agentIdentifier": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 250
+                                    }
+                                },
+                                "required": [
+                                    "network",
+                                    "agentIdentifier"
+                                ],
+                                "example": {
+                                    "network": "Preprod",
+                                    "agentIdentifier": "333333333333333333333333333333333333333333333333333333333333333333"
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Refreshed inbox agent registration",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "registration": {
+                                                    "$ref": "#/components/schemas/InboxAgentRegistration"
+                                                }
+                                            },
+                                            "required": [
+                                                "registration"
+                                            ]
+                                        },
+                                        "status": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "data",
+                                        "status"
+                                    ],
+                                    "example": {
+                                        "data": {
+                                            "registration": {
+                                                "id": "unique_cuid_v2",
+                                                "createdAt": "1970-01-01T00:00:00.000Z",
+                                                "updatedAt": "1970-01-01T00:02:00.000Z",
+                                                "status": "Pending",
+                                                "statusUpdatedAt": "1970-01-01T00:02:00.000Z",
+                                                "name": "Inbox Agent",
+                                                "description": "Masumi inbox identity registration",
+                                                "agentSlug": "inbox-agent",
+                                                "agentIdentifier": "333333333333333333333333333333333333333333333333333333333333333333",
+                                                "providerUrl": "https://agentmessenger.io",
+                                                "linkedEmail": "agent@example.com",
+                                                "encryptionPublicKey": "encryption_public_key",
+                                                "encryptionKeyVersion": "enc-v1",
+                                                "signingPublicKey": "signing_public_key",
+                                                "signingKeyVersion": "sig-v1",
+                                                "metadataVersion": 1,
+                                                "RegistrySource": {
+                                                    "id": "unique_cuid_v2",
+                                                    "policyId": "policy_id",
+                                                    "url": "https://example.com/registry.json"
+                                                }
+                                            }
+                                        },
+                                        "status": "success"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request (possible parameters missing or invalid)"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Inbox agent registration not found"
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
+                    }
+                }
+            }
+        },
+        "/inbox-agent-registration-diff/": {
+            "post": {
+                "description": "Query inbox registrations whose status was updated after the provided timestamp. Supports pagination and optional filtering by status, slug, and policy id.",
+                "summary": "REQUIRES API KEY Authentication (+user)",
+                "tags": [
+                    "inbox-agent-registration"
+                ],
+                "security": [
+                    {
+                        "API-Key": []
+                    }
+                ],
+                "requestBody": {
+                    "description": "",
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "network": {
+                                        "type": "string",
+                                        "enum": [
+                                            "Preprod",
+                                            "Mainnet"
+                                        ]
+                                    },
+                                    "statusUpdatedAfter": {
+                                        "anyOf": [
+                                            {
+                                                "type": "string",
+                                                "format": "date"
+                                            },
+                                            {
+                                                "type": "string",
+                                                "format": "date-time"
+                                            },
+                                            {
+                                                "type": "string",
+                                                "format": "date-time"
+                                            }
+                                        ]
+                                    },
+                                    "limit": {
+                                        "type": "integer",
+                                        "minimum": 1,
+                                        "maximum": 50,
+                                        "default": 10
+                                    },
+                                    "cursorId": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 75,
+                                        "description": "The ID of the last item in the previous page. Use the last item statusUpdatedAt plus cursorId to paginate forward without missing transitions."
+                                    },
+                                    "policyId": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 250
+                                    },
+                                    "agentSlug": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 80
+                                    },
+                                    "status": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string",
+                                            "enum": [
+                                                "Pending",
+                                                "Verified",
+                                                "Invalid",
+                                                "Deregistered"
+                                            ]
+                                        },
+                                        "maxItems": 4
+                                    }
+                                },
+                                "required": [
+                                    "network",
+                                    "statusUpdatedAfter"
+                                ],
+                                "example": {
+                                    "limit": 10,
+                                    "cursorId": "last_paginated_item",
+                                    "network": "Preprod",
+                                    "statusUpdatedAfter": "1970-01-01T00:00:00.000Z",
+                                    "policyId": "policy_id",
+                                    "agentSlug": "inbox-agent",
+                                    "status": [
+                                        "Pending",
+                                        "Verified",
+                                        "Invalid",
+                                        "Deregistered"
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Inbox registrations with updated status",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "registrations": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/components/schemas/InboxAgentRegistration"
+                                                    }
+                                                }
+                                            },
+                                            "required": [
+                                                "registrations"
+                                            ]
+                                        },
+                                        "status": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "data",
+                                        "status"
+                                    ],
+                                    "example": {
+                                        "data": {
+                                            "registrations": [
+                                                {
+                                                    "id": "unique_cuid_v2",
+                                                    "createdAt": "1970-01-01T00:00:00.000Z",
+                                                    "updatedAt": "1970-01-01T00:02:00.000Z",
+                                                    "status": "Pending",
+                                                    "statusUpdatedAt": "1970-01-01T00:02:00.000Z",
+                                                    "name": "Inbox Agent",
+                                                    "description": "Masumi inbox identity registration",
+                                                    "agentSlug": "inbox-agent",
+                                                    "agentIdentifier": "333333333333333333333333333333333333333333333333333333333333333333",
+                                                    "providerUrl": "https://agentmessenger.io",
+                                                    "linkedEmail": "agent@example.com",
+                                                    "encryptionPublicKey": "encryption_public_key",
+                                                    "encryptionKeyVersion": "enc-v1",
+                                                    "signingPublicKey": "signing_public_key",
+                                                    "signingKeyVersion": "sig-v1",
+                                                    "metadataVersion": 1,
+                                                    "RegistrySource": {
+                                                        "id": "unique_cuid_v2",
+                                                        "policyId": "policy_id",
+                                                        "url": "https://example.com/registry.json"
+                                                    }
                                                 }
                                             ]
                                         },
@@ -1198,7 +2356,6 @@
                                             "sources": [
                                                 {
                                                     "id": "unique-cuid-v2-auto-generated",
-                                                    "type": "Web3CardanoV1",
                                                     "policyId": "policyId",
                                                     "url": "optional_url",
                                                     "note": "optional_note",
@@ -1235,12 +2392,6 @@
                             "schema": {
                                 "type": "object",
                                 "properties": {
-                                    "type": {
-                                        "type": "string",
-                                        "enum": [
-                                            "Web3CardanoV1"
-                                        ]
-                                    },
                                     "policyId": {
                                         "type": "string"
                                     },
@@ -1260,14 +2411,12 @@
                                     }
                                 },
                                 "required": [
-                                    "type",
                                     "policyId",
                                     "note",
                                     "rpcProviderApiKey",
                                     "network"
                                 ],
                                 "example": {
-                                    "type": "Web3CardanoV1",
                                     "policyId": "policyId",
                                     "rpcProviderApiKey": "apikey",
                                     "note": "optional_note",
@@ -1299,7 +2448,6 @@
                                     "example": {
                                         "data": {
                                             "id": "unique-cuid-v2-auto-generated",
-                                            "type": "Web3CardanoV1",
                                             "network": "Preprod",
                                             "url": "https://example.com/api/",
                                             "policyId": "policy_id",
@@ -1377,7 +2525,6 @@
                                     "example": {
                                         "data": {
                                             "id": "unique-cuid-v2-auto-generated",
-                                            "type": "Web3CardanoV1",
                                             "network": "Preprod",
                                             "url": "https://example.com/api/",
                                             "policyId": "policy_id",
@@ -1449,7 +2596,6 @@
                                     "example": {
                                         "data": {
                                             "id": "unique-cuid-v2-auto-generated",
-                                            "type": "Web3CardanoV1",
                                             "network": "Preprod",
                                             "url": "https://example.com/api/",
                                             "policyId": "policy_id",
@@ -1602,7 +2748,6 @@
                                                     "RegistrySource": {
                                                         "id": "unique_cuid_v2",
                                                         "policyId": "policy_id",
-                                                        "type": "Web3CardanoV1",
                                                         "url": "https://example.com/api/"
                                                     },
                                                     "Capability": {
@@ -1763,7 +2908,6 @@
                                     "example": {
                                         "data": {
                                             "id": "unique-cuid-v2-auto-generated",
-                                            "token": "masumi-registry-api-key-secret",
                                             "permission": "Admin",
                                             "usageLimited": true,
                                             "maxUsageCredits": 1000000,
@@ -1848,7 +2992,6 @@
                                             "apiKeys": [
                                                 {
                                                     "id": "unique-cuid-v2-auto-generated",
-                                                    "token": "masumi-registry-api-key-secret",
                                                     "permission": "Admin",
                                                     "usageLimited": true,
                                                     "maxUsageCredits": 1000000,
@@ -1930,7 +3073,7 @@
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/components/schemas/APIKey"
+                                            "$ref": "#/components/schemas/APIKeyWithToken"
                                         },
                                         "status": {
                                             "type": "string"
@@ -2043,7 +3186,6 @@
                                     "example": {
                                         "data": {
                                             "id": "unique-cuid-v2-auto-generated",
-                                            "token": "masumi-registry-api-key-secret",
                                             "permission": "User",
                                             "usageLimited": true,
                                             "maxUsageCredits": 1000000,
@@ -2122,7 +3264,6 @@
                                     "example": {
                                         "data": {
                                             "id": "unique-cuid-v2-auto-generated",
-                                            "token": "deleted-masumi-registry-api-key-secret",
                                             "permission": "User",
                                             "usageLimited": true,
                                             "maxUsageCredits": 1000000,

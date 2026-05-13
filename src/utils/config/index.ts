@@ -1,4 +1,6 @@
 import * as dotenv from 'dotenv';
+import { parseCorsAllowedOrigins } from '@/utils/http-security';
+
 dotenv.config();
 
 if (process.env.DATABASE_URL == null)
@@ -26,10 +28,14 @@ if (dbStatementTimeout < 10000)
   throw new Error('Invalid DB_STAEMENT_TIMEOUT ENV variables');
 const dbPoolTimeout = Number(process.env.DB_POOL_TIMEOUT ?? '25');
 if (dbPoolTimeout < 5) throw new Error('Invalid DB_POOL_TIMEOUT ENV variables');
+const corsAllowedOrigins = parseCorsAllowedOrigins(
+  process.env.CORS_ALLOWED_ORIGINS
+);
 
 export const CONFIG = {
   PORT: process.env.PORT ?? '3000',
   DATABASE_URL: process.env.DATABASE_URL,
+  CORS_ALLOWED_ORIGINS: corsAllowedOrigins,
   UPDATE_CARDANO_REGISTRY_INTERVAL: updateCardanoRegistryInterval,
   UPDATE_HEALTH_CHECK_INTERVAL: updateHealthCheckInterval,
   VERSION: '0.1.2',

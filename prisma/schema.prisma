@@ -18,7 +18,6 @@ model ApiKey {
   id                      String       @id @default(cuid())
   createdAt               DateTime     @default(now())
   updatedAt               DateTime     @updatedAt
-  token                   String       @unique
   tokenHash               String       @unique
   status                  APIKeyStatus
   permission              Permission
@@ -26,8 +25,6 @@ model ApiKey {
   accumulatedUsageCredits Float        @default(0)
   maxUsageCredits         Float?
   Usage                   UsageEntry[]
-
-  @@index([token])
 }
 
 enum APIKeyStatus {
@@ -84,6 +81,7 @@ model RegistryEntry {
   registrySourceId String
 
   assetIdentifier String       @unique
+  searchText      String       @default("")
   AgentPricing    AgentPricing @relation(fields: [agentPricingId], references: [id])
   agentPricingId  String
 
@@ -91,6 +89,38 @@ model RegistryEntry {
 
   metadataVersion Int
 
+  @@index([statusUpdatedAt])
+  @@index([statusUpdatedAt, id])
+}
+
+model InboxAgentRegistration {
+  id              String                       @id @default(cuid())
+  createdAt       DateTime                     @default(now())
+  updatedAt       DateTime                     @updatedAt
+  status          InboxAgentRegistrationStatus @default(Pending)
+  statusUpdatedAt DateTime                     @default(now())
+
+  name                 String
+  description          String?
+  agentSlug            String
+  providerUrl          String?
+  assetIdentifier      String  @unique
+  linkedEmail          String?
+  encryptionPublicKey  String?
+  encryptionKeyVersion String?
+  signingPublicKey     String?
+  signingKeyVersion    String?
+  metadataVersion      Int
+
+  RegistrySource   RegistrySource @relation(fields: [registrySourceId], references: [id], onDelete: Cascade)
+  registrySourceId String
+
+  @@index([name])
+  @@index([agentSlug])
+  @@index([linkedEmail])
+  @@index([status])
+  @@index([registrySourceId])
+  @@index([registrySourceId, status, updatedAt])
   @@index([statusUpdatedAt])
   @@index([statusUpdatedAt, id])
 }
@@ -155,8 +185,11 @@ enum Status {
   Invalid
 }
 
-enum RegistryEntryType {
-  Web3CardanoV1
+enum InboxAgentRegistrationStatus {
+  Pending
+  Verified
+  Invalid
+  Deregistered
 }
 
 model Capability {
@@ -175,19 +208,19 @@ model RegistrySource {
   id                     String               @id @default(cuid())
   createdAt              DateTime             @default(now())
   updatedAt              DateTime             @updatedAt
-  type                   RegistryEntryType
   network                Network
   url                    String?
   policyId               String
   RegistrySourceConfig   RegistrySourceConfig @relation(fields: [registrySourceConfigId], references: [id])
   registrySourceConfigId String
 
-  note            String?
-  lastTxId        String?
-  lastCheckedPage Int             @default(1) //blockfrost starts at page 1
-  RegistryEntry   RegistryEntry[]
+  note                   String?
+  lastTxId               String?
+  lastCheckedPage        Int                      @default(1) //blockfrost starts at page 1
+  RegistryEntry          RegistryEntry[]
+  InboxAgentRegistration InboxAgentRegistration[]
 
-  @@unique([type, policyId])
+  @@unique([network, policyId])
 }
 
 enum RPCProvider {

@@ -1,36 +1,31 @@
-FROM node:20-slim AS builder
-RUN apt-get update -y && apt-get install -y openssl
+FROM node:20-slim AS deps
+RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 RUN corepack enable && corepack prepare pnpm@10.33.0 --activate
-# Build step
 WORKDIR /usr/src/app
-COPY .env* ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
+COPY scripts ./scripts
+RUN pnpm install --frozen-lockfile
 
-COPY package.json pnpm-lock.yaml .npmrc ./
+FROM deps AS builder
+WORKDIR /usr/src/app
 COPY ./src ./src
 COPY ./prisma ./prisma
 COPY tsconfig.json .
 COPY public ./public
-
-RUN pnpm install --frozen-lockfile
-RUN pnpm prisma generate
 RUN pnpm run build
+RUN pnpm prune --prod
 
-# Serve step
 FROM node:20-slim AS runner
-RUN apt-get update -y && apt-get install -y openssl
-RUN corepack enable && corepack prepare pnpm@10.33.0 --activate
+RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 WORKDIR /usr/src/app
 
-COPY --from=builder /usr/src/app/dist ./dist
-COPY --from=builder /usr/src/app/node_modules ./node_modules
-COPY --from=builder /usr/src/app/package.json ./
-COPY --from=builder /usr/src/app/pnpm-lock.yaml ./
-COPY --from=builder /usr/src/app/prisma ./prisma
-COPY --from=builder /usr/src/app/src ./src
+ENV NODE_ENV=production
 
-#optional copy env file
-COPY .env* ./
+COPY --from=builder --chown=node:node /usr/src/app/dist ./dist
+COPY --from=builder --chown=node:node /usr/src/app/node_modules ./node_modules
+COPY --from=builder --chown=node:node /usr/src/app/package.json ./
+
+USER node
 
 EXPOSE 3000
-ENV NODE_ENV=production
-CMD [ "pnpm", "run", "start" ]
+CMD ["node", "./dist/index.js"]

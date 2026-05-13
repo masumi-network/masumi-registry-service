@@ -1,0 +1,196 @@
+import { inboxAgentRegistrationDiffSchemaInput } from '@/routes/api/inbox-agent-registration';
+import { prisma } from '@/utils/db';
+import { InboxAgentRegistrationStatus, Network } from '@prisma/client';
+import { z } from '@/utils/zod-openapi';
+
+async function getInboxAgentRegistrations(params: {
+  agentSlug?: string;
+  allowedStatuses: InboxAgentRegistrationStatus[];
+  policyId?: string;
+  cursorId?: string;
+  limit: number;
+  network: Network;
+}) {
+  const networkExists = await prisma.registrySource.findFirst({
+    where: {
+      network: params.network,
+    },
+  });
+  if (!networkExists) {
+    throw new Error('Network not found');
+  }
+
+  return prisma.inboxAgentRegistration.findMany({
+    where: {
+      agentSlug: params.agentSlug,
+      status: { in: params.allowedStatuses },
+      RegistrySource: {
+        network: params.network,
+        policyId: params.policyId,
+      },
+    },
+    include: {
+      RegistrySource: true,
+    },
+    orderBy: [
+      {
+        id: 'desc',
+      },
+    ],
+    cursor: params.cursorId ? { id: params.cursorId } : undefined,
+    take: params.limit,
+  });
+}
+
+async function searchInboxAgentRegistrations(params: {
+  nameQuery: string;
+  agentSlugQuery: string;
+  linkedEmailQuery: string;
+  allowedStatuses: InboxAgentRegistrationStatus[];
+  policyId?: string;
+  cursorId?: string;
+  limit: number;
+  network: Network;
+}) {
+  const networkExists = await prisma.registrySource.findFirst({
+    where: {
+      network: params.network,
+    },
+  });
+  if (!networkExists) {
+    throw new Error('Network not found');
+  }
+
+  return prisma.inboxAgentRegistration.findMany({
+    where: {
+      status: { in: params.allowedStatuses },
+      OR: [
+        {
+          agentSlug: {
+            contains: params.agentSlugQuery,
+            mode: 'insensitive',
+          },
+        },
+        {
+          name: {
+            contains: params.nameQuery,
+            mode: 'insensitive',
+          },
+        },
+        {
+          linkedEmail: {
+            contains: params.linkedEmailQuery,
+            mode: 'insensitive',
+          },
+        },
+      ],
+      RegistrySource: {
+        network: params.network,
+        policyId: params.policyId,
+      },
+    },
+    include: {
+      RegistrySource: true,
+    },
+    orderBy: [
+      {
+        id: 'desc',
+      },
+    ],
+    cursor: params.cursorId ? { id: params.cursorId } : undefined,
+    take: params.limit,
+  });
+}
+
+async function getInboxAgentRegistrationByIdentifier(params: {
+  agentIdentifier: string;
+  network: Network;
+}) {
+  return prisma.inboxAgentRegistration.findFirst({
+    where: {
+      assetIdentifier: params.agentIdentifier,
+      RegistrySource: {
+        network: params.network,
+      },
+    },
+    include: {
+      RegistrySource: true,
+    },
+  });
+}
+
+async function resetInvalidInboxAgentRegistrationForRefresh(params: {
+  id: string;
+}) {
+  return prisma.inboxAgentRegistration.update({
+    where: {
+      id: params.id,
+    },
+    include: {
+      RegistrySource: true,
+    },
+    data: {
+      status: InboxAgentRegistrationStatus.Pending,
+      linkedEmail: null,
+      encryptionPublicKey: null,
+      encryptionKeyVersion: null,
+      signingPublicKey: null,
+      signingKeyVersion: null,
+    },
+  });
+}
+
+async function getInboxAgentRegistrationDiffEntries(
+  input: z.infer<typeof inboxAgentRegistrationDiffSchemaInput>
+) {
+  const networkExists = await prisma.registrySource.findFirst({
+    where: {
+      network: input.network,
+    },
+  });
+  if (!networkExists) {
+    throw new Error('Network not found');
+  }
+
+  return prisma.inboxAgentRegistration.findMany({
+    where: {
+      OR: [
+        {
+          statusUpdatedAt: {
+            gt: input.statusUpdatedAfter,
+          },
+        },
+        {
+          id: input.cursorId ? { gte: input.cursorId } : undefined,
+          statusUpdatedAt: input.statusUpdatedAfter,
+        },
+      ],
+      status: input.status?.length ? { in: input.status } : undefined,
+      agentSlug: input.agentSlug,
+      RegistrySource: {
+        network: input.network,
+        policyId: input.policyId,
+      },
+    },
+    include: {
+      RegistrySource: true,
+    },
+    orderBy: [
+      {
+        statusUpdatedAt: 'asc',
+      },
+      {
+        id: 'asc',
+      },
+    ],
+    take: input.limit,
+  });
+}
+
+export const inboxAgentRegistrationRepository = {
+  getInboxAgentRegistrations,
+  searchInboxAgentRegistrations,
+  getInboxAgentRegistrationByIdentifier,
+  resetInvalidInboxAgentRegistrationForRefresh,
+  getInboxAgentRegistrationDiffEntries,
+};

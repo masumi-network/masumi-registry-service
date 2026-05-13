@@ -1,6 +1,10 @@
 import { DependsOnMethod, Routing } from 'express-zod-api';
 import { healthEndpointGet } from '@/routes/api/health';
-import { queryRegistryEntryPost } from '@/routes/api/registry-entry';
+import {
+  queryRegistryEntryPost,
+  refreshRegistryEntryPost,
+  searchRegistryEntryPost,
+} from '@/routes/api/registry-entry';
 import {
   queryAPIKeyEndpointGet as queryCentralizedRegistrySourceGet,
   addAPIKeyEndpointPost as addCentralizedRegistrySourceEndpointPost,
@@ -17,14 +21,38 @@ import {
 import { queryPaymentInformationGet } from './payment-information';
 import { queryAPIKeyStatusEndpointGet } from './api-key-status';
 import { registryDiffPost } from './registry-diff';
+import {
+  queryInboxAgentRegistrationPost,
+  refreshInboxAgentRegistrationPost,
+  searchInboxAgentRegistrationPost,
+} from './inbox-agent-registration';
+import { inboxAgentRegistrationDiffPost } from './inbox-agent-registration-diff';
 export const apiRouter: Routing = {
   v1: {
     health: healthEndpointGet,
     'registry-entry': new DependsOnMethod({
       post: queryRegistryEntryPost,
     }),
+    'registry-entry-search': new DependsOnMethod({
+      post: searchRegistryEntryPost,
+    }),
+    'registry-entry-refresh': new DependsOnMethod({
+      post: refreshRegistryEntryPost,
+    }),
     'registry-diff': new DependsOnMethod({
       post: registryDiffPost,
+    }),
+    'inbox-agent-registration': new DependsOnMethod({
+      post: queryInboxAgentRegistrationPost,
+    }),
+    'inbox-agent-registration-search': new DependsOnMethod({
+      post: searchInboxAgentRegistrationPost,
+    }),
+    'inbox-agent-registration-refresh': new DependsOnMethod({
+      post: refreshInboxAgentRegistrationPost,
+    }),
+    'inbox-agent-registration-diff': new DependsOnMethod({
+      post: inboxAgentRegistrationDiffPost,
     }),
     'api-key-status': new DependsOnMethod({
       get: queryAPIKeyStatusEndpointGet,

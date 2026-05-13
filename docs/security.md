@@ -46,6 +46,11 @@ It is also in general good practice to follow security guidelines for any digita
 - Smart contracts are (currently) audited by [TxPipe](https://txpipe.io/)
 - The payment service is not yet audited by a third Party. Do check the codebase before exposing it publicly
 
+## Accepted Security Exceptions
+
+- `rpcProviderApiKey` is intentionally visible to admin users. Treat admin API access, database access, and backups as equivalent to access to the underlying provider credentials.
+- `@meshsdk/core` is currently pinned because upgrading it requires a coordinated smart-contract change. Review this exception periodically and compensate with a minimal production image, tighter outbound URL validation, and regular dependency review.
+
 We follow security best practices, however this is in a MVP state. Any use is at your own risk.
 
 (Note: If you want to host this as a paid service for third parties, please ensure security best practices are followed and consider auditing the service yourself)
