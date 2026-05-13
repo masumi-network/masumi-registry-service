@@ -135,14 +135,18 @@ function normalizeProviderUrl(
     return normalizePublicUrl(trimmedValue).normalizedUrl;
   } catch (error) {
     if (!(error instanceof Error)) {
-      throw new Error('provider_url must be a valid absolute URL');
+      throw new Error('provider_url must be a valid absolute URL', {
+        cause: error,
+      });
     }
 
     if (error.message === 'URL host resolves to a non-public IP range') {
-      throw new Error('provider_url hostname is not allowed');
+      throw new Error('provider_url hostname is not allowed', { cause: error });
     }
 
-    throw new Error(error.message.replace(/^URL/, 'provider_url'));
+    throw new Error(error.message.replace(/^URL/, 'provider_url'), {
+      cause: error,
+    });
   }
 }
 
