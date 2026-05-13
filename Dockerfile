@@ -5,7 +5,7 @@ RUN corepack enable && corepack prepare pnpm@10.33.0 --activate
 WORKDIR /usr/src/app
 COPY .env* ./
 
-COPY package.json pnpm-lock.yaml ./
+COPY package.json pnpm-lock.yaml .npmrc ./
 COPY ./src ./src
 COPY ./prisma ./prisma
 COPY tsconfig.json .
