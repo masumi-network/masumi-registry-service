@@ -4,6 +4,11 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+patchedDependencies:
+  libsodium-wrappers-sumo@0.7.16:
+    hash: 4b3885e6605dbdf475eafb17dc4576364d7f9702be9cd9bb8823c48b9c31ab8e
+    path: patches/libsodium-wrappers-sumo@0.7.16.patch
+
 importers:
 
   .:
@@ -5356,7 +5361,7 @@ snapshots:
       '@cardano-sdk/util': 0.15.4
       blake2b: 2.1.4
       i: 0.3.7
-      libsodium-wrappers-sumo: 0.7.16
+      libsodium-wrappers-sumo: 0.7.16(patch_hash=4b3885e6605dbdf475eafb17dc4576364d7f9702be9cd9bb8823c48b9c31ab8e)
       lodash: 4.18.1
       npm: 9.9.4
       pbkdf2: 3.1.5
@@ -5370,7 +5375,7 @@ snapshots:
       '@cardano-sdk/util': 0.15.7
       blake2b: 2.1.4
       i: 0.3.7
-      libsodium-wrappers-sumo: 0.7.16
+      libsodium-wrappers-sumo: 0.7.16(patch_hash=4b3885e6605dbdf475eafb17dc4576364d7f9702be9cd9bb8823c48b9c31ab8e)
       lodash: 4.18.1
       npm: 9.9.4
       pbkdf2: 3.1.5
@@ -9002,7 +9007,7 @@ snapshots:
 
   libsodium-sumo@0.7.16: {}
 
-  libsodium-wrappers-sumo@0.7.16:
+  libsodium-wrappers-sumo@0.7.16(patch_hash=4b3885e6605dbdf475eafb17dc4576364d7f9702be9cd9bb8823c48b9c31ab8e):
     dependencies:
       libsodium-sumo: 0.7.16
 

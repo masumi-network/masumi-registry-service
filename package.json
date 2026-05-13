@@ -15,7 +15,10 @@
       "prisma",
       "ssh2",
       "cpu-features"
-    ]
+    ],
+    "patchedDependencies": {
+      "libsodium-wrappers-sumo@0.7.16": "patches/libsodium-wrappers-sumo@0.7.16.patch"
+    }
   },
   "prisma": {
     "seed": "tsx ./prisma/seed.ts"
