@@ -4,7 +4,7 @@ import { authenticatedEndpointFactory } from '@/utils/endpoint-factory/authentic
 import { z } from '@/utils/zod-openapi';
 
 export const capabilitySchemaInput = z.object({
-  limit: z.number({ coerce: true }).min(1).max(100).default(10),
+  limit: z.coerce.number().min(1).max(100).default(10),
   cursorId: z.string().optional(),
 });
 
@@ -26,10 +26,10 @@ export const capabilityGet = authenticatedEndpointFactory.build({
   output: capabilitySchemaOutput,
   handler: async ({
     input,
-    options,
+    ctx,
   }: {
     input: z.infer<typeof capabilitySchemaInput>;
-    options: {
+    ctx: {
       id: string;
       accumulatedUsageCredits: number;
       maxUsageCredits: number | null;
@@ -39,7 +39,7 @@ export const capabilityGet = authenticatedEndpointFactory.build({
     const tokenCost = 0;
     //TODO update cost model
     await tokenCreditService.handleTokenCredits(
-      options,
+      ctx,
       tokenCost,
       'query for capability with limit: ' + input.limit
     );

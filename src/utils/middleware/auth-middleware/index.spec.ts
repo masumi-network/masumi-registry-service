@@ -16,33 +16,31 @@ describe('authMiddleware', () => {
     jest.clearAllMocks();
   });
 
-  it('should throw 401 if no token provided', async () => {
-    await expect(
-      testMiddleware({
-        middleware: authMiddleware(false),
-        requestProps: { method: 'POST', body: {}, headers: {} },
-        options: {},
-      })
-    ).rejects.toThrow('No token provided');
+  it('should return 401 if no token provided', async () => {
+    const { responseMock } = await testMiddleware({
+      middleware: authMiddleware(false),
+      requestProps: { method: 'POST', body: {}, headers: {} },
+      ctx: {},
+    });
+    expect(responseMock.statusCode).toBe(401);
   });
-  it('should throw 401 if invalid token', async () => {
+  it('should return 401 if invalid token', async () => {
     const { prisma } = require('@/utils/db');
     (prisma.apiKey.findUnique as jest.Mock).mockResolvedValue(null);
 
-    await expect(
-      testMiddleware({
-        middleware: authMiddleware(false),
-        requestProps: {
-          method: 'POST',
-          body: {},
-          headers: { token: 'invalid' },
-        },
-        options: {},
-      })
-    ).rejects.toThrow('Invalid token');
+    const { responseMock } = await testMiddleware({
+      middleware: authMiddleware(false),
+      requestProps: {
+        method: 'POST',
+        body: {},
+        headers: { token: 'invalid' },
+      },
+      ctx: {},
+    });
+    expect(responseMock.statusCode).toBe(401);
   });
 
-  it('should throw 401 if admin required but user is not admin', async () => {
+  it('should return 401 if admin required but user is not admin', async () => {
     const { prisma } = require('@/utils/db');
     (prisma.apiKey.findUnique as jest.Mock).mockResolvedValue({
       id: 1,
@@ -53,15 +51,14 @@ describe('authMiddleware', () => {
       usageLimited: true,
     });
 
-    await expect(
-      testMiddleware({
-        middleware: authMiddleware(true),
-        requestProps: { method: 'POST', body: {}, headers: { token: 'valid' } },
-        options: {},
-      })
-    ).rejects.toThrow('Unauthorized, admin access required');
+    const { responseMock } = await testMiddleware({
+      middleware: authMiddleware(true),
+      requestProps: { method: 'POST', body: {}, headers: { token: 'valid' } },
+      ctx: {},
+    });
+    expect(responseMock.statusCode).toBe(401);
   });
-  it('should throw 401 if api key is inactive admin', async () => {
+  it('should return 401 if api key is revoked (user)', async () => {
     const { prisma } = require('@/utils/db');
     (prisma.apiKey.findUnique as jest.Mock).mockResolvedValue({
       id: 1,
@@ -72,15 +69,14 @@ describe('authMiddleware', () => {
       usageLimited: true,
     });
 
-    await expect(
-      testMiddleware({
-        middleware: authMiddleware(false),
-        requestProps: { method: 'POST', body: {}, headers: { token: 'valid' } },
-        options: {},
-      })
-    ).rejects.toThrow('API key is revoked');
+    const { responseMock } = await testMiddleware({
+      middleware: authMiddleware(false),
+      requestProps: { method: 'POST', body: {}, headers: { token: 'valid' } },
+      ctx: {},
+    });
+    expect(responseMock.statusCode).toBe(401);
   });
-  it('should throw 401 if api key is inactive admin', async () => {
+  it('should return 401 if api key is revoked (admin)', async () => {
     const { prisma } = require('@/utils/db');
     (prisma.apiKey.findUnique as jest.Mock).mockResolvedValue({
       id: 1,
@@ -91,13 +87,12 @@ describe('authMiddleware', () => {
       usageLimited: true,
     });
 
-    await expect(
-      testMiddleware({
-        middleware: authMiddleware(true),
-        requestProps: { method: 'POST', body: {}, headers: { token: 'valid' } },
-        options: {},
-      })
-    ).rejects.toThrow('API key is revoked');
+    const { responseMock } = await testMiddleware({
+      middleware: authMiddleware(true),
+      requestProps: { method: 'POST', body: {}, headers: { token: 'valid' } },
+      ctx: {},
+    });
+    expect(responseMock.statusCode).toBe(401);
   });
 
   it('should pass validation with valid user token', async () => {
@@ -115,7 +110,7 @@ describe('authMiddleware', () => {
     const { output } = await testMiddleware({
       middleware: authMiddleware(false),
       requestProps: { method: 'POST', body: {}, headers: { token: 'valid' } },
-      options: {},
+      ctx: {},
     });
 
     expect(output).toEqual({
@@ -142,7 +137,7 @@ describe('authMiddleware', () => {
     const { output } = await testMiddleware({
       middleware: authMiddleware(true),
       requestProps: { method: 'POST', body: {}, headers: { token: 'valid' } },
-      options: {},
+      ctx: {},
     });
 
     expect(output).toEqual({

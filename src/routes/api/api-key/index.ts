@@ -6,20 +6,15 @@ import { apiKeyService } from '@/services/api-key/';
 
 export const getAPIKeySchemaInput = z.object({
   cursorId: z.string().max(550).optional(),
-  limit: z.number({ coerce: true }).int().min(1).max(100).default(10),
+  limit: z.coerce.number().int().min(1).max(100).default(10),
 });
 
 const apiKeyMetadataSchema = z.object({
   id: z.string(),
   permission: z.nativeEnum(Permission),
   usageLimited: z.boolean(),
-  maxUsageCredits: z
-    .number({ coerce: true })
-    .int()
-    .min(0)
-    .max(1000000)
-    .nullable(),
-  accumulatedUsageCredits: z.number({ coerce: true }).int().min(0).max(1000000),
+  maxUsageCredits: z.coerce.number().int().min(0).max(1000000).nullable(),
+  accumulatedUsageCredits: z.coerce.number().int().min(0).max(1000000),
   status: z.nativeEnum(APIKeyStatus),
 });
 
@@ -75,12 +70,7 @@ export const queryAPIKeyEndpointGet = adminAuthenticatedEndpointFactory.build({
 
 export const addAPIKeySchemaInput = z.object({
   usageLimited: z.boolean().default(false),
-  maxUsageCredits: z
-    .number({ coerce: true })
-    .int()
-    .min(0)
-    .max(1000000)
-    .default(0),
+  maxUsageCredits: z.coerce.number().int().min(0).max(1000000).default(0),
   permission: z.nativeEnum(Permission).default(Permission.User),
 });
 
@@ -105,12 +95,7 @@ export const addAPIKeyEndpointPost = adminAuthenticatedEndpointFactory.build({
 export const updateAPIKeySchemaInput = z.object({
   token: z.string().max(550),
   usageLimited: z.boolean().default(false),
-  maxUsageCredits: z
-    .number({ coerce: true })
-    .int()
-    .min(0)
-    .max(1000000)
-    .default(0),
+  maxUsageCredits: z.coerce.number().int().min(0).max(1000000).default(0),
   status: z.nativeEnum(APIKeyStatus).default(APIKeyStatus.Active),
 });
 

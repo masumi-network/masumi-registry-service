@@ -11,13 +11,13 @@ export const queryAPIKeyStatusEndpointGet = authenticatedEndpointFactory.build({
   input: getAPIKeyStatusSchemaInput,
   output: apiKeySchemaOutput,
   handler: async ({
-    options,
+    ctx,
   }: {
-    options: {
+    ctx: {
       id: string;
     };
   }) => {
-    const data = await apiKeyStatusService.getApiKeyStatus(options.id);
+    const data = await apiKeyStatusService.getApiKeyStatus(ctx.id);
 
     if (!data) throw createHttpError(404, 'Not found');
 

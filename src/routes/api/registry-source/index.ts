@@ -25,7 +25,7 @@ const mapRegistrySourceToOutput = (source: {
 
 export const getRegistrySourceSchemaInput = z.object({
   cursorId: z.string().max(550).optional(),
-  limit: z.number({ coerce: true }).int().min(1).max(50).default(10),
+  limit: z.coerce.number().int().min(1).max(50).default(10),
 });
 
 export const registrySourceSchemaOutput = z
@@ -34,7 +34,7 @@ export const registrySourceSchemaOutput = z
     url: z.string().nullable(),
     policyId: z.string().nullable(),
     note: z.string().nullable(),
-    latestPage: z.number({ coerce: true }).int().min(0).max(1000000),
+    latestPage: z.coerce.number().int().min(0).max(1000000),
     latestIdentifier: z.string().nullable(),
     rpcProviderApiKey: z.string().nullable(),
     network: z.nativeEnum($Enums.Network).nullable(),

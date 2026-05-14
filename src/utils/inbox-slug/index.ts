@@ -1,4 +1,4 @@
-export const RESERVED_INBOX_SLUGS = [
+const RESERVED_INBOX_SLUGS = [
   'favicon.ico',
   'robots.txt',
   'sitemap.xml',

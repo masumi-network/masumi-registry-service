@@ -2,13 +2,13 @@ import { NextFunction, Request, Response } from 'express';
 
 type Headers = Record<string, string>;
 
-export const DEFAULT_SECURITY_HEADERS: Headers = {
+const DEFAULT_SECURITY_HEADERS: Headers = {
   'Referrer-Policy': 'strict-origin-when-cross-origin',
   'X-Content-Type-Options': 'nosniff',
   'X-Frame-Options': 'SAMEORIGIN',
 };
 
-export const DEFAULT_CORS_HEADERS: Headers = {
+const DEFAULT_CORS_HEADERS: Headers = {
   'Access-Control-Allow-Headers': 'Content-Type, token',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
   'Access-Control-Expose-Headers': 'Content-Range, X-Total-Count',

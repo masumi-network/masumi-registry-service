@@ -2,7 +2,7 @@ import { z } from '@/utils/zod-openapi';
 import { ez } from 'express-zod-api';
 import { $Enums, Network } from '@prisma/client';
 
-export const registryEntryFilterSchema = z.object({
+const registryEntryFilterSchema = z.object({
   paymentTypes: z.array(z.nativeEnum($Enums.PaymentType)).max(5).optional(),
   status: z.array(z.nativeEnum($Enums.Status)).max(5).optional(),
   policyId: z.string().min(1).max(250).optional(),
@@ -18,7 +18,7 @@ export const registryEntryFilterSchema = z.object({
 
 export const queryRegistrySchemaInput = z.object({
   network: z.nativeEnum(Network),
-  limit: z.number({ coerce: true }).int().min(1).max(50).default(10),
+  limit: z.coerce.number().int().min(1).max(50).default(10),
   //optional data
   cursorId: z.string().min(1).max(50).optional(),
   filter: registryEntryFilterSchema.optional(),
@@ -27,7 +27,7 @@ export const queryRegistrySchemaInput = z.object({
 
 export const searchRegistrySchemaInput = z.object({
   network: z.nativeEnum(Network),
-  limit: z.number({ coerce: true }).int().min(1).max(50).default(10),
+  limit: z.coerce.number().int().min(1).max(50).default(10),
   cursorId: z.string().min(1).max(50).optional(),
   query: z
     .string()
@@ -49,7 +49,7 @@ export const refreshRegistryEntrySchemaInput = z.object({
 export const registryDiffSchemaInput = z.object({
   network: z.nativeEnum(Network),
   statusUpdatedAfter: ez.dateIn(),
-  limit: z.number({ coerce: true }).int().min(1).max(50).default(10),
+  limit: z.coerce.number().int().min(1).max(50).default(10),
   cursorId: z
     .string()
     .min(1)
@@ -68,7 +68,7 @@ export const registryDiffSchemaInput = z.object({
     ),
 });
 
-export const registryEntrySchemaOutput = z
+const registryEntrySchemaOutput = z
   .object({
     id: z.string(),
     name: z.string(),
