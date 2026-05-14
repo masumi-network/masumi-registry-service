@@ -300,6 +300,9 @@
                     "createdAt": {
                         "type": "string"
                     },
+                    "updatedAt": {
+                        "type": "string"
+                    },
                     "description": {
                         "type": "string",
                         "nullable": true
@@ -379,48 +382,6 @@
                     },
                     "metadataVersion": {
                         "type": "integer"
-                    },
-                    "agentCardUrl": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "a2aProtocolVersions": {
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        }
-                    },
-                    "a2aAgentVersion": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "a2aDefaultInputModes": {
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        }
-                    },
-                    "a2aDefaultOutputModes": {
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        }
-                    },
-                    "a2aProviderName": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "a2aProviderUrl": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "a2aDocumentationUrl": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "a2aIconUrl": {
-                        "type": "string",
-                        "nullable": true
                     },
                     "RegistrySource": {
                         "type": "object",
@@ -555,151 +516,13 @@
                                 "url"
                             ]
                         }
-                    },
-                    "updatedAt": {
-                        "type": "string"
-                    },
-                    "A2ASkills": {
-                        "type": "array",
-                        "items": {
-                            "type": "object",
-                            "properties": {
-                                "id": {
-                                    "type": "string"
-                                },
-                                "skillId": {
-                                    "type": "string"
-                                },
-                                "name": {
-                                    "type": "string"
-                                },
-                                "description": {
-                                    "type": "string"
-                                },
-                                "tags": {
-                                    "type": "array",
-                                    "items": {
-                                        "type": "string"
-                                    }
-                                },
-                                "examples": {
-                                    "type": "array",
-                                    "items": {
-                                        "type": "string"
-                                    }
-                                },
-                                "inputModes": {
-                                    "type": "array",
-                                    "items": {
-                                        "type": "string"
-                                    }
-                                },
-                                "outputModes": {
-                                    "type": "array",
-                                    "items": {
-                                        "type": "string"
-                                    }
-                                }
-                            },
-                            "required": [
-                                "id",
-                                "skillId",
-                                "name",
-                                "description",
-                                "tags",
-                                "examples",
-                                "inputModes",
-                                "outputModes"
-                            ]
-                        }
-                    },
-                    "A2ASupportedInterfaces": {
-                        "type": "array",
-                        "items": {
-                            "type": "object",
-                            "properties": {
-                                "id": {
-                                    "type": "string"
-                                },
-                                "url": {
-                                    "type": "string"
-                                },
-                                "protocolBinding": {
-                                    "type": "string"
-                                },
-                                "protocolVersion": {
-                                    "type": "string"
-                                },
-                                "tenant": {
-                                    "type": "string",
-                                    "nullable": true
-                                }
-                            },
-                            "required": [
-                                "id",
-                                "url",
-                                "protocolBinding",
-                                "protocolVersion",
-                                "tenant"
-                            ]
-                        }
-                    },
-                    "A2ACapabilities": {
-                        "type": "object",
-                        "nullable": true,
-                        "properties": {
-                            "streaming": {
-                                "type": "boolean",
-                                "nullable": true
-                            },
-                            "pushNotifications": {
-                                "type": "boolean",
-                                "nullable": true
-                            },
-                            "extendedAgentCard": {
-                                "type": "boolean",
-                                "nullable": true
-                            },
-                            "extensions": {
-                                "type": "array",
-                                "nullable": true,
-                                "items": {
-                                    "type": "object",
-                                    "properties": {
-                                        "uri": {
-                                            "type": "string"
-                                        },
-                                        "description": {
-                                            "type": "string"
-                                        },
-                                        "required": {
-                                            "type": "boolean"
-                                        },
-                                        "params": {
-                                            "type": "object",
-                                            "additionalProperties": {
-                                                "nullable": true
-                                            }
-                                        }
-                                    },
-                                    "required": [
-                                        "uri"
-                                    ]
-                                }
-                            }
-                        },
-                        "required": [
-                            "streaming",
-                            "pushNotifications",
-                            "extendedAgentCard",
-                            "extensions"
-                        ]
                     }
                 },
                 "required": [
                     "id",
                     "name",
                     "createdAt",
+                    "updatedAt",
                     "description",
                     "status",
                     "statusUpdatedAt",
@@ -719,23 +542,10 @@
                     "agentIdentifier",
                     "paymentType",
                     "metadataVersion",
-                    "agentCardUrl",
-                    "a2aProtocolVersions",
-                    "a2aAgentVersion",
-                    "a2aDefaultInputModes",
-                    "a2aDefaultOutputModes",
-                    "a2aProviderName",
-                    "a2aProviderUrl",
-                    "a2aDocumentationUrl",
-                    "a2aIconUrl",
                     "RegistrySource",
                     "Capability",
                     "AgentPricing",
-                    "ExampleOutput",
-                    "updatedAt",
-                    "A2ASkills",
-                    "A2ASupportedInterfaces",
-                    "A2ACapabilities"
+                    "ExampleOutput"
                 ]
             },
             "InboxAgentRegistration": {
@@ -1290,15 +1100,6 @@
                                                 "required": [
                                                     "name"
                                                 ]
-                                            },
-                                            "metadataVersion": {
-                                                "type": "array",
-                                                "items": {
-                                                    "type": "integer",
-                                                    "minimum": 1,
-                                                    "maximum": 2
-                                                },
-                                                "maxItems": 2
                                             }
                                         }
                                     },
@@ -1343,11 +1144,7 @@
                                         "capability": {
                                             "name": "Example Capability",
                                             "version": "Optional version"
-                                        },
-                                        "metadataVersion": [
-                                            1,
-                                            2
-                                        ]
+                                        }
                                     },
                                     "minHealthCheckDate": "1970-01-01T00:00:00.000Z"
                                 }
@@ -1676,15 +1473,6 @@
                                                 "required": [
                                                     "name"
                                                 ]
-                                            },
-                                            "metadataVersion": {
-                                                "type": "array",
-                                                "items": {
-                                                    "type": "integer",
-                                                    "minimum": 1,
-                                                    "maximum": 2
-                                                },
-                                                "maxItems": 2
                                             }
                                         }
                                     },
@@ -2843,15 +2631,6 @@
                                         "minLength": 1,
                                         "maxLength": 250,
                                         "description": "The policy ID of the registry source to filter by. If not specified, queries all registry sources."
-                                    },
-                                    "metadataVersion": {
-                                        "type": "array",
-                                        "items": {
-                                            "type": "integer",
-                                            "minimum": 1,
-                                            "maximum": 2
-                                        },
-                                        "maxItems": 2
                                     }
                                 },
                                 "required": [
@@ -2863,11 +2642,7 @@
                                     "cursorId": "last_paginated_item",
                                     "network": "Preprod",
                                     "statusUpdatedAfter": "1970-01-01T00:00:00.000Z",
-                                    "policyId": "7e8bdaf2b2b919a3a4b94002cafb50086c0c845fe535d07a77ab7f77",
-                                    "metadataVersion": [
-                                        1,
-                                        2
-                                    ]
+                                    "policyId": "7e8bdaf2b2b919a3a4b94002cafb50086c0c845fe535d07a77ab7f77"
                                 }
                             }
                         }
