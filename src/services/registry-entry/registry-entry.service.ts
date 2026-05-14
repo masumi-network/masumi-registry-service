@@ -1,6 +1,7 @@
 import { registryEntryRepository } from '@/repositories/registry-entry';
 import {
   queryRegistrySchemaInput,
+  refreshRegistryEntrySchemaInput,
   registryDiffSchemaInput,
   searchRegistrySchemaInput,
 } from '@/routes/api/registry-entry/schemas';
@@ -103,6 +104,30 @@ async function searchRegistryEntries(
   );
 }
 
+async function refreshRegistryEntry(
+  input: z.infer<typeof refreshRegistryEntrySchemaInput>
+) {
+  await cardanoRegistryService.updateLatestCardanoRegistryEntries();
+
+  const registryEntry =
+    await registryEntryRepository.getRegistryEntryByIdentifier(input);
+  if (!registryEntry) {
+    return null;
+  }
+
+  if (registryEntry.status === Status.Deregistered) {
+    return registryEntry;
+  }
+
+  const [updatedEntry] =
+    await healthCheckService.checkVerifyAndUpdateRegistryEntries({
+      registryEntries: [registryEntry],
+      minHealthCheckDate: new Date(),
+    });
+
+  return updatedEntry ?? registryEntry;
+}
+
 async function getRegistryDiffEntries(
   input: z.infer<typeof registryDiffSchemaInput>
 ) {
@@ -118,5 +143,6 @@ async function getRegistryDiffEntries(
 export const registryEntryService = {
   getRegistryEntries,
   searchRegistryEntries,
+  refreshRegistryEntry,
   getRegistryDiffEntries,
 };

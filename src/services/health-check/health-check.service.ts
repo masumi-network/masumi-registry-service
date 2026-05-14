@@ -21,8 +21,9 @@ import { agentCardSchema } from '@/utils/a2a-schemas';
 import { timedFetch } from '@/utils/timed-fetch';
 
 const INBOX_AGENT_PUBLIC_BASE_URLS: Partial<Record<$Enums.Network, string>> = {
-  [$Enums.Network.Preprod]: 'https://masumi-inbox-dev-ivi44.ondigitalocean.app',
-  [$Enums.Network.Mainnet]: 'https://agentmessenger.io',
+  [$Enums.Network.Preprod]:
+    'https://agentmessenger-dev-x92rn.ondigitalocean.app/',
+  [$Enums.Network.Mainnet]: 'https://app.agentmessenger.io/',
 };
 
 const INBOX_AGENT_IDENTIFIER_KEYS = new Set([
@@ -237,7 +238,7 @@ async function checkAndVerifyEndpoint({ api_url }: { api_url: string }) {
   try {
     const { normalizedUrl } = await validatePublicUrl(api_url);
     controller = new AbortController();
-    timeoutId = setTimeout(() => controller?.abort(), 7500);
+    timeoutId = setTimeout(() => controller?.abort(), 32000);
     const endpointResponse = await fetch(`${normalizedUrl}/availability`, {
       redirect: 'manual',
       signal: controller.signal,
@@ -637,7 +638,7 @@ async function checkAndVerifyInboxAgentPublicEndpoint(params: {
   try {
     const { normalizedUrl } = await validatePublicUrl(configuredBaseUrl);
     controller = new AbortController();
-    timeoutId = setTimeout(() => controller?.abort(), 7500);
+    timeoutId = setTimeout(() => controller?.abort(), 32000);
     const endpointResponse = await fetch(
       `${normalizedUrl}/${encodeURIComponent(params.agentSlug)}/public`,
       {

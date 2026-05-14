@@ -4,10 +4,11 @@ node_modules
 dist
 # environmental variables
 .env
+# legacy lock files
+package-lock.json
+yarn.lock
 # yarn error log
 yarn-error.log
-# npm lockfile (project uses pnpm)
-package-lock.json
 # vscode config
 .vscode
 #coverage

@@ -102,6 +102,44 @@ async function searchInboxAgentRegistrations(params: {
   });
 }
 
+async function getInboxAgentRegistrationByIdentifier(params: {
+  agentIdentifier: string;
+  network: Network;
+}) {
+  return prisma.inboxAgentRegistration.findFirst({
+    where: {
+      assetIdentifier: params.agentIdentifier,
+      RegistrySource: {
+        network: params.network,
+      },
+    },
+    include: {
+      RegistrySource: true,
+    },
+  });
+}
+
+async function resetInvalidInboxAgentRegistrationForRefresh(params: {
+  id: string;
+}) {
+  return prisma.inboxAgentRegistration.update({
+    where: {
+      id: params.id,
+    },
+    include: {
+      RegistrySource: true,
+    },
+    data: {
+      status: InboxAgentRegistrationStatus.Pending,
+      linkedEmail: null,
+      encryptionPublicKey: null,
+      encryptionKeyVersion: null,
+      signingPublicKey: null,
+      signingKeyVersion: null,
+    },
+  });
+}
+
 async function getInboxAgentRegistrationDiffEntries(
   input: z.infer<typeof inboxAgentRegistrationDiffSchemaInput>
 ) {
@@ -152,5 +190,7 @@ async function getInboxAgentRegistrationDiffEntries(
 export const inboxAgentRegistrationRepository = {
   getInboxAgentRegistrations,
   searchInboxAgentRegistrations,
+  getInboxAgentRegistrationByIdentifier,
+  resetInvalidInboxAgentRegistrationForRefresh,
   getInboxAgentRegistrationDiffEntries,
 };

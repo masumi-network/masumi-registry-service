@@ -9,6 +9,8 @@ import { healthResponseSchema } from '@/routes/api/health';
 import {
   queryRegistrySchemaInput,
   queryRegistrySchemaOutput,
+  refreshRegistryEntrySchemaInput,
+  refreshRegistryEntrySchemaOutput,
   registryDiffSchemaInput,
   searchRegistrySchemaInput,
 } from '@/routes/api/registry-entry/schemas';
@@ -16,6 +18,8 @@ import {
   queryInboxAgentRegistrationSchemaInput,
   queryInboxAgentRegistrationSchemaOutput,
   inboxAgentRegistrationDiffSchemaInput,
+  refreshInboxAgentRegistrationSchemaInput,
+  refreshInboxAgentRegistrationSchemaOutput,
   searchInboxAgentRegistrationSchemaInput,
 } from '@/routes/api/inbox-agent-registration';
 import {
@@ -510,6 +514,66 @@ export function generateOpenAPI() {
 
   registry.registerPath({
     method: 'post',
+    path: '/registry-entry-refresh/',
+    description:
+      'Refresh one registry entry by agent identifier. The service first syncs the blockchain cursor, then immediately re-runs the health check for the requested agent and returns the refreshed entry.',
+    summary: 'REQUIRES API KEY Authentication (+user)',
+    tags: ['registry-entry'],
+    request: {
+      body: {
+        description: '',
+        content: {
+          'application/json': {
+            schema: refreshRegistryEntrySchemaInput.openapi({
+              example: {
+                network: 'Preprod',
+                agentIdentifier:
+                  '222222222222222222222222222222222222222222222222222222222222222222',
+              },
+            }),
+          },
+        },
+      },
+    },
+    security: [{ [apiKeyAuth.name]: [] }],
+    responses: {
+      200: {
+        description: 'Refreshed registry entry',
+        content: {
+          'application/json': {
+            schema: z
+              .object({
+                data: refreshRegistryEntrySchemaOutput,
+                status: z.string(),
+              })
+              .openapi({
+                example: {
+                  data: {
+                    entry: registryEntriesResponseExample.data.entries[0],
+                  },
+                  status: 'success',
+                },
+              }),
+          },
+        },
+      },
+      400: {
+        description: 'Bad Request (possible parameters missing or invalid)',
+      },
+      401: {
+        description: 'Unauthorized',
+      },
+      404: {
+        description: 'Registry entry not found',
+      },
+      500: {
+        description: 'Internal Server Error',
+      },
+    },
+  });
+
+  registry.registerPath({
+    method: 'post',
     path: '/inbox-agent-registration/',
     description:
       'Query blockchain-tracked Masumi inbox registrations. By default, only pending and verified registrations are returned. Supports pagination and filtering by slug, status, and policy id.',
@@ -615,6 +679,68 @@ export function generateOpenAPI() {
       },
       401: {
         description: 'Unauthorized',
+      },
+      500: {
+        description: 'Internal Server Error',
+      },
+    },
+  });
+
+  registry.registerPath({
+    method: 'post',
+    path: '/inbox-agent-registration-refresh/',
+    description:
+      'Refresh one inbox agent registration by agent identifier. If the registration was invalid, the service clears verification-derived fields, moves it back to pending, and immediately re-runs inbox verification.',
+    summary: 'REQUIRES API KEY Authentication (+user)',
+    tags: ['inbox-agent-registration'],
+    request: {
+      body: {
+        description: '',
+        content: {
+          'application/json': {
+            schema: refreshInboxAgentRegistrationSchemaInput.openapi({
+              example: {
+                network: 'Preprod',
+                agentIdentifier:
+                  '333333333333333333333333333333333333333333333333333333333333333333',
+              },
+            }),
+          },
+        },
+      },
+    },
+    security: [{ [apiKeyAuth.name]: [] }],
+    responses: {
+      200: {
+        description: 'Refreshed inbox agent registration',
+        content: {
+          'application/json': {
+            schema: z
+              .object({
+                data: refreshInboxAgentRegistrationSchemaOutput,
+                status: z.string(),
+              })
+              .openapi({
+                example: {
+                  data: {
+                    registration:
+                      inboxAgentRegistrationsResponseExample.data
+                        .registrations[0],
+                  },
+                  status: 'success',
+                },
+              }),
+          },
+        },
+      },
+      400: {
+        description: 'Bad Request (possible parameters missing or invalid)',
+      },
+      401: {
+        description: 'Unauthorized',
+      },
+      404: {
+        description: 'Inbox agent registration not found',
       },
       500: {
         description: 'Internal Server Error',

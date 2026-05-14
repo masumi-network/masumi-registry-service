@@ -252,7 +252,7 @@ describe('checkAndVerifyInboxAgentRegistration', () => {
       },
     });
     expect(global.fetch).toHaveBeenCalledWith(
-      'https://masumi-inbox-dev-ivi44.ondigitalocean.app/inbox-agent/public',
+      'https://agentmessenger-dev-x92rn.ondigitalocean.app/inbox-agent/public',
       expect.objectContaining({
         headers: {
           Accept: 'application/json',
@@ -356,7 +356,7 @@ describe('checkAndVerifyInboxAgentRegistration', () => {
 
     expect(result.status).toBe(InboxAgentRegistrationStatus.Pending);
     expect(global.fetch).toHaveBeenCalledWith(
-      'https://agentmessenger.io/mainnet-agent/public',
+      'https://app.agentmessenger.io/mainnet-agent/public',
       expect.objectContaining({
         headers: {
           Accept: 'application/json',
