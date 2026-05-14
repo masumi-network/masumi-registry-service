@@ -39,6 +39,7 @@
     "express": "^5.1.0",
     "express-zod-api": "^22.13.2",
     "http-errors": "^2.0.0",
+    "logform": "^2.7.0",
     "swagger-ui-express": "^5.0.1",
     "winston": "^3.17.0",
     "zod": "^3.24.2"
@@ -48,6 +49,7 @@
     "@commitlint/config-conventional": "^19.8.0",
     "@eslint/js": "^9.24.0",
     "@types/express": "^5.0.1",
+    "@types/http-errors": "^2.0.5",
     "@types/jest": "^29.5.14",
     "@types/node": "^18.19.86",
     "@types/swagger-ui-express": "^4.1.8",

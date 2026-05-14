@@ -41,11 +41,6 @@ export const searchInboxAgentRegistrationSchemaInput = z.object({
     .optional(),
 });
 
-export const refreshInboxAgentRegistrationSchemaInput = z.object({
-  network: z.nativeEnum(Network),
-  agentIdentifier: z.string().min(1).max(250),
-});
-
 export const inboxAgentRegistrationDiffSchemaInput = z.object({
   network: z.nativeEnum(Network),
   statusUpdatedAfter: ez.dateIn(),
@@ -63,7 +58,7 @@ export const inboxAgentRegistrationDiffSchemaInput = z.object({
   status: z.array(z.nativeEnum(InboxAgentRegistrationStatus)).max(4).optional(),
 });
 
-export const inboxAgentRegistrationSchemaOutput = z
+const inboxAgentRegistrationSchemaOutput = z
   .object({
     id: z.string(),
     createdAt: z.date(),
@@ -93,11 +88,7 @@ export const queryInboxAgentRegistrationSchemaOutput = z.object({
   registrations: z.array(inboxAgentRegistrationSchemaOutput),
 });
 
-export const refreshInboxAgentRegistrationSchemaOutput = z.object({
-  registration: inboxAgentRegistrationSchemaOutput,
-});
-
-export type InboxAgentRegistrationSerializable = {
+type InboxAgentRegistrationSerializable = {
   id: string;
   createdAt: Date | string;
   updatedAt: Date | string;

@@ -6,6 +6,8 @@ dist
 .env
 # yarn error log
 yarn-error.log
+# npm lockfile (project uses pnpm)
+package-lock.json
 # vscode config
 .vscode
 #coverage
