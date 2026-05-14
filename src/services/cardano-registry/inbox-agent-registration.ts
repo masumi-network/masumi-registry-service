@@ -30,7 +30,7 @@ export const inboxAgentRegistrationMetadataSchema = z.object({
     .max(METADATA_VERSION),
 });
 
-export type NormalizedInboxAgentRegistrationMetadata = {
+type NormalizedInboxAgentRegistrationMetadata = {
   name: string;
   description: string | null;
   agentSlug: string;

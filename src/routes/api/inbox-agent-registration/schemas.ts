@@ -58,7 +58,7 @@ export const inboxAgentRegistrationDiffSchemaInput = z.object({
   status: z.array(z.nativeEnum(InboxAgentRegistrationStatus)).max(4).optional(),
 });
 
-export const inboxAgentRegistrationSchemaOutput = z
+const inboxAgentRegistrationSchemaOutput = z
   .object({
     id: z.string(),
     createdAt: z.date(),
@@ -88,7 +88,7 @@ export const queryInboxAgentRegistrationSchemaOutput = z.object({
   registrations: z.array(inboxAgentRegistrationSchemaOutput),
 });
 
-export type InboxAgentRegistrationSerializable = {
+type InboxAgentRegistrationSerializable = {
   id: string;
   createdAt: Date | string;
   updatedAt: Date | string;

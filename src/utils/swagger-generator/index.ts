@@ -412,7 +412,6 @@ export function generateOpenAPI() {
                     name: 'Example Capability',
                     version: 'Optional version',
                   },
-                  metadataVersion: [1, 2],
                 },
                 minHealthCheckDate: new Date(0).toISOString(),
               },
@@ -791,7 +790,6 @@ export function generateOpenAPI() {
                 statusUpdatedAfter: new Date(0).toISOString(),
                 policyId:
                   '7e8bdaf2b2b919a3a4b94002cafb50086c0c845fe535d07a77ab7f77',
-                metadataVersion: [1, 2],
               },
             }),
           },

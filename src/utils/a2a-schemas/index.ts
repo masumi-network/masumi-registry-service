@@ -23,22 +23,24 @@ export const agentCardSchema = z.object({
     .optional(),
   documentationUrl: z.string().url().max(2048).optional(),
   iconUrl: z.string().url().max(2048).optional(),
-  capabilities: z.object({
-    streaming: z.boolean().optional(),
-    pushNotifications: z.boolean().optional(),
-    extendedAgentCard: z.boolean().optional(),
-    extensions: z
-      .array(
-        z.object({
-          uri: z.string().max(2048),
-          description: z.string().max(1000).optional(),
-          required: z.boolean().optional(),
-          params: z.record(z.unknown()).optional(),
-        })
-      )
-      .max(20)
-      .optional(),
-  }),
+  capabilities: z
+    .object({
+      streaming: z.boolean().optional(),
+      pushNotifications: z.boolean().optional(),
+      extendedAgentCard: z.boolean().optional(),
+      extensions: z
+        .array(
+          z.object({
+            uri: z.string().max(2048),
+            description: z.string().max(1000).optional(),
+            required: z.boolean().optional(),
+            params: z.record(z.unknown()).optional(),
+          })
+        )
+        .max(20)
+        .optional(),
+    })
+    .optional(),
   defaultInputModes: z.array(z.string().max(100)).max(20),
   defaultOutputModes: z.array(z.string().max(100)).max(20),
   skills: z

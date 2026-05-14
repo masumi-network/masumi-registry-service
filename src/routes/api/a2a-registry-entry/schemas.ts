@@ -1,31 +1,23 @@
 import { z } from '@/utils/zod-openapi';
 import { ez } from 'express-zod-api';
-import { $Enums, Network } from '@prisma/client';
+import { $Enums, Network, Prisma } from '@prisma/client';
 
-const registryEntryFilterSchema = z.object({
-  paymentTypes: z.array(z.nativeEnum($Enums.PaymentType)).max(5).optional(),
+const a2aRegistryEntryFilterSchema = z.object({
   status: z.array(z.nativeEnum($Enums.Status)).max(5).optional(),
   policyId: z.string().min(1).max(250).optional(),
   assetIdentifier: z.string().min(1).max(250).optional(),
   tags: z.array(z.string().min(1).max(150)).optional(),
-  capability: z
-    .object({
-      name: z.string().min(1).max(150),
-      version: z.string().max(150).optional(),
-    })
-    .optional(),
 });
 
-export const queryRegistrySchemaInput = z.object({
+export const queryA2ARegistrySchemaInput = z.object({
   network: z.nativeEnum(Network),
   limit: z.number({ coerce: true }).int().min(1).max(50).default(10),
-  //optional data
   cursorId: z.string().min(1).max(50).optional(),
-  filter: registryEntryFilterSchema.optional(),
+  filter: a2aRegistryEntryFilterSchema.optional(),
   minHealthCheckDate: ez.dateIn().optional(),
 });
 
-export const searchRegistrySchemaInput = z.object({
+export const searchA2ARegistrySchemaInput = z.object({
   network: z.nativeEnum(Network),
   limit: z.number({ coerce: true }).int().min(1).max(50).default(10),
   cursorId: z.string().min(1).max(50).optional(),
@@ -35,13 +27,13 @@ export const searchRegistrySchemaInput = z.object({
     .min(1)
     .max(120)
     .describe(
-      'Case-insensitive fuzzy match against registry entry core metadata, capability, asset identifier, api base URL, and tags.'
+      'Case-insensitive fuzzy match against A2A registry entry metadata, asset identifier, and tags.'
     ),
-  filter: registryEntryFilterSchema.optional(),
+  filter: a2aRegistryEntryFilterSchema.optional(),
   minHealthCheckDate: ez.dateIn().optional(),
 });
 
-export const registryDiffSchemaInput = z.object({
+export const a2aRegistryDiffSchemaInput = z.object({
   network: z.nativeEnum(Network),
   statusUpdatedAfter: ez.dateIn(),
   limit: z.number({ coerce: true }).int().min(1).max(50).default(10),
@@ -51,7 +43,7 @@ export const registryDiffSchemaInput = z.object({
     .max(75)
     .optional()
     .describe(
-      'The ID of the last item in the previous page, it and all items after it will be included in the next page response if they did not change since the last page (if they did they will be moved to the newer timestamp). Guaranteed to include all items at least once, when paginating forward. (always use statusUpdatedAt of the last item + its cursorId to paginate forward) '
+      'The ID of the last item in the previous page. Use the last item statusUpdatedAt plus cursorId to paginate forward.'
     ),
   policyId: z
     .string()
@@ -63,7 +55,7 @@ export const registryDiffSchemaInput = z.object({
     ),
 });
 
-const registryEntrySchemaOutput = z
+const a2aRegistryEntrySchemaOutput = z
   .object({
     id: z.string(),
     name: z.string(),
@@ -86,56 +78,67 @@ const registryEntrySchemaOutput = z
     otherLegal: z.string().nullable(),
     tags: z.array(z.string()).nullable(),
     agentIdentifier: z.string(),
-    paymentType: z.nativeEnum($Enums.PaymentType),
     metadataVersion: z.number().int(),
+    agentCardUrl: z.string().nullable(),
+    a2aProtocolVersions: z.array(z.string()),
+    a2aAgentVersion: z.string().nullable(),
+    a2aDefaultInputModes: z.array(z.string()),
+    a2aDefaultOutputModes: z.array(z.string()),
+    a2aProviderName: z.string().nullable(),
+    a2aProviderUrl: z.string().nullable(),
+    a2aDocumentationUrl: z.string().nullable(),
+    a2aIconUrl: z.string().nullable(),
     RegistrySource: z.object({
       id: z.string(),
       policyId: z.string().nullable(),
       url: z.string().nullable(),
     }),
-    Capability: z
-      .object({
-        name: z.string().nullable(),
-        version: z.string().nullable(),
-      })
-      .nullable(),
-    AgentPricing: z
-      .object({
-        pricingType: z.literal($Enums.PricingType.Fixed),
-        FixedPricing: z.object({
-          Amounts: z.array(
-            z.object({
-              amount: z.string(),
-              unit: z.string(),
-            })
-          ),
-        }),
-      })
-      .or(
-        z.object({
-          pricingType: z.literal($Enums.PricingType.Free),
-        })
-      )
-      .or(
-        z.object({
-          pricingType: z.literal($Enums.PricingType.Dynamic),
-        })
-      ),
-    ExampleOutput: z.array(
+    A2ASkills: z.array(
       z.object({
+        id: z.string(),
+        skillId: z.string(),
         name: z.string(),
-        mimeType: z.string(),
-        url: z.string(),
+        description: z.string(),
+        tags: z.array(z.string()),
+        examples: z.array(z.string()),
+        inputModes: z.array(z.string()),
+        outputModes: z.array(z.string()),
       })
     ),
+    A2ASupportedInterfaces: z.array(
+      z.object({
+        id: z.string(),
+        url: z.string(),
+        protocolBinding: z.string(),
+        protocolVersion: z.string(),
+        tenant: z.string().nullable(),
+      })
+    ),
+    A2ACapabilities: z
+      .object({
+        streaming: z.boolean().nullable(),
+        pushNotifications: z.boolean().nullable(),
+        extendedAgentCard: z.boolean().nullable(),
+        extensions: z
+          .array(
+            z.object({
+              uri: z.string(),
+              description: z.string().optional(),
+              required: z.boolean().optional(),
+              params: z.record(z.unknown()).optional(),
+            })
+          )
+          .optional(),
+      })
+      .nullable(),
   })
-  .openapi('RegistryEntry');
+  .openapi('A2ARegistryEntry');
 
-export const queryRegistrySchemaOutput = z.object({
-  entries: z.array(registryEntrySchemaOutput),
+export const queryA2ARegistrySchemaOutput = z.object({
+  entries: z.array(a2aRegistryEntrySchemaOutput),
 });
 
-type RegistryEntrySerializable = {
+type A2ARegistryEntrySerializable = {
   id: string;
   name: string;
   createdAt: Date | string;
@@ -157,34 +160,54 @@ type RegistryEntrySerializable = {
   otherLegal: string | null;
   tags: string[] | null;
   assetIdentifier: string;
-  paymentType: $Enums.PaymentType;
   metadataVersion: number;
+  agentCardUrl: string | null;
+  a2aProtocolVersions: string[];
+  a2aAgentVersion: string | null;
+  a2aDefaultInputModes: string[];
+  a2aDefaultOutputModes: string[];
+  a2aProviderName: string | null;
+  a2aProviderUrl: string | null;
+  a2aDocumentationUrl: string | null;
+  a2aIconUrl: string | null;
   RegistrySource: {
     id: string;
     policyId: string | null;
     url: string | null;
   };
-  Capability: {
-    name: string | null;
-    version: string | null;
+  A2ASkills: Array<{
+    id: string;
+    skillId: string;
+    name: string;
+    description: string;
+    tags: string[];
+    examples: string[];
+    inputModes: string[];
+    outputModes: string[];
+  }>;
+  A2ASupportedInterfaces: Array<{
+    id: string;
+    url: string;
+    protocolBinding: string;
+    protocolVersion: string;
+    tenant: string | null;
+  }>;
+  A2ACapabilities?: {
+    streaming: boolean | null;
+    pushNotifications: boolean | null;
+    extendedAgentCard: boolean | null;
+    extensions: Prisma.JsonValue | null;
   } | null;
-  AgentPricing: {
-    pricingType: $Enums.PricingType;
-    FixedPricing?: {
-      Amounts?: { amount: bigint | number | string; unit: string }[] | null;
-    } | null;
-  };
-  ExampleOutput: { name: string; mimeType: string; url: string }[];
 } & Record<string, unknown>;
 
 function toDate(value: Date | string): Date {
   return value instanceof Date ? value : new Date(value);
 }
 
-export function serializeRegistryEntries(
-  entries: RegistryEntrySerializable[],
+export function serializeA2ARegistryEntries(
+  entries: A2ARegistryEntrySerializable[],
   limit: number
-): z.infer<typeof queryRegistrySchemaOutput>['entries'] {
+): z.infer<typeof queryA2ARegistrySchemaOutput>['entries'] {
   const serialized = entries
     .slice(0, Math.min(limit, entries.length))
     .map((entry) => ({
@@ -194,29 +217,12 @@ export function serializeRegistryEntries(
       updatedAt: toDate(entry.updatedAt),
       statusUpdatedAt: toDate(entry.statusUpdatedAt),
       lastUptimeCheck: toDate(entry.lastUptimeCheck),
-      AgentPricing:
-        entry.AgentPricing.pricingType === $Enums.PricingType.Fixed
-          ? {
-              pricingType: $Enums.PricingType.Fixed,
-              FixedPricing: {
-                Amounts:
-                  entry.AgentPricing.FixedPricing?.Amounts?.map((amount) => ({
-                    amount: amount.amount.toString(),
-                    unit: amount.unit,
-                  })) ?? [],
-              },
-            }
-          : {
-              pricingType: entry.AgentPricing.pricingType,
-            },
-      ExampleOutput: (entry.ExampleOutput ?? []).map((output) => ({
-        name: output.name,
-        mimeType: output.mimeType,
-        url: output.url,
-      })),
+      A2ASkills: entry.A2ASkills ?? [],
+      A2ASupportedInterfaces: entry.A2ASupportedInterfaces ?? [],
+      A2ACapabilities: entry.A2ACapabilities ?? null,
     }));
 
   return serialized as unknown as z.infer<
-    typeof queryRegistrySchemaOutput
+    typeof queryA2ARegistrySchemaOutput
   >['entries'];
 }

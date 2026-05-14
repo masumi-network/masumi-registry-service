@@ -14,7 +14,6 @@ type RegistryEntryQueryParams = {
   limit: number;
   network: Network;
   searchQuery?: string;
-  metadataVersions?: number[];
 };
 
 function buildRegistryEntryWhere(params: RegistryEntryQueryParams) {
@@ -32,9 +31,6 @@ function buildRegistryEntryWhere(params: RegistryEntryQueryParams) {
     tags: params.tags ? { hasSome: params.tags } : undefined,
     searchText: params.searchQuery
       ? { contains: params.searchQuery }
-      : undefined,
-    metadataVersion: params.metadataVersions
-      ? { in: params.metadataVersions }
       : undefined,
   };
 }
@@ -58,9 +54,6 @@ async function findRegistryEntries(params: RegistryEntryQueryParams) {
         include: { FixedPricing: { include: { Amounts: true } } },
       },
       ExampleOutput: true,
-      A2ASkills: true,
-      A2ASupportedInterfaces: true,
-      A2ACapabilities: true,
     },
     orderBy: [
       {
@@ -86,8 +79,7 @@ async function getRegistryDiffEntries(
   cursorId: string | undefined,
   limit: number,
   network: Network,
-  policyId?: string,
-  metadataVersions?: number[]
+  policyId?: string
 ) {
   const networkExists = await prisma.registrySource.findFirst({
     where: {
@@ -111,7 +103,6 @@ async function getRegistryDiffEntries(
           statusUpdatedAt: statusUpdatedAfter,
         },
       ],
-      metadataVersion: metadataVersions ? { in: metadataVersions } : undefined,
       RegistrySource: {
         network: network,
         policyId: policyId ?? undefined,
@@ -124,9 +115,6 @@ async function getRegistryDiffEntries(
         include: { FixedPricing: { include: { Amounts: true } } },
       },
       ExampleOutput: true,
-      A2ASkills: true,
-      A2ASupportedInterfaces: true,
-      A2ACapabilities: true,
     },
     orderBy: [
       {

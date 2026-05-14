@@ -27,12 +27,7 @@ function getFilterParams(
     ? { name: filter.capability.name, version: filter.capability.version }
     : undefined;
 
-  const metadataVersions =
-    filter?.metadataVersion && filter.metadataVersion.length > 0
-      ? filter.metadataVersion
-      : undefined;
-
-  return { allowedPaymentTypes, allowedStatuses, capability, metadataVersions };
+  return { allowedPaymentTypes, allowedStatuses, capability };
 }
 
 async function getHealthCheckedRegistryEntries(
@@ -47,8 +42,9 @@ async function getHealthCheckedRegistryEntries(
     ReturnType<typeof healthCheckService.checkVerifyAndUpdateRegistryEntries>
   > = [];
   let currentCursorId = input.cursorId;
-  const { allowedPaymentTypes, allowedStatuses, capability, metadataVersions } =
-    getFilterParams(input.filter);
+  const { allowedPaymentTypes, allowedStatuses, capability } = getFilterParams(
+    input.filter
+  );
 
   while (healthCheckedEntries.length < input.limit) {
     const registryEntries = searchQuery
@@ -74,7 +70,6 @@ async function getHealthCheckedRegistryEntries(
           cursorId: currentCursorId,
           limit: input.limit * 2,
           network: input.network,
-          metadataVersions,
         });
 
     const result = await healthCheckService.checkVerifyAndUpdateRegistryEntries(
@@ -111,17 +106,12 @@ async function searchRegistryEntries(
 async function getRegistryDiffEntries(
   input: z.infer<typeof registryDiffSchemaInput>
 ) {
-  const metadataVersions =
-    input.metadataVersion && input.metadataVersion.length > 0
-      ? input.metadataVersion
-      : undefined;
   return registryEntryRepository.getRegistryDiffEntries(
     input.statusUpdatedAfter,
     input.cursorId,
     input.limit,
     input.network,
-    input.policyId,
-    metadataVersions
+    input.policyId
   );
 }
 

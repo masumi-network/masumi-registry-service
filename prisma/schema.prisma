@@ -67,17 +67,6 @@ model RegistryEntry {
   image             String?
   tags              String[]
 
-  agentCardUrl        String?
-  a2aProtocolVersions String[]
-
-  a2aAgentVersion       String?
-  a2aDefaultInputModes  String[]
-  a2aDefaultOutputModes String[]
-  a2aProviderName       String?
-  a2aProviderUrl        String?
-  a2aDocumentationUrl   String?
-  a2aIconUrl            String?
-
   lastUptimeCheck  DateTime
   uptimeCount      Int            @default(0)
   uptimeCheckCount Int            @default(0)
@@ -96,15 +85,65 @@ model RegistryEntry {
   AgentPricing    AgentPricing @relation(fields: [agentPricingId], references: [id])
   agentPricingId  String
 
-  ExampleOutput          ExampleOutput[]
-  A2ASkills              A2ASkill[]
-  A2ASupportedInterfaces A2ASupportedInterface[]
-  A2ACapabilities        A2ACapabilities?
+  ExampleOutput ExampleOutput[]
 
   metadataVersion Int
 
   @@index([statusUpdatedAt])
   @@index([statusUpdatedAt, id])
+}
+
+model A2ARegistryEntry {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  name               String
+  apiBaseUrl         String
+  description        String?
+  authorName         String?
+  authorContactEmail String?
+  authorContactOther String?
+  authorOrganization String?
+
+  privacyPolicy     String?
+  termsAndCondition String?
+  otherLegal        String?
+  image             String?
+  tags              String[]
+
+  agentCardUrl          String?
+  a2aProtocolVersions   String[]
+  a2aAgentVersion       String?
+  a2aDefaultInputModes  String[]
+  a2aDefaultOutputModes String[]
+  a2aProviderName       String?
+  a2aProviderUrl        String?
+  a2aDocumentationUrl   String?
+  a2aIconUrl            String?
+
+  lastUptimeCheck  DateTime
+  uptimeCount      Int      @default(0)
+  uptimeCheckCount Int      @default(0)
+  status           Status
+  statusUpdatedAt  DateTime @default(now())
+
+  assetIdentifier  String  @unique
+  metadataVersion  Int
+  searchText       String  @default("")
+
+  RegistrySource   RegistrySource @relation(fields: [registrySourceId], references: [id], onDelete: Cascade)
+  registrySourceId String
+
+  A2ASkills              A2ASkill[]
+  A2ASupportedInterfaces A2ASupportedInterface[]
+  A2ACapabilities        A2ACapabilities?
+
+  @@index([statusUpdatedAt])
+  @@index([statusUpdatedAt, id])
+  @@index([registrySourceId])
+  @@index([registrySourceId, status, updatedAt])
+  @@index([status])
 }
 
 model InboxAgentRegistration {
@@ -232,6 +271,7 @@ model RegistrySource {
   lastTxId               String?
   lastCheckedPage        Int                      @default(1) //blockfrost starts at page 1
   RegistryEntry          RegistryEntry[]
+  A2ARegistryEntry       A2ARegistryEntry[]
   InboxAgentRegistration InboxAgentRegistration[]
 
   @@unique([network, policyId])
@@ -262,9 +302,9 @@ model UpdatedRegistryEntriesLog {
 }
 
 model A2ASkill {
-  id              String        @id @default(cuid())
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  id              String           @id @default(cuid())
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
   skillId         String
   name            String
   description     String
@@ -272,30 +312,30 @@ model A2ASkill {
   examples        String[]
   inputModes      String[]
   outputModes     String[]
-  RegistryEntry   RegistryEntry @relation(fields: [registryEntryId], references: [id], onDelete: Cascade)
-  registryEntryId String
+  A2ARegistryEntry   A2ARegistryEntry @relation(fields: [a2aRegistryEntryId], references: [id], onDelete: Cascade)
+  a2aRegistryEntryId String
 }
 
 model A2ASupportedInterface {
-  id              String        @id @default(cuid())
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  id              String           @id @default(cuid())
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
   url             String
   protocolBinding String
   protocolVersion String
   tenant          String?
-  RegistryEntry   RegistryEntry @relation(fields: [registryEntryId], references: [id], onDelete: Cascade)
-  registryEntryId String
+  A2ARegistryEntry   A2ARegistryEntry @relation(fields: [a2aRegistryEntryId], references: [id], onDelete: Cascade)
+  a2aRegistryEntryId String
 }
 
 model A2ACapabilities {
-  id                String        @id @default(cuid())
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
+  id                String           @id @default(cuid())
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
   streaming         Boolean?
   pushNotifications Boolean?
   extendedAgentCard Boolean?
   extensions        Json?
-  RegistryEntry     RegistryEntry @relation(fields: [registryEntryId], references: [id], onDelete: Cascade)
-  registryEntryId   String        @unique
+  A2ARegistryEntry   A2ARegistryEntry @relation(fields: [a2aRegistryEntryId], references: [id], onDelete: Cascade)
+  a2aRegistryEntryId String           @unique
 }

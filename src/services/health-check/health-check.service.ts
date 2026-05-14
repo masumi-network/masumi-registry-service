@@ -2,6 +2,10 @@ import { prisma } from '@/utils/db';
 import { logger } from '@/utils/logger';
 import {
   $Enums,
+  A2ACapabilities,
+  A2ARegistryEntry,
+  A2ASkill,
+  A2ASupportedInterface,
   Capability,
   InboxAgentRegistration,
   InboxAgentRegistrationStatus,
@@ -192,17 +196,6 @@ function extractInboxAgentPublicVerification(value: unknown): {
   };
 }
 
-// ─── Helper: pick the correct health-check URL per entry type ─────────────────
-function getHealthCheckKey(entry: {
-  metadataVersion: number;
-  agentCardUrl: string | null;
-  apiBaseUrl: string;
-}): { url: string; isA2A: boolean } {
-  return entry.metadataVersion === 2 && entry.agentCardUrl
-    ? { url: entry.agentCardUrl, isA2A: true }
-    : { url: entry.apiBaseUrl, isA2A: false };
-}
-
 // ─── MIP-002: check agent card URL ───────────────────────────────────────────
 async function checkA2AAgentCard({
   agent_card_url,
@@ -227,10 +220,12 @@ async function checkA2AAgentCard({
       status: parsed.success ? $Enums.Status.Online : $Enums.Status.Invalid,
     };
   } catch (e) {
-    if (e instanceof PublicUrlValidationError) {
-      return { returnedAgentIdentifier: null, status: $Enums.Status.Invalid };
-    }
-    return { returnedAgentIdentifier: null, status: $Enums.Status.Offline };
+    return {
+      returnedAgentIdentifier: null,
+      status: isUnsafePublicUrl(e)
+        ? $Enums.Status.Invalid
+        : $Enums.Status.Offline,
+    };
   }
 }
 
@@ -306,8 +301,6 @@ async function checkAndVerifyRegistryEntry({
     assetIdentifier: string;
     lastUptimeCheck: Date;
     apiBaseUrl: string;
-    agentCardUrl: string | null;
-    metadataVersion: number;
     status: $Enums.Status;
     RegistrySource: { policyId: string };
   };
@@ -323,14 +316,6 @@ async function checkAndVerifyRegistryEntry({
       minHealthCheckDate
     );
     return registryEntry.status;
-  }
-
-  // MIP-002: check agent card URL
-  if (registryEntry.metadataVersion === 2 && registryEntry.agentCardUrl) {
-    const result = await checkA2AAgentCard({
-      agent_card_url: registryEntry.agentCardUrl,
-    });
-    return result.status;
   }
 
   // MIP-001: check /availability endpoint
@@ -370,26 +355,19 @@ async function checkVerifyAndUpdateRegistryEntries({
     { status: $Enums.Status; agentIdentifier: string | null }
   >();
 
-  // Build deduplicated lookup map. Key is `${type}:${url}` to prevent a MIP-001
-  // apiBaseUrl that coincidentally matches a MIP-002 agentCardUrl from being
-  // dispatched to the wrong health checker.
-  const neededLookups = new Map<string, { url: string; isA2A: boolean }>();
+  // Deduplicated lookup map keyed by apiBaseUrl (MIP-001 only)
+  const neededLookups = new Map<string, string>();
   for (const entry of registryEntries) {
-    const { url, isA2A } = getHealthCheckKey(entry);
-    const key = `${isA2A ? 'a2a' : 'mip001'}:${url}`;
-    if (!neededLookups.has(key)) {
-      neededLookups.set(key, { url, isA2A });
+    if (!neededLookups.has(entry.apiBaseUrl)) {
+      neededLookups.set(entry.apiBaseUrl, entry.apiBaseUrl);
     }
   }
 
-  // Dispatch each URL to the correct health checker
   const completedLookups = await Promise.allSettled(
-    Array.from(neededLookups.entries()).map(async ([key, { url, isA2A }]) => {
-      const result = isA2A
-        ? await checkA2AAgentCard({ agent_card_url: url })
-        : await checkAndVerifyEndpoint({ api_url: url });
+    Array.from(neededLookups.keys()).map(async (url) => {
+      const result = await checkAndVerifyEndpoint({ api_url: url });
       return {
-        key,
+        key: url,
         status: result.status,
         agentIdentifier: result.returnedAgentIdentifier,
       };
@@ -404,7 +382,7 @@ async function checkVerifyAndUpdateRegistryEntries({
       });
     }
   }
-  logger.info('completed lookups', {
+  logger.info('completed MIP-001 lookups', {
     count: lookupMap.size,
     total: neededLookups.size,
   });
@@ -417,19 +395,13 @@ async function checkVerifyAndUpdateRegistryEntries({
         throw new Error('registrySource or policyId is null');
       }
 
-      // Use the compound key so A2A and MIP-001 entries are never cross-matched
-      const { url: healthCheckUrl, isA2A: entryIsA2A } =
-        getHealthCheckKey(entry);
-      const lookupKey = `${entryIsA2A ? 'a2a' : 'mip001'}:${healthCheckUrl}`;
-
-      if (lookupMap.has(lookupKey)) {
-        const lookup = lookupMap.get(lookupKey)!;
-        // agentIdentifier check only applies to MIP-001 (MIP-002 always returns null)
+      if (lookupMap.has(entry.apiBaseUrl)) {
+        const lookup = lookupMap.get(entry.apiBaseUrl)!;
         if (lookup.agentIdentifier != null) {
           return {
             id: entry.id,
             status:
-              lookup.agentIdentifier == entry.assetIdentifier
+              lookup.agentIdentifier === entry.assetIdentifier
                 ? lookup.status
                 : $Enums.Status.Invalid,
             assetIdentifier: entry.assetIdentifier,
@@ -442,19 +414,16 @@ async function checkVerifyAndUpdateRegistryEntries({
         };
       }
 
-      // Fallback: individual check (used when batch lookup failed for this URL)
+      // Fallback: individual check when batch lookup failed for this URL
       const status = await checkAndVerifyRegistryEntry({
-        registryEntry: { ...entry },
-        minHealthCheckDate: minHealthCheckDate,
+        registryEntry: entry,
+        minHealthCheckDate,
       });
-      lookupMap.set(lookupKey, {
-        status: status,
-        agentIdentifier: null,
-      });
+      lookupMap.set(entry.apiBaseUrl, { status, agentIdentifier: null });
 
       return {
         id: entry.id,
-        status: status,
+        status,
         assetIdentifier: entry.assetIdentifier,
       };
     })
@@ -491,14 +460,11 @@ async function checkVerifyAndUpdateRegistryEntries({
             Capability: true,
             RegistrySource: true,
             ExampleOutput: true,
-            A2ASkills: true,
-            A2ASupportedInterfaces: true,
-            A2ACapabilities: true,
           },
           data: {
             status: s.status,
             uptimeCount: {
-              increment: s.status == $Enums.Status.Online ? 1 : 0,
+              increment: s.status === $Enums.Status.Online ? 1 : 0,
             },
             uptimeCheckCount: { increment: 1 },
             lastUptimeCheck: new Date(),
@@ -506,9 +472,9 @@ async function checkVerifyAndUpdateRegistryEntries({
         })
       );
     } catch (e) {
-      logger.error('failed to update registry entry in db ', {
+      logger.error('failed to update registry entry in db', {
         error: e,
-        s: s.id,
+        id: s.id,
       });
     }
   }
@@ -521,6 +487,134 @@ async function checkVerifyAndUpdateRegistryEntries({
       successful: successful.length,
       failed: failed.length,
       total: registryEntries.length,
+    }
+  );
+  return updatedEntries;
+}
+
+type A2ARegistryEntryWithSource = A2ARegistryEntry & {
+  RegistrySource: RegistrySource;
+  A2ASkills: A2ASkill[];
+  A2ASupportedInterfaces: A2ASupportedInterface[];
+  A2ACapabilities: A2ACapabilities | null;
+};
+
+async function checkVerifyAndUpdateA2ARegistryEntries({
+  a2aEntries,
+  minHealthCheckDate,
+}: {
+  a2aEntries: A2ARegistryEntryWithSource[];
+  minHealthCheckDate: Date | undefined;
+}) {
+  if (minHealthCheckDate == null) return a2aEntries;
+  if (a2aEntries.length === 0) return [];
+
+  const lookupMap = new Map<string, $Enums.Status>();
+
+  const neededLookups = new Map<string, string>();
+  for (const entry of a2aEntries) {
+    if (entry.agentCardUrl && !neededLookups.has(entry.agentCardUrl)) {
+      neededLookups.set(entry.agentCardUrl, entry.agentCardUrl);
+    }
+  }
+
+  const completedLookups = await Promise.allSettled(
+    Array.from(neededLookups.keys()).map(async (url) => {
+      const result = await checkA2AAgentCard({ agent_card_url: url });
+      return { key: url, status: result.status };
+    })
+  );
+
+  for (const lookup of completedLookups) {
+    if (lookup.status === 'fulfilled') {
+      lookupMap.set(lookup.value.key, lookup.value.status);
+    }
+  }
+  logger.info('completed A2A lookups', {
+    count: lookupMap.size,
+    total: neededLookups.size,
+  });
+
+  const data = await Promise.allSettled(
+    a2aEntries.map(async (entry) => {
+      if (
+        entry.RegistrySource == null ||
+        entry.RegistrySource.policyId == null
+      ) {
+        logger.error('A2A registrySource is null', { id: entry.id });
+        throw new Error('registrySource or policyId is null');
+      }
+
+      if (!entry.agentCardUrl) {
+        return { id: entry.id, status: $Enums.Status.Invalid };
+      }
+
+      const status =
+        lookupMap.get(entry.agentCardUrl) ??
+        (await checkA2AAgentCard({ agent_card_url: entry.agentCardUrl }))
+          .status;
+
+      return { id: entry.id, status };
+    })
+  );
+
+  const failed = data.filter((r) => r.status === 'rejected');
+  for (const f of failed) {
+    logger.error('failed to check A2A registry entry', {
+      error: f.reason instanceof Error ? f.reason.message : f.reason,
+    });
+  }
+  const successful = data
+    .filter((r) => r.status === 'fulfilled')
+    .map((r) => r.value);
+
+  const failedIds = a2aEntries
+    .map((r) => r.id)
+    .filter((id) => !successful.find((s) => s.id === id));
+
+  await prisma.a2ARegistryEntry.updateMany({
+    where: { id: { in: failedIds } },
+    data: { status: $Enums.Status.Invalid, lastUptimeCheck: new Date() },
+  });
+
+  const updatedEntries = [];
+  for (const s of successful) {
+    try {
+      updatedEntries.push(
+        await prisma.a2ARegistryEntry.update({
+          where: { id: s.id },
+          include: {
+            RegistrySource: true,
+            A2ASkills: true,
+            A2ASupportedInterfaces: true,
+            A2ACapabilities: true,
+          },
+          data: {
+            status: s.status,
+            uptimeCount: {
+              increment: s.status === $Enums.Status.Online ? 1 : 0,
+            },
+            uptimeCheckCount: { increment: 1 },
+            lastUptimeCheck: new Date(),
+          },
+        })
+      );
+    } catch (e) {
+      logger.error('failed to update A2A registry entry in db', {
+        error: e,
+        id: s.id,
+      });
+    }
+  }
+  logger.info(
+    'updated A2A registry entries ' +
+      successful.length +
+      '/' +
+      a2aEntries.length,
+    {
+      successful: successful.length,
+      failed: failed.length,
+      total: a2aEntries.length,
     }
   );
   return updatedEntries;
@@ -780,6 +874,7 @@ export const healthCheckService = {
   checkA2AAgentCard,
   checkAndVerifyRegistryEntry,
   checkVerifyAndUpdateRegistryEntries,
+  checkVerifyAndUpdateA2ARegistryEntries,
   checkAndVerifyInboxAgentRegistration,
   checkVerifyAndUpdateInboxAgentRegistrations,
 };

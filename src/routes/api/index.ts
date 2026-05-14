@@ -5,6 +5,11 @@ import {
   searchRegistryEntryPost,
 } from '@/routes/api/registry-entry';
 import {
+  queryA2ARegistryEntryPost,
+  searchA2ARegistryEntryPost,
+  a2aRegistryDiffPost,
+} from '@/routes/api/a2a-registry-entry';
+import {
   queryAPIKeyEndpointGet as queryCentralizedRegistrySourceGet,
   addAPIKeyEndpointPost as addCentralizedRegistrySourceEndpointPost,
   updateAPIKeyEndpointPatch,
@@ -36,6 +41,15 @@ export const apiRouter: Routing = {
     }),
     'registry-diff': new DependsOnMethod({
       post: registryDiffPost,
+    }),
+    'a2a-registry-entry': new DependsOnMethod({
+      post: queryA2ARegistryEntryPost,
+    }),
+    'a2a-registry-entry-search': new DependsOnMethod({
+      post: searchA2ARegistryEntryPost,
+    }),
+    'a2a-registry-diff': new DependsOnMethod({
+      post: a2aRegistryDiffPost,
     }),
     'inbox-agent-registration': new DependsOnMethod({
       post: queryInboxAgentRegistrationPost,

@@ -27,7 +27,7 @@ import {
 } from './inbox-agent-registration';
 
 // ─── MIP-001 on-chain schema (metadata_version: 1) ───────────────────────────
-export const mip001Schema = z.object({
+const mip001Schema = z.object({
   name: z
     .string()
     .min(1)
@@ -110,7 +110,7 @@ export const mip001Schema = z.object({
 });
 
 // ─── MIP-002 on-chain schema (metadata_version: 2) ───────────────────────────
-export const mip002Schema = z.object({
+const mip002Schema = z.object({
   name: z
     .string()
     .min(1)
@@ -162,19 +162,17 @@ async function fetchAndValidateAgentCard(agentCardUrl: string): Promise<{
 }
 
 // ─── Process a MIP-002 mint ───────────────────────────────────────────────────
-export async function processMip002Entry(
+async function processMip002Entry(
   data: z.infer<typeof mip002Schema>,
   asset: string,
   source: { id: string }
 ) {
   const apiUrl = metadataStringConvert(data.api_url)!;
   const agentCardUrl = metadataStringConvert(data.agent_card_url)!;
-  // a2a_protocol_versions may be a single string or an array of version strings
   const a2aProtocolVersions = Array.isArray(data.a2a_protocol_versions)
     ? data.a2a_protocol_versions
     : [data.a2a_protocol_versions];
 
-  // Single fetch: status + data to store (avoids double HTTP call)
   const { status, agentCard } = await fetchAndValidateAgentCard(agentCardUrl);
 
   const skillsData =
@@ -196,13 +194,12 @@ export async function processMip002Entry(
       tenant: i.tenant ?? null,
     })) ?? [];
 
-  const capabilitiesData = agentCard
+  const capabilitiesData = agentCard?.capabilities
     ? {
         streaming: agentCard.capabilities.streaming ?? null,
         pushNotifications: agentCard.capabilities.pushNotifications ?? null,
         extendedAgentCard: agentCard.capabilities.extendedAgentCard ?? null,
         // Prisma requires Prisma.JsonNull (not JS null) for nullable JSONB fields.
-        // Cast needed because Prisma's InputJsonValue has no index signature on arrays.
         extensions: agentCard.capabilities.extensions
           ? (agentCard.capabilities.extensions as Prisma.InputJsonValue)
           : Prisma.JsonNull,
@@ -216,51 +213,28 @@ export async function processMip002Entry(
     apiBaseUrl: apiUrl,
     agentCardUrl,
     a2aProtocolVersions,
-    image: metadataStringConvert(data.image) ?? null, // optional in MIP-002
-    tags: data.tags ?? [], // optional in MIP-002
+    image: metadataStringConvert(data.image) ?? null,
+    tags: data.tags ?? [],
     metadataVersion: data.metadata_version,
-    authorName: null,
-    authorOrganization: null,
-    authorContactEmail: null,
-    authorContactOther: null,
-    privacyPolicy: null,
-    termsAndCondition: null,
-    otherLegal: null,
     assetIdentifier: asset,
-    paymentType: $Enums.PaymentType.None,
     RegistrySource: { connect: { id: source.id } },
-    Capability: undefined,
+    // Top-level agent card fields (populated when fetch succeeds, null/empty otherwise)
+    a2aAgentVersion: agentCard?.version ?? null,
+    a2aDefaultInputModes: agentCard?.defaultInputModes ?? [],
+    a2aDefaultOutputModes: agentCard?.defaultOutputModes ?? [],
+    a2aProviderName: agentCard?.provider?.organization ?? null,
+    a2aProviderUrl: agentCard?.provider?.url ?? null,
+    a2aDocumentationUrl: agentCard?.documentationUrl ?? null,
+    a2aIconUrl: agentCard?.iconUrl ?? null,
   };
 
-  // Top-level agent card fields (populated when fetch succeeds, null otherwise)
-  const agentCardFields = agentCard
-    ? {
-        a2aAgentVersion: agentCard.version,
-        a2aDefaultInputModes: agentCard.defaultInputModes,
-        a2aDefaultOutputModes: agentCard.defaultOutputModes,
-        a2aProviderName: agentCard.provider?.organization ?? null,
-        a2aProviderUrl: agentCard.provider?.url ?? null,
-        a2aDocumentationUrl: agentCard.documentationUrl ?? null,
-        a2aIconUrl: agentCard.iconUrl ?? null,
-      }
-    : null;
-
-  await prisma.registryEntry.upsert({
+  await prisma.a2ARegistryEntry.upsert({
     where: { assetIdentifier: asset },
     create: {
       ...sharedFields,
       lastUptimeCheck: new Date(),
-      uptimeCount: status == $Enums.Status.Online ? 1 : 0,
+      uptimeCount: status === $Enums.Status.Online ? 1 : 0,
       uptimeCheckCount: 1,
-      AgentPricing: { create: { pricingType: PricingType.Free } },
-      // Agent card detail fields — null/empty if the initial fetch failed
-      a2aAgentVersion: agentCardFields?.a2aAgentVersion ?? null,
-      a2aDefaultInputModes: agentCardFields?.a2aDefaultInputModes ?? [],
-      a2aDefaultOutputModes: agentCardFields?.a2aDefaultOutputModes ?? [],
-      a2aProviderName: agentCardFields?.a2aProviderName ?? null,
-      a2aProviderUrl: agentCardFields?.a2aProviderUrl ?? null,
-      a2aDocumentationUrl: agentCardFields?.a2aDocumentationUrl ?? null,
-      a2aIconUrl: agentCardFields?.a2aIconUrl ?? null,
       A2ASkills:
         skillsData.length > 0
           ? { createMany: { data: skillsData } }
@@ -275,15 +249,13 @@ export async function processMip002Entry(
     },
     update: {
       ...sharedFields,
-      AgentPricing: { update: { pricingType: PricingType.Free } },
       lastUptimeCheck: new Date(),
-      uptimeCount: { increment: status == $Enums.Status.Online ? 1 : 0 },
+      uptimeCount: { increment: status === $Enums.Status.Online ? 1 : 0 },
       uptimeCheckCount: { increment: 1 },
-      // Only refresh agent card data when the fetch succeeded — preserve
-      // previously indexed values rather than wiping them on a transient failure.
+      // Only refresh agent card sub-data when fetch succeeded — preserve
+      // previously indexed values on transient failure.
       ...(agentCard !== null
         ? {
-            ...agentCardFields,
             A2ASkills: { deleteMany: {}, createMany: { data: skillsData } },
             A2ASupportedInterfaces: {
               deleteMany: {},
@@ -464,6 +436,9 @@ export async function updateHealthCheck(onlyEntriesAfter?: Date | undefined) {
               where: { id: e.id },
               data: {
                 updatedAt: new Date(),
+                // Advance lastUptimeCheck so stagger-deferred entries are not
+                // immediately re-queued in the next health check cycle.
+                lastUptimeCheck: new Date(),
               },
             });
           })
@@ -478,6 +453,84 @@ export async function updateHealthCheck(onlyEntriesAfter?: Date | undefined) {
         );
         await healthCheckService.checkVerifyAndUpdateRegistryEntries({
           registryEntries: combinedEntries,
+          minHealthCheckDate: onlyEntriesAfter,
+        });
+
+        // A2A (MIP-002) health check — uses its own dedicated table
+        const a2aOnlineOfflineEntries = await prisma.a2ARegistryEntry.findMany({
+          where: {
+            registrySourceId: source.id,
+            status: { in: [$Enums.Status.Online, $Enums.Status.Offline] },
+            lastUptimeCheck: { lte: onlyEntriesAfter },
+          },
+          orderBy: { lastUptimeCheck: 'asc' },
+          take: 50,
+          include: {
+            RegistrySource: true,
+            A2ASkills: true,
+            A2ASupportedInterfaces: true,
+            A2ACapabilities: true,
+          },
+        });
+        logger.info(
+          `Found ${a2aOnlineOfflineEntries.length} A2A registry entries in status online or offline`
+        );
+        const a2aInvalidEntries = await prisma.a2ARegistryEntry.findMany({
+          where: {
+            registrySourceId: source.id,
+            status: { in: [$Enums.Status.Invalid] },
+            lastUptimeCheck: { lte: onlyEntriesAfter },
+            uptimeCheckCount: { lte: 20 },
+          },
+          orderBy: { updatedAt: 'asc' },
+          take: 50,
+          include: {
+            RegistrySource: true,
+            A2ASkills: true,
+            A2ASupportedInterfaces: true,
+            A2ACapabilities: true,
+          },
+        });
+        logger.info(
+          `Found ${a2aInvalidEntries.length} A2A registry entries in status invalid`
+        );
+        const a2aFilteredInvalid = a2aInvalidEntries.filter((e) => {
+          const retries = Math.max(0.2, e.uptimeCheckCount - e.uptimeCount);
+          const staggeredWaitTime = Math.min(
+            1000 * 60 * 10 * retries,
+            1000 * 60 * 60 * 48
+          );
+          return (
+            e.lastUptimeCheck.getTime() + staggeredWaitTime <
+            onlyEntriesAfter.getTime()
+          );
+        });
+        const a2aExcludedInvalid = a2aInvalidEntries.filter(
+          (e) => !a2aFilteredInvalid.find((e2) => e2.id === e.id)
+        );
+        logger.info(
+          `Stagger-deferring ${a2aExcludedInvalid.length} invalid A2A entries, retrying ${a2aFilteredInvalid.length}`
+        );
+        await Promise.allSettled(
+          a2aExcludedInvalid.map(async (e) => {
+            await prisma.a2ARegistryEntry.update({
+              where: { id: e.id },
+              data: { updatedAt: new Date(), lastUptimeCheck: new Date() },
+            });
+          })
+        );
+        const a2aCombined = [
+          ...a2aOnlineOfflineEntries,
+          ...a2aFilteredInvalid.slice(
+            0,
+            Math.min(10, a2aFilteredInvalid.length)
+          ),
+        ];
+        logger.info(
+          `Checking and updating ${a2aCombined.length} A2A registry entries`
+        );
+        await healthCheckService.checkVerifyAndUpdateA2ARegistryEntries({
+          a2aEntries: a2aCombined,
           minHealthCheckDate: onlyEntriesAfter,
         });
 
@@ -794,6 +847,10 @@ async function markAssetDeregistered(params: {
 }) {
   await prisma.$transaction([
     prisma.registryEntry.updateMany({
+      where: { assetIdentifier: params.asset },
+      data: { status: $Enums.Status.Deregistered },
+    }),
+    prisma.a2ARegistryEntry.updateMany({
       where: { assetIdentifier: params.asset },
       data: { status: $Enums.Status.Deregistered },
     }),
