@@ -2,7 +2,7 @@ import { z } from '@/utils/zod-openapi';
 import { ez } from 'express-zod-api';
 import { $Enums, Network } from '@prisma/client';
 
-const registryEntryFilterSchema = z.object({
+export const registryEntryFilterSchema = z.object({
   paymentTypes: z.array(z.nativeEnum($Enums.PaymentType)).max(5).optional(),
   status: z.array(z.nativeEnum($Enums.Status)).max(5).optional(),
   policyId: z.string().min(1).max(250).optional(),
@@ -41,6 +41,11 @@ export const searchRegistrySchemaInput = z.object({
   minHealthCheckDate: ez.dateIn().optional(),
 });
 
+export const refreshRegistryEntrySchemaInput = z.object({
+  network: z.nativeEnum(Network),
+  agentIdentifier: z.string().min(1).max(250),
+});
+
 export const registryDiffSchemaInput = z.object({
   network: z.nativeEnum(Network),
   statusUpdatedAfter: ez.dateIn(),
@@ -63,7 +68,7 @@ export const registryDiffSchemaInput = z.object({
     ),
 });
 
-const registryEntrySchemaOutput = z
+export const registryEntrySchemaOutput = z
   .object({
     id: z.string(),
     name: z.string(),
@@ -135,7 +140,11 @@ export const queryRegistrySchemaOutput = z.object({
   entries: z.array(registryEntrySchemaOutput),
 });
 
-type RegistryEntrySerializable = {
+export const refreshRegistryEntrySchemaOutput = z.object({
+  entry: registryEntrySchemaOutput,
+});
+
+export type RegistryEntrySerializable = {
   id: string;
   name: string;
   createdAt: Date | string;
