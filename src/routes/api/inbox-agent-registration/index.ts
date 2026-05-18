@@ -24,10 +24,10 @@ export const queryInboxAgentRegistrationPost =
     output: queryInboxAgentRegistrationSchemaOutput,
     handler: async ({
       input,
-      options,
+      ctx,
     }: {
       input: z.infer<typeof queryInboxAgentRegistrationSchemaInput>;
-      options: {
+      ctx: {
         id: string;
         accumulatedUsageCredits: number;
         maxUsageCredits: number | null;
@@ -36,7 +36,7 @@ export const queryInboxAgentRegistrationPost =
     }) => {
       const tokenCost = 0;
       await tokenCreditService.handleTokenCredits(
-        options,
+        ctx,
         tokenCost,
         'query inbox registrations: ' + (input.filter?.agentSlug ?? '')
       );
@@ -60,10 +60,10 @@ export const searchInboxAgentRegistrationPost =
     output: queryInboxAgentRegistrationSchemaOutput,
     handler: async ({
       input,
-      options,
+      ctx,
     }: {
       input: z.infer<typeof searchInboxAgentRegistrationSchemaInput>;
-      options: {
+      ctx: {
         id: string;
         accumulatedUsageCredits: number;
         maxUsageCredits: number | null;
@@ -72,7 +72,7 @@ export const searchInboxAgentRegistrationPost =
     }) => {
       const tokenCost = 0;
       await tokenCreditService.handleTokenCredits(
-        options,
+        ctx,
         tokenCost,
         'search inbox registrations: ' + input.query
       );
@@ -98,10 +98,10 @@ export const refreshInboxAgentRegistrationPost =
     output: refreshInboxAgentRegistrationSchemaOutput,
     handler: async ({
       input,
-      options,
+      ctx,
     }: {
       input: z.infer<typeof refreshInboxAgentRegistrationSchemaInput>;
-      options: {
+      ctx: {
         id: string;
         accumulatedUsageCredits: number;
         maxUsageCredits: number | null;
@@ -110,7 +110,7 @@ export const refreshInboxAgentRegistrationPost =
     }) => {
       const tokenCost = 0;
       await tokenCreditService.handleTokenCredits(
-        options,
+        ctx,
         tokenCost,
         'refresh inbox registration: ' + input.agentIdentifier
       );

@@ -139,7 +139,7 @@ function ipv6Cidr(baseAddress: string, prefixLength: number): [bigint, bigint] {
   return [start, end];
 }
 
-export function isBlockedIpAddress(address: string): boolean {
+function isBlockedIpAddress(address: string): boolean {
   const normalizedAddress = address.split('%')[0];
   const addressFamily = isIP(normalizedAddress);
 

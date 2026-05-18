@@ -24,10 +24,12 @@
                 "type": "object",
                 "properties": {
                     "createdAt": {
-                        "type": "string"
+                        "type": "string",
+                        "format": "date-time"
                     },
                     "updatedAt": {
-                        "type": "string"
+                        "type": "string",
+                        "format": "date-time"
                     },
                     "metadataVersion": {
                         "type": "integer"
@@ -175,7 +177,8 @@
                         "type": "string"
                     },
                     "lastUptimeCheck": {
-                        "type": "string"
+                        "type": "string",
+                        "format": "date-time"
                     },
                     "uptimeCount": {
                         "type": "number"
@@ -298,7 +301,8 @@
                         "type": "string"
                     },
                     "createdAt": {
-                        "type": "string"
+                        "type": "string",
+                        "format": "date-time"
                     },
                     "description": {
                         "type": "string",
@@ -314,10 +318,12 @@
                         ]
                     },
                     "statusUpdatedAt": {
-                        "type": "string"
+                        "type": "string",
+                        "format": "date-time"
                     },
                     "lastUptimeCheck": {
-                        "type": "string"
+                        "type": "string",
+                        "format": "date-time"
                     },
                     "uptimeCount": {
                         "type": "number"
@@ -515,7 +521,8 @@
                         "type": "integer"
                     },
                     "updatedAt": {
-                        "type": "string"
+                        "type": "string",
+                        "format": "date-time"
                     }
                 },
                 "required": [
@@ -555,10 +562,12 @@
                         "type": "string"
                     },
                     "createdAt": {
-                        "type": "string"
+                        "type": "string",
+                        "format": "date-time"
                     },
                     "updatedAt": {
-                        "type": "string"
+                        "type": "string",
+                        "format": "date-time"
                     },
                     "status": {
                         "type": "string",
@@ -570,7 +579,8 @@
                         ]
                     },
                     "statusUpdatedAt": {
-                        "type": "string"
+                        "type": "string",
+                        "format": "date-time"
                     },
                     "name": {
                         "type": "string"
@@ -691,7 +701,8 @@
                         "nullable": true,
                         "enum": [
                             "Preprod",
-                            "Mainnet"
+                            "Mainnet",
+                            null
                         ]
                     }
                 },
