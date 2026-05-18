@@ -20,10 +20,10 @@ export const searchInboxAgentRegistrationPost =
     output: queryInboxAgentRegistrationSchemaOutput,
     handler: async ({
       input,
-      options,
+      ctx,
     }: {
       input: z.infer<typeof searchInboxAgentRegistrationSchemaInput>;
-      options: {
+      ctx: {
         id: string;
         accumulatedUsageCredits: number;
         maxUsageCredits: number | null;
@@ -32,7 +32,7 @@ export const searchInboxAgentRegistrationPost =
     }) => {
       const tokenCost = 0;
       await tokenCreditService.handleTokenCredits(
-        options,
+        ctx,
         tokenCost,
         'search inbox registrations: ' + input.query
       );

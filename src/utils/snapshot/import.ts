@@ -219,8 +219,8 @@ export async function importSnapshotsForConfiguredSources(
       // Validate schema
       const validation = validateSnapshot(parsed);
       if (!validation.success) {
-        const errorMessages = validation.errors?.errors
-          .map((e) => `${e.path.join('.')}: ${e.message}`)
+        const errorMessages = validation.errors?.issues
+          .map((e) => `${e.path.map(String).join('.')}: ${e.message}`)
           .join('; ');
         throw new Error(`Invalid snapshot: ${errorMessages}`);
       }
@@ -275,8 +275,8 @@ export async function importSnapshotFile(
 
     const validation = validateSnapshot(parsed);
     if (!validation.success) {
-      const errorMessages = validation.errors?.errors
-        .map((e) => `${e.path.join('.')}: ${e.message}`)
+      const errorMessages = validation.errors?.issues
+        .map((e) => `${e.path.map(String).join('.')}: ${e.message}`)
         .join('; ');
       throw new Error(`Invalid snapshot: ${errorMessages}`);
     }

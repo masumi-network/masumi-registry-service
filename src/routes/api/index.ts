@@ -24,8 +24,8 @@ import { registryDiffPost } from './registry-diff';
 import {
   queryInboxAgentRegistrationPost,
   refreshInboxAgentRegistrationPost,
-  searchInboxAgentRegistrationPost,
 } from './inbox-agent-registration';
+import { searchInboxAgentRegistrationPost } from './inbox-agent-registration-search';
 import { inboxAgentRegistrationDiffPost } from './inbox-agent-registration-diff';
 export const apiRouter: Routing = {
   v1: {
