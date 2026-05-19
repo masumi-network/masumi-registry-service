@@ -21,10 +21,10 @@ export const queryA2ARegistryEntryPost = authenticatedEndpointFactory.build<
   output: queryA2ARegistrySchemaOutput,
   handler: async ({
     input,
-    options,
+    ctx,
   }: {
     input: z.infer<typeof queryA2ARegistrySchemaInput>;
-    options: {
+    ctx: {
       id: string;
       accumulatedUsageCredits: number;
       maxUsageCredits: number | null;
@@ -33,7 +33,7 @@ export const queryA2ARegistryEntryPost = authenticatedEndpointFactory.build<
   }) => {
     const tokenCost = 0;
     await tokenCreditService.handleTokenCredits(
-      options,
+      ctx,
       tokenCost,
       'query A2A registry entries'
     );
@@ -52,10 +52,10 @@ export const searchA2ARegistryEntryPost = authenticatedEndpointFactory.build<
   output: queryA2ARegistrySchemaOutput,
   handler: async ({
     input,
-    options,
+    ctx,
   }: {
     input: z.infer<typeof searchA2ARegistrySchemaInput>;
-    options: {
+    ctx: {
       id: string;
       accumulatedUsageCredits: number;
       maxUsageCredits: number | null;
@@ -64,7 +64,7 @@ export const searchA2ARegistryEntryPost = authenticatedEndpointFactory.build<
   }) => {
     const tokenCost = 0;
     await tokenCreditService.handleTokenCredits(
-      options,
+      ctx,
       tokenCost,
       'search A2A registry entries: ' + input.query
     );
@@ -83,10 +83,10 @@ export const a2aRegistryDiffPost = authenticatedEndpointFactory.build<
   output: queryA2ARegistrySchemaOutput,
   handler: async ({
     input,
-    options,
+    ctx,
   }: {
     input: z.infer<typeof a2aRegistryDiffSchemaInput>;
-    options: {
+    ctx: {
       id: string;
       accumulatedUsageCredits: number;
       maxUsageCredits: number | null;
@@ -95,7 +95,7 @@ export const a2aRegistryDiffPost = authenticatedEndpointFactory.build<
   }) => {
     const tokenCost = 0;
     await tokenCreditService.handleTokenCredits(
-      options,
+      ctx,
       tokenCost,
       'a2a registry diff since: ' + input.statusUpdatedAfter.toISOString()
     );

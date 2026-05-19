@@ -11,7 +11,7 @@ const a2aRegistryEntryFilterSchema = z.object({
 
 export const queryA2ARegistrySchemaInput = z.object({
   network: z.nativeEnum(Network),
-  limit: z.number({ coerce: true }).int().min(1).max(50).default(10),
+  limit: z.coerce.number().int().min(1).max(50).default(10),
   cursorId: z.string().min(1).max(50).optional(),
   filter: a2aRegistryEntryFilterSchema.optional(),
   minHealthCheckDate: ez.dateIn().optional(),
@@ -19,7 +19,7 @@ export const queryA2ARegistrySchemaInput = z.object({
 
 export const searchA2ARegistrySchemaInput = z.object({
   network: z.nativeEnum(Network),
-  limit: z.number({ coerce: true }).int().min(1).max(50).default(10),
+  limit: z.coerce.number().int().min(1).max(50).default(10),
   cursorId: z.string().min(1).max(50).optional(),
   query: z
     .string()
@@ -36,7 +36,7 @@ export const searchA2ARegistrySchemaInput = z.object({
 export const a2aRegistryDiffSchemaInput = z.object({
   network: z.nativeEnum(Network),
   statusUpdatedAfter: ez.dateIn(),
-  limit: z.number({ coerce: true }).int().min(1).max(50).default(10),
+  limit: z.coerce.number().int().min(1).max(50).default(10),
   cursorId: z
     .string()
     .min(1)
@@ -125,7 +125,7 @@ const a2aRegistryEntrySchemaOutput = z
               uri: z.string(),
               description: z.string().optional(),
               required: z.boolean().optional(),
-              params: z.record(z.unknown()).optional(),
+              params: z.record(z.string(), z.unknown()).optional(),
             })
           )
           .optional(),
