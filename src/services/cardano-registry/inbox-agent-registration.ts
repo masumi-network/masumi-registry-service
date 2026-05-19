@@ -23,8 +23,8 @@ export const inboxAgentRegistrationMetadataSchema = z.object({
     .min(1)
     .or(z.array(z.string().min(1))),
   provider_url: z.string().or(z.array(z.string())).optional(),
-  metadata_version: z
-    .number({ coerce: true })
+  metadata_version: z.coerce
+    .number()
     .int()
     .min(METADATA_VERSION)
     .max(METADATA_VERSION),

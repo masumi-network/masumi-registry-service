@@ -25,6 +25,7 @@ initialize()
   .then(async () => {
     const PORT = CONFIG.PORT;
     const serverConfig = createConfig({
+      recognizeMethodDependentRoutes: true,
       inputSources: {
         get: ['query', 'params'],
         post: ['body', 'params'],

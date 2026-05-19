@@ -87,7 +87,7 @@ const mip001Schema = z.object({
       fixedPricing: z
         .array(
           z.object({
-            amount: z.number({ coerce: true }).int().min(1),
+            amount: z.coerce.number().int().min(1),
             unit: z
               .string()
               .min(1)
@@ -108,7 +108,7 @@ const mip001Schema = z.object({
       })
     ),
   image: z.string().or(z.array(z.string())),
-  metadata_version: z.number({ coerce: true }).int().min(1).max(1),
+  metadata_version: z.coerce.number().int().min(1).max(1),
 });
 
 // ─── MIP-002 on-chain schema (metadata_version: 2) ───────────────────────────

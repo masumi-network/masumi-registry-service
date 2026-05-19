@@ -81,10 +81,10 @@ export const queryPaymentInformationGet = authenticatedEndpointFactory.build({
   output: queryPaymentInformationSchemaOutput,
   handler: async ({
     input,
-    options,
+    ctx,
   }: {
     input: z.infer<typeof queryPaymentInformationInput>;
-    options: {
+    ctx: {
       id: string;
       accumulatedUsageCredits: number;
       maxUsageCredits: number | null;
@@ -93,7 +93,7 @@ export const queryPaymentInformationGet = authenticatedEndpointFactory.build({
   }) => {
     const tokenCost = 0;
     await tokenCreditService.handleTokenCredits(
-      options,
+      ctx,
       tokenCost,
       'query for payment information: ' + input.agentIdentifier
     );

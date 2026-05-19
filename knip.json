@@ -1,0 +1,4 @@
+{
+  "ignore": [".remember/**", "prisma/**"],
+  "ignoreDependencies": ["@babel/plugin-transform-modules-commonjs"]
+}
