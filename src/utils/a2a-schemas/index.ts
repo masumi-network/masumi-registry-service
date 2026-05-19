@@ -34,7 +34,7 @@ export const agentCardSchema = z.object({
             uri: z.string().max(2048),
             description: z.string().max(1000).optional(),
             required: z.boolean().optional(),
-            params: z.record(z.unknown()).optional(),
+            params: z.record(z.string(), z.unknown()).optional(),
           })
         )
         .max(20)
@@ -53,12 +53,18 @@ export const agentCardSchema = z.object({
         examples: z.array(z.string().max(2000)).max(100).optional(),
         inputModes: z.array(z.string().max(100)).max(20).optional(),
         outputModes: z.array(z.string().max(100)).max(20).optional(),
-        securityRequirements: z.array(z.record(z.unknown())).max(20).optional(),
+        securityRequirements: z
+          .array(z.record(z.string(), z.unknown()))
+          .max(20)
+          .optional(),
       })
     )
     .max(100),
-  securitySchemes: z.record(z.unknown()).optional(),
-  securityRequirements: z.array(z.record(z.unknown())).max(20).optional(),
+  securitySchemes: z.record(z.string(), z.unknown()).optional(),
+  securityRequirements: z
+    .array(z.record(z.string(), z.unknown()))
+    .max(20)
+    .optional(),
   signatures: z.array(z.unknown()).max(20).optional(),
 });
 

@@ -129,7 +129,7 @@ const mip002Schema = z.object({
   a2a_protocol_versions: z.string().or(z.array(z.string())),
   tags: z.array(z.string().min(1)).optional(),
   image: z.string().or(z.array(z.string())).optional(),
-  metadata_version: z.number({ coerce: true }).int().min(2).max(2),
+  metadata_version: z.coerce.number().int().min(2).max(2),
 });
 
 // ─── Fetch & validate agent card (used during indexing only) ─────────────────
