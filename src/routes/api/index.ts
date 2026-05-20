@@ -1,4 +1,4 @@
-import { DependsOnMethod, Routing } from 'express-zod-api';
+import { Routing } from 'express-zod-api';
 import { healthEndpointGet } from '@/routes/api/health';
 import {
   queryRegistryEntryPost,
@@ -37,58 +37,58 @@ import {
 export const apiRouter: Routing = {
   v1: {
     health: healthEndpointGet,
-    'registry-entry': new DependsOnMethod({
+    'registry-entry': {
       post: queryRegistryEntryPost,
-    }),
-    'registry-entry-search': new DependsOnMethod({
+    },
+    'registry-entry-search': {
       post: searchRegistryEntryPost,
-    }),
-    'registry-diff': new DependsOnMethod({
+    },
+    'registry-diff': {
       post: registryDiffPost,
-    }),
-    'inbox-agent-registration': new DependsOnMethod({
+    },
+    'inbox-agent-registration': {
       post: queryInboxAgentRegistrationPost,
-    }),
-    'inbox-agent-registration-search': new DependsOnMethod({
+    },
+    'inbox-agent-registration-search': {
       post: searchInboxAgentRegistrationPost,
-    }),
-    'inbox-agent-registration-diff': new DependsOnMethod({
+    },
+    'inbox-agent-registration-diff': {
       post: inboxAgentRegistrationDiffPost,
-    }),
-    'api-key-status': new DependsOnMethod({
+    },
+    'api-key-status': {
       get: queryAPIKeyStatusEndpointGet,
-    }),
-    'api-key': new DependsOnMethod({
+    },
+    'api-key': {
       get: queryCentralizedRegistrySourceGet,
       post: addCentralizedRegistrySourceEndpointPost,
       patch: updateAPIKeyEndpointPatch,
       delete: deleteCentralizedRegistrySourceEndpointDelete,
-    }),
-    capability: new DependsOnMethod({
+    },
+    capability: {
       get: capabilityGet,
-    }),
-    'payment-information': new DependsOnMethod({
+    },
+    'payment-information': {
       get: queryPaymentInformationGet,
-    }),
-    'registry-source': new DependsOnMethod({
+    },
+    'registry-source': {
       get: queryRegistrySourceEndpointGet,
       post: addRegistrySourceEndpointPost,
       patch: updateRegistrySourceEndpointPatch,
       delete: deleteRegistrySourceEndpointDelete,
-    }),
-    'simple-api-listing': new DependsOnMethod({
+    },
+    'simple-api-listing': {
       post: createSimpleApiListingPost,
       patch: updateSimpleApiListingPatch,
       delete: deleteSimpleApiListingDelete,
-    }),
-    'simple-api-listing-query': new DependsOnMethod({
+    },
+    'simple-api-listing-query': {
       post: querySimpleApiListingPost,
-    }),
-    'simple-api-listing-search': new DependsOnMethod({
+    },
+    'simple-api-listing-search': {
       post: searchSimpleApiListingPost,
-    }),
-    'simple-api-listing-diff': new DependsOnMethod({
+    },
+    'simple-api-listing-diff': {
       post: diffSimpleApiListingPost,
-    }),
+    },
   },
 };
