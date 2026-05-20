@@ -20,7 +20,7 @@ import {
 
 export * from './schemas';
 
-type AuthOptions = {
+type AuthCtx = {
   id: string;
   accumulatedUsageCredits: number;
   maxUsageCredits: number | null;
@@ -40,19 +40,19 @@ export const createSimpleApiListingPost = authenticatedEndpointFactory.build<
   output: createSimpleApiListingSchemaOutput,
   handler: async ({
     input,
-    options,
+    ctx,
   }: {
     input: z.infer<typeof createSimpleApiListingSchemaInput>;
-    options: AuthOptions;
+    ctx: AuthCtx;
   }) => {
     await tokenCreditService.handleTokenCredits(
-      options,
+      ctx,
       0,
       'submit simple-api-listing: ' + input.url
     );
     const listing = await simpleApiListingService.submitSimpleApiListing(
       input,
-      options.id
+      ctx.id
     );
     return createSimpleApiListingSchemaOutput.parse({
       listing: serializeSimpleApiListing(listing),
@@ -73,13 +73,13 @@ export const querySimpleApiListingPost = authenticatedEndpointFactory.build<
   output: querySimpleApiListingSchemaOutput,
   handler: async ({
     input,
-    options,
+    ctx,
   }: {
     input: z.infer<typeof querySimpleApiListingSchemaInput>;
-    options: AuthOptions;
+    ctx: AuthCtx;
   }) => {
     await tokenCreditService.handleTokenCredits(
-      options,
+      ctx,
       0,
       'query simple-api-listings'
     );
@@ -103,13 +103,13 @@ export const searchSimpleApiListingPost = authenticatedEndpointFactory.build<
   output: querySimpleApiListingSchemaOutput,
   handler: async ({
     input,
-    options,
+    ctx,
   }: {
     input: z.infer<typeof searchSimpleApiListingSchemaInput>;
-    options: AuthOptions;
+    ctx: AuthCtx;
   }) => {
     await tokenCreditService.handleTokenCredits(
-      options,
+      ctx,
       0,
       'search simple-api-listings: ' + input.query
     );
@@ -133,13 +133,13 @@ export const diffSimpleApiListingPost = authenticatedEndpointFactory.build<
   output: querySimpleApiListingSchemaOutput,
   handler: async ({
     input,
-    options,
+    ctx,
   }: {
     input: z.infer<typeof diffSimpleApiListingSchemaInput>;
-    options: AuthOptions;
+    ctx: AuthCtx;
   }) => {
     await tokenCreditService.handleTokenCredits(
-      options,
+      ctx,
       0,
       'diff simple-api-listings'
     );

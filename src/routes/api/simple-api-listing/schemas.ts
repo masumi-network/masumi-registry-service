@@ -17,7 +17,7 @@ export const createSimpleApiListingSchemaInput = z.object({
 
 export const querySimpleApiListingSchemaInput = z.object({
   network: z.nativeEnum(Network),
-  limit: z.number({ coerce: true }).int().min(1).max(50).default(10),
+  limit: z.coerce.number().int().min(1).max(50).default(10),
   cursorId: z.string().min(1).max(50).optional(),
   filter: z
     .object({
@@ -30,7 +30,7 @@ export const querySimpleApiListingSchemaInput = z.object({
 
 export const searchSimpleApiListingSchemaInput = z.object({
   network: z.nativeEnum(Network),
-  limit: z.number({ coerce: true }).int().min(1).max(50).default(10),
+  limit: z.coerce.number().int().min(1).max(50).default(10),
   cursorId: z.string().min(1).max(50).optional(),
   query: z
     .string()
@@ -52,7 +52,7 @@ export const searchSimpleApiListingSchemaInput = z.object({
 export const diffSimpleApiListingSchemaInput = z.object({
   network: z.nativeEnum(Network),
   statusUpdatedAfter: ez.dateIn(),
-  limit: z.number({ coerce: true }).int().min(1).max(50).default(10),
+  limit: z.coerce.number().int().min(1).max(50).default(10),
   cursorId: z.string().min(1).max(75).optional(),
 });
 
@@ -98,7 +98,7 @@ export const simpleApiListingSchemaOutput = z
     category: z.string().nullable(),
     tags: z.array(z.string()),
     accepts: z.array(x402AcceptSchema),
-    extra: z.record(z.unknown()).nullable(),
+    extra: z.record(z.string(), z.unknown()).nullable(),
     httpMethod: z.string().nullable(),
     status: z.nativeEnum(SimpleApiStatus),
     lastActiveAt: z.date().nullable(),
