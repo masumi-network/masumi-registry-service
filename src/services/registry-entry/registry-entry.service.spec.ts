@@ -1,10 +1,11 @@
-import { Network, PaymentType, Status } from '@prisma/client';
+import { Network, PaymentType, PricingType, Status } from '@prisma/client';
 import { searchRegistrySchemaInput } from '@/routes/api/registry-entry/schemas';
 
 type MockRegistryEntriesResult = { id: string }[];
 
 const searchRegistryEntries = jest.fn();
 const getRegistryEntry = jest.fn();
+const getRegistryEntryByIdentifier = jest.fn();
 const getRegistryDiffEntries = jest.fn();
 const updateLatestCardanoRegistryEntries = jest.fn();
 const checkVerifyAndUpdateRegistryEntries = jest.fn();
@@ -13,6 +14,7 @@ jest.mock('@/repositories/registry-entry', () => ({
   registryEntryRepository: {
     searchRegistryEntries,
     getRegistryEntry,
+    getRegistryEntryByIdentifier,
     getRegistryDiffEntries,
   },
 }));
@@ -131,5 +133,84 @@ describe('registryEntryService.searchRegistryEntries', () => {
       network: Network.Preprod,
       searchQuery: '100\\% \\_agent\\\\name',
     });
+  });
+});
+
+describe('registryEntryService.refreshRegistryEntry', () => {
+  const registryEntry = {
+    id: 'entry-1',
+    status: Status.Invalid,
+    assetIdentifier: 'asset-1',
+    lastUptimeCheck: new Date(0),
+    apiBaseUrl: 'https://agent.example.com',
+    RegistrySource: {
+      id: 'source-1',
+      policyId: 'policy-id',
+      url: null,
+      network: Network.Preprod,
+    },
+    Capability: null,
+    AgentPricing: {
+      pricingType: PricingType.Free,
+      FixedPricing: null,
+    },
+    ExampleOutput: [],
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    updateLatestCardanoRegistryEntries.mockResolvedValue(undefined);
+    getRegistryEntryByIdentifier.mockResolvedValue(registryEntry);
+    checkVerifyAndUpdateRegistryEntries.mockResolvedValue([
+      { ...registryEntry, status: Status.Online },
+    ]);
+  });
+
+  it('syncs blockchain state and refreshes one registry entry by identifier', async () => {
+    const result = await registryEntryService.refreshRegistryEntry({
+      network: Network.Preprod,
+      agentIdentifier: 'asset-1',
+    });
+
+    expect(updateLatestCardanoRegistryEntries).toHaveBeenCalled();
+    expect(getRegistryEntryByIdentifier).toHaveBeenCalledWith({
+      network: Network.Preprod,
+      agentIdentifier: 'asset-1',
+    });
+    expect(checkVerifyAndUpdateRegistryEntries).toHaveBeenCalledWith({
+      registryEntries: [registryEntry],
+      minHealthCheckDate: expect.any(Date),
+    });
+    expect(result).toMatchObject({ id: 'entry-1', status: Status.Online });
+  });
+
+  it('returns null when the requested registry entry does not exist', async () => {
+    getRegistryEntryByIdentifier.mockResolvedValue(null);
+
+    const result = await registryEntryService.refreshRegistryEntry({
+      network: Network.Preprod,
+      agentIdentifier: 'missing-asset',
+    });
+
+    expect(result).toBeNull();
+    expect(checkVerifyAndUpdateRegistryEntries).not.toHaveBeenCalled();
+  });
+
+  it('does not health-check deregistered registry entries', async () => {
+    getRegistryEntryByIdentifier.mockResolvedValue({
+      ...registryEntry,
+      status: Status.Deregistered,
+    });
+
+    const result = await registryEntryService.refreshRegistryEntry({
+      network: Network.Preprod,
+      agentIdentifier: 'asset-1',
+    });
+
+    expect(result).toMatchObject({
+      id: 'entry-1',
+      status: Status.Deregistered,
+    });
+    expect(checkVerifyAndUpdateRegistryEntries).not.toHaveBeenCalled();
   });
 });

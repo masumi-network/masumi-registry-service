@@ -5,9 +5,12 @@ import { inboxAgentRegistrationService } from '@/services/inbox-agent-registrati
 import {
   queryInboxAgentRegistrationSchemaInput,
   queryInboxAgentRegistrationSchemaOutput,
+  refreshInboxAgentRegistrationSchemaInput,
+  refreshInboxAgentRegistrationSchemaOutput,
   searchInboxAgentRegistrationSchemaInput,
   serializeInboxAgentRegistrations,
 } from './schemas';
+import createHttpError from 'http-errors';
 
 export * from './schemas';
 
@@ -21,10 +24,10 @@ export const queryInboxAgentRegistrationPost =
     output: queryInboxAgentRegistrationSchemaOutput,
     handler: async ({
       input,
-      options,
+      ctx,
     }: {
       input: z.infer<typeof queryInboxAgentRegistrationSchemaInput>;
-      options: {
+      ctx: {
         id: string;
         accumulatedUsageCredits: number;
         maxUsageCredits: number | null;
@@ -33,7 +36,7 @@ export const queryInboxAgentRegistrationPost =
     }) => {
       const tokenCost = 0;
       await tokenCreditService.handleTokenCredits(
-        options,
+        ctx,
         tokenCost,
         'query inbox registrations: ' + (input.filter?.agentSlug ?? '')
       );
@@ -57,10 +60,10 @@ export const searchInboxAgentRegistrationPost =
     output: queryInboxAgentRegistrationSchemaOutput,
     handler: async ({
       input,
-      options,
+      ctx,
     }: {
       input: z.infer<typeof searchInboxAgentRegistrationSchemaInput>;
-      options: {
+      ctx: {
         id: string;
         accumulatedUsageCredits: number;
         maxUsageCredits: number | null;
@@ -69,7 +72,7 @@ export const searchInboxAgentRegistrationPost =
     }) => {
       const tokenCost = 0;
       await tokenCreditService.handleTokenCredits(
-        options,
+        ctx,
         tokenCost,
         'search inbox registrations: ' + input.query
       );
@@ -81,6 +84,48 @@ export const searchInboxAgentRegistrationPost =
 
       return queryInboxAgentRegistrationSchemaOutput.parse({
         registrations: serializeInboxAgentRegistrations(data, input.limit),
+      });
+    },
+  });
+
+export const refreshInboxAgentRegistrationPost =
+  authenticatedEndpointFactory.build<
+    typeof refreshInboxAgentRegistrationSchemaOutput,
+    typeof refreshInboxAgentRegistrationSchemaInput
+  >({
+    method: 'post',
+    input: refreshInboxAgentRegistrationSchemaInput,
+    output: refreshInboxAgentRegistrationSchemaOutput,
+    handler: async ({
+      input,
+      ctx,
+    }: {
+      input: z.infer<typeof refreshInboxAgentRegistrationSchemaInput>;
+      ctx: {
+        id: string;
+        accumulatedUsageCredits: number;
+        maxUsageCredits: number | null;
+        usageLimited: boolean;
+      };
+    }) => {
+      const tokenCost = 0;
+      await tokenCreditService.handleTokenCredits(
+        ctx,
+        tokenCost,
+        'refresh inbox registration: ' + input.agentIdentifier
+      );
+
+      const data =
+        await inboxAgentRegistrationService.refreshInboxAgentRegistration(
+          input
+        );
+      if (!data) {
+        throw createHttpError(404, 'Inbox agent registration not found');
+      }
+
+      const [registration] = serializeInboxAgentRegistrations([data], 1);
+      return refreshInboxAgentRegistrationSchemaOutput.parse({
+        registration,
       });
     },
   });

@@ -74,6 +74,28 @@ async function searchRegistryEntries(params: RegistryEntryQueryParams) {
   return findRegistryEntries(params);
 }
 
+async function getRegistryEntryByIdentifier(params: {
+  agentIdentifier: string;
+  network: Network;
+}) {
+  return prisma.registryEntry.findFirst({
+    where: {
+      assetIdentifier: params.agentIdentifier,
+      RegistrySource: {
+        network: params.network,
+      },
+    },
+    include: {
+      Capability: true,
+      RegistrySource: true,
+      AgentPricing: {
+        include: { FixedPricing: { include: { Amounts: true } } },
+      },
+      ExampleOutput: true,
+    },
+  });
+}
+
 async function getRegistryDiffEntries(
   statusUpdatedAfter: Date,
   cursorId: string | undefined,
@@ -131,5 +153,6 @@ async function getRegistryDiffEntries(
 export const registryEntryRepository = {
   getRegistryEntry,
   searchRegistryEntries,
+  getRegistryEntryByIdentifier,
   getRegistryDiffEntries,
 };

@@ -1531,6 +1531,153 @@
                 }
             }
         },
+        "/registry-entry-refresh/": {
+            "post": {
+                "description": "Refresh one registry entry by agent identifier. The service first syncs the blockchain cursor, then immediately re-runs the health check for the requested agent and returns the refreshed entry.",
+                "summary": "REQUIRES API KEY Authentication (+user)",
+                "tags": [
+                    "registry-entry"
+                ],
+                "security": [
+                    {
+                        "API-Key": []
+                    }
+                ],
+                "requestBody": {
+                    "description": "",
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "network": {
+                                        "type": "string",
+                                        "enum": [
+                                            "Preprod",
+                                            "Mainnet"
+                                        ]
+                                    },
+                                    "agentIdentifier": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 250
+                                    }
+                                },
+                                "required": [
+                                    "network",
+                                    "agentIdentifier"
+                                ],
+                                "example": {
+                                    "network": "Preprod",
+                                    "agentIdentifier": "222222222222222222222222222222222222222222222222222222222222222222"
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Refreshed registry entry",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "entry": {
+                                                    "$ref": "#/components/schemas/RegistryEntry"
+                                                }
+                                            },
+                                            "required": [
+                                                "entry"
+                                            ]
+                                        },
+                                        "status": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "data",
+                                        "status"
+                                    ],
+                                    "example": {
+                                        "data": {
+                                            "entry": {
+                                                "id": "unique_cuid_v2",
+                                                "name": "Example API",
+                                                "createdAt": "1970-01-01T00:00:00.000Z",
+                                                "updatedAt": "1970-01-01T00:02:00.000Z",
+                                                "description": "Example API description",
+                                                "status": "Online",
+                                                "statusUpdatedAt": "1970-01-01T00:02:00.000Z",
+                                                "authorName": null,
+                                                "authorContactEmail": null,
+                                                "authorContactOther": null,
+                                                "image": "testimage.de",
+                                                "otherLegal": null,
+                                                "privacyPolicy": null,
+                                                "tags": [],
+                                                "termsAndCondition": "If the answer is 42 what was the question",
+                                                "uptimeCheckCount": 10,
+                                                "uptimeCount": 8,
+                                                "lastUptimeCheck": "1970-01-01T00:00:00.000Z",
+                                                "apiBaseUrl": "https://example.com/api/",
+                                                "authorOrganization": "MASUMI",
+                                                "paymentType": "Web3CardanoV1",
+                                                "agentIdentifier": "222222222222222222222222222222222222222222222222222222222222222222",
+                                                "RegistrySource": {
+                                                    "id": "unique_cuid_v2",
+                                                    "policyId": "policy_id",
+                                                    "url": "https://example.com/api/"
+                                                },
+                                                "Capability": {
+                                                    "name": "Example Capability",
+                                                    "version": "1.0.0"
+                                                },
+                                                "AgentPricing": {
+                                                    "pricingType": "Fixed",
+                                                    "FixedPricing": {
+                                                        "Amounts": [
+                                                            {
+                                                                "amount": "100",
+                                                                "unit": "USDC"
+                                                            }
+                                                        ]
+                                                    }
+                                                },
+                                                "ExampleOutput": [
+                                                    {
+                                                        "name": "Example Output",
+                                                        "mimeType": "image/png",
+                                                        "url": "https://example.com/image.png"
+                                                    }
+                                                ],
+                                                "metadataVersion": 1
+                                            }
+                                        },
+                                        "status": "success"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request (possible parameters missing or invalid)"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Registry entry not found"
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
+                    }
+                }
+            }
+        },
         "/inbox-agent-registration/": {
             "post": {
                 "description": "Query blockchain-tracked Masumi inbox registrations. By default, only pending and verified registrations are returned. Supports pagination and filtering by slug, status, and policy id.",
@@ -1850,6 +1997,124 @@
                     },
                     "401": {
                         "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
+                    }
+                }
+            }
+        },
+        "/inbox-agent-registration-refresh/": {
+            "post": {
+                "description": "Refresh one inbox agent registration by agent identifier. If the registration was invalid, the service clears verification-derived fields, moves it back to pending, and immediately re-runs inbox verification.",
+                "summary": "REQUIRES API KEY Authentication (+user)",
+                "tags": [
+                    "inbox-agent-registration"
+                ],
+                "security": [
+                    {
+                        "API-Key": []
+                    }
+                ],
+                "requestBody": {
+                    "description": "",
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "network": {
+                                        "type": "string",
+                                        "enum": [
+                                            "Preprod",
+                                            "Mainnet"
+                                        ]
+                                    },
+                                    "agentIdentifier": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 250
+                                    }
+                                },
+                                "required": [
+                                    "network",
+                                    "agentIdentifier"
+                                ],
+                                "example": {
+                                    "network": "Preprod",
+                                    "agentIdentifier": "333333333333333333333333333333333333333333333333333333333333333333"
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Refreshed inbox agent registration",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "registration": {
+                                                    "$ref": "#/components/schemas/InboxAgentRegistration"
+                                                }
+                                            },
+                                            "required": [
+                                                "registration"
+                                            ]
+                                        },
+                                        "status": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "data",
+                                        "status"
+                                    ],
+                                    "example": {
+                                        "data": {
+                                            "registration": {
+                                                "id": "unique_cuid_v2",
+                                                "createdAt": "1970-01-01T00:00:00.000Z",
+                                                "updatedAt": "1970-01-01T00:02:00.000Z",
+                                                "status": "Pending",
+                                                "statusUpdatedAt": "1970-01-01T00:02:00.000Z",
+                                                "name": "Inbox Agent",
+                                                "description": "Masumi inbox identity registration",
+                                                "agentSlug": "inbox-agent",
+                                                "agentIdentifier": "333333333333333333333333333333333333333333333333333333333333333333",
+                                                "providerUrl": "https://agentmessenger.io",
+                                                "linkedEmail": "agent@example.com",
+                                                "encryptionPublicKey": "encryption_public_key",
+                                                "encryptionKeyVersion": "enc-v1",
+                                                "signingPublicKey": "signing_public_key",
+                                                "signingKeyVersion": "sig-v1",
+                                                "metadataVersion": 1,
+                                                "RegistrySource": {
+                                                    "id": "unique_cuid_v2",
+                                                    "policyId": "policy_id",
+                                                    "url": "https://example.com/registry.json"
+                                                }
+                                            }
+                                        },
+                                        "status": "success"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request (possible parameters missing or invalid)"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Inbox agent registration not found"
                     },
                     "500": {
                         "description": "Internal Server Error"

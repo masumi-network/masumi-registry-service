@@ -1,8 +1,10 @@
 FROM node:20-slim AS deps
 RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+RUN corepack enable && corepack prepare pnpm@10.33.0 --activate
 WORKDIR /usr/src/app
-COPY package*.json ./
-RUN npm ci
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
+COPY patches ./patches
+RUN pnpm install --frozen-lockfile
 
 FROM deps AS builder
 WORKDIR /usr/src/app
@@ -10,9 +12,8 @@ COPY ./src ./src
 COPY ./prisma ./prisma
 COPY tsconfig.json .
 COPY public ./public
-RUN npx prisma generate
-RUN npm run build
-RUN npm prune --omit=dev
+RUN pnpm run build
+RUN pnpm prune --prod
 
 FROM node:20-slim AS runner
 RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
@@ -22,7 +23,7 @@ ENV NODE_ENV=production
 
 COPY --from=builder --chown=node:node /usr/src/app/dist ./dist
 COPY --from=builder --chown=node:node /usr/src/app/node_modules ./node_modules
-COPY --from=builder --chown=node:node /usr/src/app/package*.json ./
+COPY --from=builder --chown=node:node /usr/src/app/package.json ./
 
 USER node
 

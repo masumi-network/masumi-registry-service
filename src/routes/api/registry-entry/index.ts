@@ -5,9 +5,12 @@ import { registryEntryService } from '@/services/registry-entry';
 import {
   queryRegistrySchemaInput,
   queryRegistrySchemaOutput,
+  refreshRegistryEntrySchemaInput,
+  refreshRegistryEntrySchemaOutput,
   searchRegistrySchemaInput,
   serializeRegistryEntries,
 } from './schemas';
+import createHttpError from 'http-errors';
 
 export * from './schemas';
 
@@ -20,10 +23,10 @@ export const queryRegistryEntryPost = authenticatedEndpointFactory.build<
   output: queryRegistrySchemaOutput,
   handler: async ({
     input,
-    options,
+    ctx,
   }: {
     input: z.infer<typeof queryRegistrySchemaInput>;
-    options: {
+    ctx: {
       id: string;
       accumulatedUsageCredits: number;
       maxUsageCredits: number | null;
@@ -32,7 +35,7 @@ export const queryRegistryEntryPost = authenticatedEndpointFactory.build<
   }) => {
     const tokenCost = 0;
     await tokenCreditService.handleTokenCredits(
-      options,
+      ctx,
       tokenCost,
       'query for: ' + input.filter?.capability?.name
     );
@@ -52,10 +55,10 @@ export const searchRegistryEntryPost = authenticatedEndpointFactory.build<
   output: queryRegistrySchemaOutput,
   handler: async ({
     input,
-    options,
+    ctx,
   }: {
     input: z.infer<typeof searchRegistrySchemaInput>;
-    options: {
+    ctx: {
       id: string;
       accumulatedUsageCredits: number;
       maxUsageCredits: number | null;
@@ -64,7 +67,7 @@ export const searchRegistryEntryPost = authenticatedEndpointFactory.build<
   }) => {
     const tokenCost = 0;
     await tokenCreditService.handleTokenCredits(
-      options,
+      ctx,
       tokenCost,
       'search registry entries: ' + input.query
     );
@@ -73,5 +76,41 @@ export const searchRegistryEntryPost = authenticatedEndpointFactory.build<
     const entries = serializeRegistryEntries(data, input.limit);
 
     return queryRegistrySchemaOutput.parse({ entries });
+  },
+});
+
+export const refreshRegistryEntryPost = authenticatedEndpointFactory.build<
+  typeof refreshRegistryEntrySchemaOutput,
+  typeof refreshRegistryEntrySchemaInput
+>({
+  method: 'post',
+  input: refreshRegistryEntrySchemaInput,
+  output: refreshRegistryEntrySchemaOutput,
+  handler: async ({
+    input,
+    ctx,
+  }: {
+    input: z.infer<typeof refreshRegistryEntrySchemaInput>;
+    ctx: {
+      id: string;
+      accumulatedUsageCredits: number;
+      maxUsageCredits: number | null;
+      usageLimited: boolean;
+    };
+  }) => {
+    const tokenCost = 0;
+    await tokenCreditService.handleTokenCredits(
+      ctx,
+      tokenCost,
+      'refresh registry entry: ' + input.agentIdentifier
+    );
+
+    const data = await registryEntryService.refreshRegistryEntry(input);
+    if (!data) {
+      throw createHttpError(404, 'Registry entry not found');
+    }
+
+    const [entry] = serializeRegistryEntries([data], 1);
+    return refreshRegistryEntrySchemaOutput.parse({ entry });
   },
 });

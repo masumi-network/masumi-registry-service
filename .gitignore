@@ -4,6 +4,9 @@ node_modules
 dist
 # environmental variables
 .env
+# legacy lock files
+package-lock.json
+yarn.lock
 # yarn error log
 yarn-error.log
 # vscode config

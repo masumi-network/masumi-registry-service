@@ -18,10 +18,10 @@ export const inboxAgentRegistrationDiffPost =
     output: queryInboxAgentRegistrationSchemaOutput,
     handler: async ({
       input,
-      options,
+      ctx,
     }: {
       input: z.infer<typeof inboxAgentRegistrationDiffSchemaInput>;
-      options: {
+      ctx: {
         id: string;
         accumulatedUsageCredits: number;
         maxUsageCredits: number | null;
@@ -30,7 +30,7 @@ export const inboxAgentRegistrationDiffPost =
     }) => {
       const tokenCost = 0;
       await tokenCreditService.handleTokenCredits(
-        options,
+        ctx,
         tokenCost,
         'inbox registration diff since: ' +
           input.statusUpdatedAfter.toISOString()

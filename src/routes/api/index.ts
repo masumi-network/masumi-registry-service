@@ -2,6 +2,7 @@ import { Routing } from 'express-zod-api';
 import { healthEndpointGet } from '@/routes/api/health';
 import {
   queryRegistryEntryPost,
+  refreshRegistryEntryPost,
   searchRegistryEntryPost,
 } from '@/routes/api/registry-entry';
 import {
@@ -22,6 +23,7 @@ import { queryAPIKeyStatusEndpointGet } from './api-key-status';
 import { registryDiffPost } from './registry-diff';
 import {
   queryInboxAgentRegistrationPost,
+  refreshInboxAgentRegistrationPost,
   searchInboxAgentRegistrationPost,
 } from './inbox-agent-registration';
 import { inboxAgentRegistrationDiffPost } from './inbox-agent-registration-diff';
@@ -43,6 +45,9 @@ export const apiRouter: Routing = {
     'registry-entry-search': {
       post: searchRegistryEntryPost,
     },
+    'registry-entry-refresh': {
+      post: refreshRegistryEntryPost,
+    },
     'registry-diff': {
       post: registryDiffPost,
     },
@@ -51,6 +56,9 @@ export const apiRouter: Routing = {
     },
     'inbox-agent-registration-search': {
       post: searchInboxAgentRegistrationPost,
+    },
+    'inbox-agent-registration-refresh': {
+      post: refreshInboxAgentRegistrationPost,
     },
     'inbox-agent-registration-diff': {
       post: inboxAgentRegistrationDiffPost,

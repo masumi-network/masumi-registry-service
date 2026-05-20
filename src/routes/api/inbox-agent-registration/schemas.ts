@@ -4,7 +4,7 @@ import { InboxAgentRegistrationStatus, Network } from '@prisma/client';
 
 export const queryInboxAgentRegistrationSchemaInput = z.object({
   network: z.nativeEnum(Network),
-  limit: z.number({ coerce: true }).int().min(1).max(50).default(10),
+  limit: z.coerce.number().int().min(1).max(50).default(10),
   cursorId: z.string().min(1).max(50).optional(),
   filter: z
     .object({
@@ -20,7 +20,7 @@ export const queryInboxAgentRegistrationSchemaInput = z.object({
 
 export const searchInboxAgentRegistrationSchemaInput = z.object({
   network: z.nativeEnum(Network),
-  limit: z.number({ coerce: true }).int().min(1).max(50).default(10),
+  limit: z.coerce.number().int().min(1).max(50).default(10),
   cursorId: z.string().min(1).max(50).optional(),
   query: z
     .string()
@@ -41,10 +41,15 @@ export const searchInboxAgentRegistrationSchemaInput = z.object({
     .optional(),
 });
 
+export const refreshInboxAgentRegistrationSchemaInput = z.object({
+  network: z.nativeEnum(Network),
+  agentIdentifier: z.string().min(1).max(250),
+});
+
 export const inboxAgentRegistrationDiffSchemaInput = z.object({
   network: z.nativeEnum(Network),
   statusUpdatedAfter: ez.dateIn(),
-  limit: z.number({ coerce: true }).int().min(1).max(50).default(10),
+  limit: z.coerce.number().int().min(1).max(50).default(10),
   cursorId: z
     .string()
     .min(1)
@@ -58,7 +63,7 @@ export const inboxAgentRegistrationDiffSchemaInput = z.object({
   status: z.array(z.nativeEnum(InboxAgentRegistrationStatus)).max(4).optional(),
 });
 
-export const inboxAgentRegistrationSchemaOutput = z
+const inboxAgentRegistrationSchemaOutput = z
   .object({
     id: z.string(),
     createdAt: z.date(),
@@ -86,6 +91,10 @@ export const inboxAgentRegistrationSchemaOutput = z
 
 export const queryInboxAgentRegistrationSchemaOutput = z.object({
   registrations: z.array(inboxAgentRegistrationSchemaOutput),
+});
+
+export const refreshInboxAgentRegistrationSchemaOutput = z.object({
+  registration: inboxAgentRegistrationSchemaOutput,
 });
 
 export type InboxAgentRegistrationSerializable = {
