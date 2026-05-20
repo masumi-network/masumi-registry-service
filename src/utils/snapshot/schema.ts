@@ -24,24 +24,24 @@ const snapshotAgentPricingSchema = z.discriminatedUnion('pricingType', [
 ]);
 
 const snapshotCapabilitySchema = z.object({
-  name: z.string().min(1),
-  version: z.string().min(1),
+  name: z.string(),
+  version: z.string(),
   description: z.string().nullable(),
 });
 
 const snapshotExampleOutputSchema = z.object({
-  name: z.string().min(1),
-  mimeType: z.string().min(1),
-  url: z.string().min(1),
+  name: z.string(),
+  mimeType: z.string(),
+  url: z.string(),
 });
 
 const snapshotEntrySchema = z.object({
   assetIdentifier: z.string().min(1),
-  name: z.string().min(1),
-  apiBaseUrl: z.string().min(1),
+  name: z.string(),
+  apiBaseUrl: z.string(),
   description: z.string().nullable(),
-  image: z.string().min(1),
-  tags: z.array(z.string().min(1)),
+  image: z.string(),
+  tags: z.array(z.string()),
   authorName: z.string().nullable(),
   authorContactEmail: z.string().nullable(),
   authorContactOther: z.string().nullable(),

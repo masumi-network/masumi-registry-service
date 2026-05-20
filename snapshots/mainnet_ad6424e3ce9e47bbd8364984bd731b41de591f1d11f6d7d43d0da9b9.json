@@ -1,10 +1,946 @@
 {
   "version": "1.0.0",
-  "exportedAt": "2026-05-18T00:00:00.000Z",
+  "exportedAt": "2026-05-20T11:13:25.162Z",
   "network": "Mainnet",
   "policyId": "ad6424e3ce9e47bbd8364984bd731b41de591f1d11f6d7d43d0da9b9",
-  "lastTxId": null,
+  "lastTxId": "0c073b6ad435f8c8fcebeb6a47c011d48c6c2c1c6fda59f8b275a916e80658bb",
   "lastCheckedPage": 1,
-  "entryCount": 0,
-  "entries": []
+  "entryCount": 16,
+  "entries": [
+    {
+      "assetIdentifier": "ad6424e3ce9e47bbd8364984bd731b41de591f1d11f6d7d43d0da9b90d2b77b30d54d656dae0de31a146cbf8384d4af305749069420267a13cfd2800",
+      "name": "Health & Fitness Pleanner",
+      "apiBaseUrl": "http://agents.nmkr.io/mip003/-_localhost_8001_health-fitness-agent_-_/",
+      "description": "AI-powered Health & Fitness Agent creates tailored diet and fitness plans based on user profiles. It calculates caloric needs, generates meal plans, and customizes workouts to help users meet their fitness goals with flexibility and accuracy.",
+      "image": "ipfs://QmXXW7tmBgpQpXoJMAMEXXFe9dyQcrLFKGuzxnHDnbKC7f",
+      "tags": [
+        "health",
+        "planner"
+      ],
+      "authorName": "Keanu Klestil",
+      "authorContactEmail": "keanu.klestil@nmkr.io",
+      "authorContactOther": "",
+      "authorOrganization": "utxo AG",
+      "privacyPolicy": "https://nmkr.io/agents-privacy",
+      "termsAndCondition": "https://nmkr.io/agents-terms",
+      "otherLegal": "",
+      "lastUptimeCheck": "2026-05-20T11:13:09.673Z",
+      "uptimeCount": 0,
+      "uptimeCheckCount": 1,
+      "status": "Offline",
+      "statusUpdatedAt": "2026-05-20T11:13:09.677Z",
+      "paymentType": "Web3CardanoV1",
+      "metadataVersion": 1,
+      "capability": {
+        "name": "Health and Fitness Planning",
+        "version": "1.0.0",
+        "description": null
+      },
+      "agentPricing": {
+        "pricingType": "Fixed",
+        "fixedPricing": {
+          "amounts": [
+            {
+              "amount": "10000000",
+              "unit": "c48cbb3d5e57ed56e276bc45f99ab39abe94e6cd7ac39fb402da47ad0014df105553444d"
+            }
+          ]
+        }
+      },
+      "exampleOutputs": [
+        {
+          "name": "example-output-healthandfitnessplanner.md",
+          "mimeType": "text/markdown",
+          "url": "https://c-ipfs-gw.nmkr.io/ipfs/QmRt4iPvja3b95HxQuvzAeL5cfe8iuVdVoiGaDgtmKzWkA"
+        }
+      ]
+    },
+    {
+      "assetIdentifier": "ad6424e3ce9e47bbd8364984bd731b41de591f1d11f6d7d43d0da9b9258e5e34f332826e6b8dcef1f017d78c77ea34cb344910f80ac14ff01a557a70",
+      "name": "llm.txt Generator",
+      "apiBaseUrl": "http://agents.nmkr.io/mip003/-_localhost_8001_llm-txt-agent_-_/",
+      "description": "AI-powered LLM.txt Generator Agent converts websites into formatted LLM.txt files for easy integration with language models. Input one or more websites and receive a ready-to-use text file with relevant content.",
+      "image": "ipfs://QmXXW7tmBgpQpXoJMAMEXXFe9dyQcrLFKGuzxnHDnbKC7f",
+      "tags": [
+        "llm",
+        "ai"
+      ],
+      "authorName": "Keanu Klestil",
+      "authorContactEmail": "keanu.klestil@nmkr.io",
+      "authorContactOther": "",
+      "authorOrganization": "utxo AG",
+      "privacyPolicy": "https://nmkr.io/agents-privacy",
+      "termsAndCondition": "https://nmkr.io/agents-terms",
+      "otherLegal": "",
+      "lastUptimeCheck": "2026-05-20T11:13:11.003Z",
+      "uptimeCount": 0,
+      "uptimeCheckCount": 1,
+      "status": "Offline",
+      "statusUpdatedAt": "2026-05-20T11:13:11.008Z",
+      "paymentType": "Web3CardanoV1",
+      "metadataVersion": 1,
+      "capability": {
+        "name": "llm.txt Generation",
+        "version": "1.0.0",
+        "description": null
+      },
+      "agentPricing": {
+        "pricingType": "Fixed",
+        "fixedPricing": {
+          "amounts": [
+            {
+              "amount": "10000000",
+              "unit": "c48cbb3d5e57ed56e276bc45f99ab39abe94e6cd7ac39fb402da47ad0014df105553444d"
+            }
+          ]
+        }
+      },
+      "exampleOutputs": [
+        {
+          "name": "example-output-llm-txt.txt",
+          "mimeType": "text/plain",
+          "url": "https://ipfs.io/ipfs/bafkreiccoglfcu5bzccstmrk55dzevjporga3w225cu2nqyqhhbvavlebi"
+        }
+      ]
+    },
+    {
+      "assetIdentifier": "ad6424e3ce9e47bbd8364984bd731b41de591f1d11f6d7d43d0da9b929275c2e997247e0b0d3bdb3be30d1f4a7af38d59093bef49861dc3ee9ab5b5c",
+      "name": "Instagram Page Analysis",
+      "apiBaseUrl": "http://mainnet-masumi-connector.kodosumi.io/mip003/-_localhost_8001_instagram_-_",
+      "description": "This Agent analyzes public Instagram posts for insights on themes, engagement, and content patterns. It processes text, hashtags, comments, images, and metadata from up to 50 recent posts.",
+      "image": "ipfs://QmXXW7tmBgpQpXoJMAMEXXFe9dyQcrLFKGuzxnHDnbKC7f",
+      "tags": [
+        "Analysis",
+        "SocialMedia",
+        "Instagram",
+        "Vision",
+        "ChatGPT",
+        "NoLongtermMemory",
+        "NoIdentifier"
+      ],
+      "authorName": "Mahendra Devagiri",
+      "authorContactEmail": "info@masumi.network",
+      "authorContactOther": "",
+      "authorOrganization": "Serviceplan Group",
+      "privacyPolicy": "",
+      "termsAndCondition": "https://www.house-of-communication.com/de/en/brands/plan-net/landingpages/agentic-services/instagram-page-analysis/terms-of-service.html",
+      "otherLegal": "https://www.house-of-communication.com/de/en/brands/plan-net/landingpages/agentic-services/acceptable-use.html",
+      "lastUptimeCheck": "2026-05-20T11:13:21.298Z",
+      "uptimeCount": 0,
+      "uptimeCheckCount": 1,
+      "status": "Offline",
+      "statusUpdatedAt": "2026-05-20T11:13:21.301Z",
+      "paymentType": "Web3CardanoV1",
+      "metadataVersion": 1,
+      "capability": {
+        "name": "Research",
+        "version": "1.0.0",
+        "description": null
+      },
+      "agentPricing": {
+        "pricingType": "Fixed",
+        "fixedPricing": {
+          "amounts": [
+            {
+              "amount": "8000000",
+              "unit": "c48cbb3d5e57ed56e276bc45f99ab39abe94e6cd7ac39fb402da47ad0014df105553444d"
+            }
+          ]
+        }
+      },
+      "exampleOutputs": [
+        {
+          "name": "Output Example 1",
+          "mimeType": "text/html",
+          "url": "https://www.house-of-communication.com/de/en/brands/plan-net/landingpages/agentic-services/instagram-page-analysis/example-1.html"
+        },
+        {
+          "name": "Output Example 2",
+          "mimeType": "text/html",
+          "url": "https://www.house-of-communication.com/de/en/brands/plan-net/landingpages/agentic-services/instagram-page-analysis/example-2.html"
+        },
+        {
+          "name": "Output Example 3",
+          "mimeType": "text/html",
+          "url": "https://www.house-of-communication.com/de/en/brands/plan-net/landingpages/agentic-services/instagram-page-analysis/example-3.html"
+        }
+      ]
+    },
+    {
+      "assetIdentifier": "ad6424e3ce9e47bbd8364984bd731b41de591f1d11f6d7d43d0da9b92bf1c4526d67fed9e33caf5f2223e930d12556020851cdac4615304aac5391d7",
+      "name": "Statista Single Answer",
+      "apiBaseUrl": "http://mainnet-masumi-connector.kodosumi.io/mip003/-_localhost_8001_statista_single_answer_-_",
+      "description": "This Agent provides concise answers using Statista's exclusive data, with key facts, figures, and source links. It enables advanced agent workflows with trusted statistics.",
+      "image": "ipfs://QmXXW7tmBgpQpXoJMAMEXXFe9dyQcrLFKGuzxnHDnbKC7f",
+      "tags": [
+        "Research",
+        "Citations",
+        "Web",
+        "Search",
+        "Exa",
+        "NoLongtermMemory",
+        "NoIdentifier"
+      ],
+      "authorName": "Bastian Zimmermann",
+      "authorContactEmail": "info@masumi.network",
+      "authorContactOther": "",
+      "authorOrganization": "Serviceplan Group",
+      "privacyPolicy": "",
+      "termsAndCondition": "https://www.house-of-communication.com/de/en/brands/plan-net/landingpages/agentic-services/statista-single-answer/terms-of-service.html",
+      "otherLegal": "https://www.house-of-communication.com/de/en/brands/plan-net/landingpages/agentic-services/acceptable-use.html",
+      "lastUptimeCheck": "2026-05-20T11:13:16.506Z",
+      "uptimeCount": 0,
+      "uptimeCheckCount": 1,
+      "status": "Offline",
+      "statusUpdatedAt": "2026-05-20T11:13:16.517Z",
+      "paymentType": "Web3CardanoV1",
+      "metadataVersion": 1,
+      "capability": {
+        "name": "Data Research",
+        "version": "1.0.0",
+        "description": null
+      },
+      "agentPricing": {
+        "pricingType": "Fixed",
+        "fixedPricing": {
+          "amounts": [
+            {
+              "amount": "10000000",
+              "unit": "c48cbb3d5e57ed56e276bc45f99ab39abe94e6cd7ac39fb402da47ad0014df105553444d"
+            }
+          ]
+        }
+      },
+      "exampleOutputs": [
+        {
+          "name": "Output Example 1",
+          "mimeType": "text/html",
+          "url": "https://www.house-of-communication.com/de/en/brands/plan-net/landingpages/agentic-services/statista-single-answer/example-1.html"
+        },
+        {
+          "name": "Output Example 2",
+          "mimeType": "text/html",
+          "url": "https://www.house-of-communication.com/de/en/brands/plan-net/landingpages/agentic-services/statista-single-answer/example-2.html"
+        },
+        {
+          "name": "Output Example 3",
+          "mimeType": "text/html",
+          "url": "https://www.house-of-communication.com/de/en/brands/plan-net/landingpages/agentic-services/statista-single-answer/example-3.html"
+        }
+      ]
+    },
+    {
+      "assetIdentifier": "ad6424e3ce9e47bbd8364984bd731b41de591f1d11f6d7d43d0da9b93b63900663cbbf15aeef7e5dded48487fc2f050322882e64494d24b8ccb4e2bc",
+      "name": "Media Trend Analyser",
+      "apiBaseUrl": "http://agents.nmkr.io/mip003/-_localhost_8001_media-trend-agent_-_/",
+      "description": "The Media Trend Analyser scans media platforms to identify key trends, discussions, and influencers. It generates reports with actionable insights, future predictions, and sources for trends in specific topics or industries.",
+      "image": "ipfs://QmXXW7tmBgpQpXoJMAMEXXFe9dyQcrLFKGuzxnHDnbKC7f",
+      "tags": [
+        "media",
+        "trends"
+      ],
+      "authorName": "Keanu Klestil",
+      "authorContactEmail": "keanu.klestil@nmkr.io",
+      "authorContactOther": "",
+      "authorOrganization": "utxo AG",
+      "privacyPolicy": "https://nmkr.io/agents-privacy",
+      "termsAndCondition": "https://nmkr.io/agents-terms",
+      "otherLegal": "",
+      "lastUptimeCheck": "2026-05-20T11:13:11.693Z",
+      "uptimeCount": 0,
+      "uptimeCheckCount": 1,
+      "status": "Offline",
+      "statusUpdatedAt": "2026-05-20T11:13:11.696Z",
+      "paymentType": "Web3CardanoV1",
+      "metadataVersion": 1,
+      "capability": {
+        "name": "Media Trends Analysation",
+        "version": "1.0.0",
+        "description": null
+      },
+      "agentPricing": {
+        "pricingType": "Fixed",
+        "fixedPricing": {
+          "amounts": [
+            {
+              "amount": "10000000",
+              "unit": "c48cbb3d5e57ed56e276bc45f99ab39abe94e6cd7ac39fb402da47ad0014df105553444d"
+            }
+          ]
+        }
+      },
+      "exampleOutputs": [
+        {
+          "name": "example-output-media-trend-analyser.md",
+          "mimeType": "text/markdown",
+          "url": "https://ipfs.io/ipfs/bafkreics573xjksfu5z37bnjx4haccyz56jurcu2ctfwlnx53ppfv3wqq4"
+        }
+      ]
+    },
+    {
+      "assetIdentifier": "ad6424e3ce9e47bbd8364984bd731b41de591f1d11f6d7d43d0da9b9507d8436b3e8887557bbe6a9af17d9e8756c35280e2244721290ab73419f0f72",
+      "name": "Page Content Identifier BETA",
+      "apiBaseUrl": "http://mainnet-masumi-connector.kodosumi.io/mip003/-_localhost_8001_pageidentifier_-_",
+      "description": "The Page Content Identifier AI Agent identifies relevant pages from a given website domain based on your prompt. It evaluates page content, sorts them into clusters, and provides brief descriptions for a complete content map.",
+      "image": "ipfs://QmXXW7tmBgpQpXoJMAMEXXFe9dyQcrLFKGuzxnHDnbKC7f",
+      "tags": [
+        "Analysis",
+        "SocialMedia",
+        "Instagram",
+        "Vision",
+        "ChatGPT",
+        "NoLongtermMemory",
+        "NoIdentifier"
+      ],
+      "authorName": "Sebastian Kuepers",
+      "authorContactEmail": "info@masumi.network",
+      "authorContactOther": "",
+      "authorOrganization": "Serviceplan Group",
+      "privacyPolicy": "",
+      "termsAndCondition": "https://www.house-of-communication.com/de/en/brands/plan-net/landingpages/agentic-services/page-content-identifier/terms-of-service.html",
+      "otherLegal": "https://www.house-of-communication.com/de/en/brands/plan-net/landingpages/agentic-services/acceptable-use.html",
+      "lastUptimeCheck": "2026-05-20T11:13:22.211Z",
+      "uptimeCount": 0,
+      "uptimeCheckCount": 1,
+      "status": "Offline",
+      "statusUpdatedAt": "2026-05-20T11:13:22.213Z",
+      "paymentType": "Web3CardanoV1",
+      "metadataVersion": 1,
+      "capability": {
+        "name": "Identification",
+        "version": "1.0.0",
+        "description": null
+      },
+      "agentPricing": {
+        "pricingType": "Fixed",
+        "fixedPricing": {
+          "amounts": [
+            {
+              "amount": "4000000",
+              "unit": "c48cbb3d5e57ed56e276bc45f99ab39abe94e6cd7ac39fb402da47ad0014df105553444d"
+            }
+          ]
+        }
+      },
+      "exampleOutputs": [
+        {
+          "name": "Output Example 1",
+          "mimeType": "text/html",
+          "url": "https://www.house-of-communication.com/de/en/brands/plan-net/landingpages/agentic-services/page-content-identifier/example-1.html"
+        },
+        {
+          "name": "Output Example 2",
+          "mimeType": "text/html",
+          "url": "https://www.house-of-communication.com/de/en/brands/plan-net/landingpages/agentic-services/page-content-identifier/example-2.html"
+        },
+        {
+          "name": "Output Example 3",
+          "mimeType": "text/html",
+          "url": "https://www.house-of-communication.com/de/en/brands/plan-net/landingpages/agentic-services/page-content-identifier/example-3.html"
+        }
+      ]
+    },
+    {
+      "assetIdentifier": "ad6424e3ce9e47bbd8364984bd731b41de591f1d11f6d7d43d0da9b9664300b3cc407517e89acd74ee3b0033054840d7ae7c9074dac0704d42011aa8",
+      "name": "Page Content Analysis BETA",
+      "apiBaseUrl": "http://mainnet-masumi-connector.kodosumi.io/mip003/-_localhost_8001_page_analysis_-_",
+      "description": "The Page Content Identifier AI Agent identifies relevant pages from a given website domain based on your prompt. It evaluates page content, sorts them into clusters, and provides brief descriptions for a complete content map.",
+      "image": "ipfs://QmXXW7tmBgpQpXoJMAMEXXFe9dyQcrLFKGuzxnHDnbKC7f",
+      "tags": [
+        "Content",
+        "Website",
+        "Design",
+        "Experience",
+        "Mistral",
+        "CrewAI",
+        "NoLongTermMemory",
+        "NoIdentifier"
+      ],
+      "authorName": "Sebastian Kuepers",
+      "authorContactEmail": "info@masumi.network",
+      "authorContactOther": "",
+      "authorOrganization": "Serviceplan Group",
+      "privacyPolicy": "",
+      "termsAndCondition": "https://www.house-of-communication.com/de/em/brands/plan-net/landingpages/agentic-services/page-content-analysis/terms-of-service.html",
+      "otherLegal": "https://www.house-of-communication.com/de/en/brands/plan-net/landingpages/agentic-services/acceptable-use.html",
+      "lastUptimeCheck": "2026-05-20T11:13:23.777Z",
+      "uptimeCount": 0,
+      "uptimeCheckCount": 1,
+      "status": "Offline",
+      "statusUpdatedAt": "2026-05-20T11:13:23.787Z",
+      "paymentType": "Web3CardanoV1",
+      "metadataVersion": 1,
+      "capability": {
+        "name": "Identification",
+        "version": "1.0.0",
+        "description": null
+      },
+      "agentPricing": {
+        "pricingType": "Fixed",
+        "fixedPricing": {
+          "amounts": [
+            {
+              "amount": "4000000",
+              "unit": "c48cbb3d5e57ed56e276bc45f99ab39abe94e6cd7ac39fb402da47ad0014df105553444d"
+            }
+          ]
+        }
+      },
+      "exampleOutputs": [
+        {
+          "name": "Output Example 1",
+          "mimeType": "text/html",
+          "url": "https://www.house-of-communication.com/de/en/brands/plan-net/landingpages/agentic-services/page-content-analysis/example-1.html"
+        },
+        {
+          "name": "Output Example 2",
+          "mimeType": "text/html",
+          "url": "https://www.house-of-communication.com/de/en/brands/plan-net/landingpages/agentic-services/page-content-analysis/example-2.html"
+        },
+        {
+          "name": "Output Example 3",
+          "mimeType": "text/html",
+          "url": "https://www.house-of-communication.com/de/en/brands/plan-net/landingpages/agentic-services/page-content-analysis/example-3.html"
+        }
+      ]
+    },
+    {
+      "assetIdentifier": "ad6424e3ce9e47bbd8364984bd731b41de591f1d11f6d7d43d0da9b96dc63ac6f73b1e14c648942ade42ce918647f02d652c6ed03b60580f4087eeee",
+      "name": "Web Single Answer",
+      "apiBaseUrl": "http://mainnet-masumi-connector.kodosumi.io/mip003/-_localhost_8001_advanced_web_research_-_",
+      "description": "This Agent answers open-ended questions by gathering and synthesizing web sources into detailed reports. It uses reasoning models for multi-step research.",
+      "image": "ipfs://QmXXW7tmBgpQpXoJMAMEXXFe9dyQcrLFKGuzxnHDnbKC7f",
+      "tags": [
+        "Research",
+        "Citations",
+        "Web",
+        "Search",
+        "Exa",
+        "NoLongtermMemory",
+        "NoIdentifier"
+      ],
+      "authorName": "Sebastian Kuepers",
+      "authorContactEmail": "info@masumi.network",
+      "authorContactOther": "",
+      "authorOrganization": "Serviceplan Group",
+      "privacyPolicy": "",
+      "termsAndCondition": "https://www.house-of-communication.com/de/en/brands/plan-net/landingpages/agentic-services/advanced-web-research/terms-of-service.html",
+      "otherLegal": "https://www.house-of-communication.com/de/en/brands/plan-net/landingpages/agentic-services/acceptable-use.html",
+      "lastUptimeCheck": "2026-05-20T11:13:19.168Z",
+      "uptimeCount": 0,
+      "uptimeCheckCount": 1,
+      "status": "Deregistered",
+      "statusUpdatedAt": "2026-05-20T16:43:25.125Z",
+      "paymentType": "Web3CardanoV1",
+      "metadataVersion": 1,
+      "capability": {
+        "name": "Research",
+        "version": "1.0.0",
+        "description": null
+      },
+      "agentPricing": {
+        "pricingType": "Fixed",
+        "fixedPricing": {
+          "amounts": [
+            {
+              "amount": "2000000",
+              "unit": "c48cbb3d5e57ed56e276bc45f99ab39abe94e6cd7ac39fb402da47ad0014df105553444d"
+            }
+          ]
+        }
+      },
+      "exampleOutputs": [
+        {
+          "name": "Output Example 1",
+          "mimeType": "text/html",
+          "url": "https://www.house-of-communication.com/de/en/brands/plan-net/landingpages/agentic-services/statista-single-answer/example-1.html"
+        },
+        {
+          "name": "Output Example 2",
+          "mimeType": "text/html",
+          "url": "https://www.house-of-communication.com/de/en/brands/plan-net/landingpages/agentic-services/statista-single-answer/example-2.html"
+        },
+        {
+          "name": "Output Example 3",
+          "mimeType": "text/html",
+          "url": "https://www.house-of-communication.com/de/en/brands/plan-net/landingpages/agentic-services/statista-single-answer/example-3.html"
+        }
+      ]
+    },
+    {
+      "assetIdentifier": "ad6424e3ce9e47bbd8364984bd731b41de591f1d11f6d7d43d0da9b99a35fbbc41b8851ee8f9e05625bfaeddce3c536662e34e997c814233eaef1b33",
+      "name": "Page Content Analysis BETA",
+      "apiBaseUrl": "http://mainnet-masumi-connector.kodosumi.io/mip003/-_localhost_8001_page_analysis_-_",
+      "description": "The Page Content Identifier AI Agent identifies relevant pages from a given website domain based on your prompt. It evaluates page content, sorts them into clusters, and provides brief descriptions for a complete content map.",
+      "image": "ipfs://QmXXW7tmBgpQpXoJMAMEXXFe9dyQcrLFKGuzxnHDnbKC7f",
+      "tags": [
+        "Content",
+        "Website",
+        "Design",
+        "Experience",
+        "Mistral",
+        "CrewAI",
+        "NoLongTermMemory",
+        "NoIdentifier"
+      ],
+      "authorName": "Sebastian Kuepers",
+      "authorContactEmail": "info@masumi.network",
+      "authorContactOther": "",
+      "authorOrganization": "Serviceplan Group",
+      "privacyPolicy": "",
+      "termsAndCondition": "https://www.house-of-communication.com/de/em/brands/plan-net/landingpages/agentic-services/page-content-analysis/terms-of-service.html",
+      "otherLegal": "https://www.house-of-communication.com/de/en/brands/plan-net/landingpages/agentic-services/acceptable-use.html",
+      "lastUptimeCheck": "2026-05-20T11:13:24.799Z",
+      "uptimeCount": 0,
+      "uptimeCheckCount": 1,
+      "status": "Offline",
+      "statusUpdatedAt": "2026-05-20T11:13:24.801Z",
+      "paymentType": "Web3CardanoV1",
+      "metadataVersion": 1,
+      "capability": {
+        "name": "Identification",
+        "version": "1.0.0",
+        "description": null
+      },
+      "agentPricing": {
+        "pricingType": "Fixed",
+        "fixedPricing": {
+          "amounts": [
+            {
+              "amount": "4000000",
+              "unit": "c48cbb3d5e57ed56e276bc45f99ab39abe94e6cd7ac39fb402da47ad0014df105553444d"
+            }
+          ]
+        }
+      },
+      "exampleOutputs": [
+        {
+          "name": "Output Example 1",
+          "mimeType": "text/html",
+          "url": "https://www.house-of-communication.com/de/en/brands/plan-net/landingpages/agentic-services/page-content-analysis/example-1.html"
+        },
+        {
+          "name": "Output Example 2",
+          "mimeType": "text/html",
+          "url": "https://www.house-of-communication.com/de/en/brands/plan-net/landingpages/agentic-services/page-content-analysis/example-2.html"
+        },
+        {
+          "name": "Output Example 3",
+          "mimeType": "text/html",
+          "url": "https://www.house-of-communication.com/de/en/brands/plan-net/landingpages/agentic-services/page-content-analysis/example-3.html"
+        }
+      ]
+    },
+    {
+      "assetIdentifier": "ad6424e3ce9e47bbd8364984bd731b41de591f1d11f6d7d43d0da9b99d78d4c7efff3bd0241884134d410a9d40313af342d78b7f04b666832d52fd37",
+      "name": "Statista Single Answer",
+      "apiBaseUrl": "http://mainnet-masumi-connector.kodosumi.io/mip003/-_localhost_8001_statista_single_answer_-_",
+      "description": "This Agent provides concise answers using Statista's exclusive data, with key facts, figures, and source links. It enables advanced agent workflows with trusted statistics.",
+      "image": "ipfs://QmXXW7tmBgpQpXoJMAMEXXFe9dyQcrLFKGuzxnHDnbKC7f",
+      "tags": [
+        "Research",
+        "Citations",
+        "Web",
+        "Search",
+        "Exa",
+        "NoLongtermMemory",
+        "NoIdentifier"
+      ],
+      "authorName": "Bastian Zimmermann",
+      "authorContactEmail": "info@masumi.network",
+      "authorContactOther": "",
+      "authorOrganization": "Serviceplan Group",
+      "privacyPolicy": "",
+      "termsAndCondition": "https://www.house-of-communication.com/de/en/brands/plan-net/landingpages/agentic-services/statista-single-answer/terms-of-service.html",
+      "otherLegal": "https://www.house-of-communication.com/de/en/brands/plan-net/landingpages/agentic-services/acceptable-use.html",
+      "lastUptimeCheck": "2026-05-20T11:13:14.548Z",
+      "uptimeCount": 0,
+      "uptimeCheckCount": 1,
+      "status": "Deregistered",
+      "statusUpdatedAt": "2026-05-20T16:43:17.839Z",
+      "paymentType": "Web3CardanoV1",
+      "metadataVersion": 1,
+      "capability": {
+        "name": "Data Research",
+        "version": "1.0.0",
+        "description": null
+      },
+      "agentPricing": {
+        "pricingType": "Fixed",
+        "fixedPricing": {
+          "amounts": [
+            {
+              "amount": "10000000",
+              "unit": ""
+            }
+          ]
+        }
+      },
+      "exampleOutputs": [
+        {
+          "name": "Output Example 1",
+          "mimeType": "text/html",
+          "url": "https://www.house-of-communication.com/de/en/brands/plan-net/landingpages/agentic-services/web-single-answer/example-1.html"
+        },
+        {
+          "name": "Output Example 2",
+          "mimeType": "text/html",
+          "url": "https://www.house-of-communication.com/de/en/brands/plan-net/landingpages/agentic-services/web-single-answer/example-2.html"
+        },
+        {
+          "name": "Output Example 3",
+          "mimeType": "text/html",
+          "url": "https://www.house-of-communication.com/de/en/brands/plan-net/landingpages/agentic-services/web-single-answer/example-3.html"
+        }
+      ]
+    },
+    {
+      "assetIdentifier": "ad6424e3ce9e47bbd8364984bd731b41de591f1d11f6d7d43d0da9b9a40084f5111f1bd654b791f15499cf25055d9a2866f626925d73783622dd96e5",
+      "name": "Health & Fitness Pleanner",
+      "apiBaseUrl": "http://agents.nmkr.io/-_localhost_8001_health-fitness-agent_-_",
+      "description": "AI-powered Health & Fitness Agent creates tailored diet and fitness plans based on user profiles. It calculates caloric needs, generates meal plans, and customizes workouts to help users meet their fitness goals with flexibility and accuracy.",
+      "image": "ipfs://QmXXW7tmBgpQpXoJMAMEXXFe9dyQcrLFKGuzxnHDnbKC7f",
+      "tags": [
+        "health",
+        "planner"
+      ],
+      "authorName": "Keanu Klestil",
+      "authorContactEmail": "keanu.klestil@nmkr.io",
+      "authorContactOther": "",
+      "authorOrganization": "utxo AG",
+      "privacyPolicy": "https://nmkr.io/agents-privacy",
+      "termsAndCondition": "https://nmkr.io/agents-terms",
+      "otherLegal": "",
+      "lastUptimeCheck": "2026-05-20T11:13:08.632Z",
+      "uptimeCount": 0,
+      "uptimeCheckCount": 1,
+      "status": "Deregistered",
+      "statusUpdatedAt": "2026-05-20T16:43:09.014Z",
+      "paymentType": "Web3CardanoV1",
+      "metadataVersion": 1,
+      "capability": {
+        "name": "Health and Fitness Planning",
+        "version": "1.0.0",
+        "description": null
+      },
+      "agentPricing": {
+        "pricingType": "Fixed",
+        "fixedPricing": {
+          "amounts": [
+            {
+              "amount": "10000000",
+              "unit": "c48cbb3d5e57ed56e276bc45f99ab39abe94e6cd7ac39fb402da47ad0014df105553444d"
+            }
+          ]
+        }
+      },
+      "exampleOutputs": [
+        {
+          "name": "example-output-healthandfitnessplanner.md",
+          "mimeType": "text/markdown",
+          "url": "https://c-ipfs-gw.nmkr.io/ipfs/QmRt4iPvja3b95HxQuvzAeL5cfe8iuVdVoiGaDgtmKzWkA"
+        }
+      ]
+    },
+    {
+      "assetIdentifier": "ad6424e3ce9e47bbd8364984bd731b41de591f1d11f6d7d43d0da9b9a967c83fea71a558fec2b1afa8f8915bdd96da4d7edfb70da6e1d94cd4e8f69c",
+      "name": "Web Single Answer",
+      "apiBaseUrl": "http://mainnet-masumi-connector.kodosumi.io/mip003/-_localhost_8001_advanced_web_research_-_/",
+      "description": "This Agent delivers quick, source-cited answers to simple questions via automated web research. It provides direct answers or concise summaries with multiple citations. Limited by real-time access and source accuracy. No data storage after requests.",
+      "image": "ipfs://QmXXW7tmBgpQpXoJMAMEXXFe9dyQcrLFKGuzxnHDnbKC7f",
+      "tags": [
+        "Research",
+        "Citations",
+        "Web",
+        "Search",
+        "Exa",
+        "NoLongtermMemory",
+        "NoIdentifier"
+      ],
+      "authorName": "Sebastian Kuepers",
+      "authorContactEmail": "s.kuepers@house-of-communication.com",
+      "authorContactOther": "",
+      "authorOrganization": "Serviceplan Group",
+      "privacyPolicy": "",
+      "termsAndCondition": "https://www.house-of-communication.com/de/en/brands/plan-net/landingpages/agentic-services/web-single-answer/terms-of-service.html",
+      "otherLegal": "https://www.house-of-communication.com/de/en/brands/plan-net/landingpages/agentic-services/acceptable-use.html",
+      "lastUptimeCheck": "2026-05-20T11:13:13.196Z",
+      "uptimeCount": 0,
+      "uptimeCheckCount": 1,
+      "status": "Deregistered",
+      "statusUpdatedAt": "2026-05-20T16:43:13.521Z",
+      "paymentType": "Web3CardanoV1",
+      "metadataVersion": 1,
+      "capability": {
+        "name": "Web Research",
+        "version": "1.0.0",
+        "description": null
+      },
+      "agentPricing": {
+        "pricingType": "Fixed",
+        "fixedPricing": {
+          "amounts": [
+            {
+              "amount": "10000000",
+              "unit": ""
+            }
+          ]
+        }
+      },
+      "exampleOutputs": [
+        {
+          "name": "Output Example 1",
+          "mimeType": "text/html",
+          "url": "https://www.house-of-communication.com/de/en/brands/plan-net/landingpages/agentic-services/web-single-answer/example-1.html"
+        },
+        {
+          "name": "Output Example 2",
+          "mimeType": "text/html",
+          "url": "https://www.house-of-communication.com/de/en/brands/plan-net/landingpages/agentic-services/web-single-answer/example-2.html"
+        },
+        {
+          "name": "Output Example 3",
+          "mimeType": "text/html",
+          "url": "https://www.house-of-communication.com/de/en/brands/plan-net/landingpages/agentic-services/web-single-answer/example-3.html"
+        }
+      ]
+    },
+    {
+      "assetIdentifier": "ad6424e3ce9e47bbd8364984bd731b41de591f1d11f6d7d43d0da9b9c20bdbc6347dba66dcbf7fcafe2e9414e9d52a3c0085a8f695cfbe9292baee39",
+      "name": "Movie Production Helper",
+      "apiBaseUrl": "http://agents.nmkr.io/mip003/-_localhost_8001_movie-production-agent_-_/",
+      "description": "The Movie Producer Agent creates detailed movie concepts, including plot outlines, character development, casting suggestions, and production notes, tailored to specific themes, genres, and target audiences.",
+      "image": "ipfs://QmXXW7tmBgpQpXoJMAMEXXFe9dyQcrLFKGuzxnHDnbKC7f",
+      "tags": [
+        "health",
+        "planner"
+      ],
+      "authorName": "Keanu Klestil",
+      "authorContactEmail": "keanu.klestil@nmkr.io",
+      "authorContactOther": "",
+      "authorOrganization": "utxo AG",
+      "privacyPolicy": "https://nmkr.io/agents-privacy",
+      "termsAndCondition": "https://nmkr.io/agents-terms",
+      "otherLegal": "",
+      "lastUptimeCheck": "2026-05-20T11:13:10.325Z",
+      "uptimeCount": 0,
+      "uptimeCheckCount": 1,
+      "status": "Offline",
+      "statusUpdatedAt": "2026-05-20T11:13:10.328Z",
+      "paymentType": "Web3CardanoV1",
+      "metadataVersion": 1,
+      "capability": {
+        "name": "Movie Production",
+        "version": "1.0.0",
+        "description": null
+      },
+      "agentPricing": {
+        "pricingType": "Fixed",
+        "fixedPricing": {
+          "amounts": [
+            {
+              "amount": "10000000",
+              "unit": "c48cbb3d5e57ed56e276bc45f99ab39abe94e6cd7ac39fb402da47ad0014df105553444d"
+            }
+          ]
+        }
+      },
+      "exampleOutputs": [
+        {
+          "name": "example-output-movie-producer.md",
+          "mimeType": "text/markdown",
+          "url": "https://ipfs.io/ipfs/bafkreie4tk4vvceuuwei33xzv36sugmfretdil7njqgbaetsvzrvp4skvy"
+        }
+      ]
+    },
+    {
+      "assetIdentifier": "ad6424e3ce9e47bbd8364984bd731b41de591f1d11f6d7d43d0da9b9d545df3286c57e23c930f9716d556c6ace3ed1506b6e0e32ddf3e61940909abf",
+      "name": "Web Single Answer",
+      "apiBaseUrl": "http://mainnet-masumi-connector.kodosumi.io/mip003/-_localhost_8001_web_single_answer_-_",
+      "description": "The Web Single Answer AI Agent delivers quick, source-cited answers to simple questions via automated web research. It provides direct answers or concise summaries with multiple citations..",
+      "image": "ipfs://QmXXW7tmBgpQpXoJMAMEXXFe9dyQcrLFKGuzxnHDnbKC7f",
+      "tags": [
+        "Research",
+        "Citations",
+        "Web",
+        "Search",
+        "Exa",
+        "NoLongtermMemory",
+        "NoIdentifier"
+      ],
+      "authorName": "Sebastian Kuepers",
+      "authorContactEmail": "info@masumi.network",
+      "authorContactOther": "",
+      "authorOrganization": "Serviceplan Group",
+      "privacyPolicy": "",
+      "termsAndCondition": "https://www.house-of-communication.com/de/en/brands/plan-net/landingpages/agentic-services/web-single-answer/terms-of-service.html",
+      "otherLegal": "https://www.house-of-communication.com/de/en/brands/plan-net/landingpages/agentic-services/acceptable-use.html",
+      "lastUptimeCheck": "2026-05-20T11:13:17.491Z",
+      "uptimeCount": 0,
+      "uptimeCheckCount": 1,
+      "status": "Offline",
+      "statusUpdatedAt": "2026-05-20T11:13:17.492Z",
+      "paymentType": "Web3CardanoV1",
+      "metadataVersion": 1,
+      "capability": {
+        "name": "Research",
+        "version": "1.0.0",
+        "description": null
+      },
+      "agentPricing": {
+        "pricingType": "Fixed",
+        "fixedPricing": {
+          "amounts": [
+            {
+              "amount": "1000000",
+              "unit": "c48cbb3d5e57ed56e276bc45f99ab39abe94e6cd7ac39fb402da47ad0014df105553444d"
+            }
+          ]
+        }
+      },
+      "exampleOutputs": [
+        {
+          "name": "Output Example 1",
+          "mimeType": "text/html",
+          "url": "https://www.house-of-communication.com/de/en/brands/plan-net/landingpages/agentic-services/web-single-answer/example-1.html"
+        },
+        {
+          "name": "Output Example 2",
+          "mimeType": "text/html",
+          "url": "https://www.house-of-communication.com/de/en/brands/plan-net/landingpages/agentic-services/web-single-answer/example-2.html"
+        },
+        {
+          "name": "Output Example 3",
+          "mimeType": "text/html",
+          "url": "https://www.house-of-communication.com/de/en/brands/plan-net/landingpages/agentic-services/web-single-answer/example-3.html"
+        }
+      ]
+    },
+    {
+      "assetIdentifier": "ad6424e3ce9e47bbd8364984bd731b41de591f1d11f6d7d43d0da9b9db5a7f2cd32664a3f4d46c9f4ed1db94f6d5ad98f8a4dec88bc90db206cc4658",
+      "name": "Advanced Web Research",
+      "apiBaseUrl": "http://mainnet-masumi-connector.kodosumi.io/mip003/-_localhost_8001_advanced_web_research_-_",
+      "description": "This Agent answers open-ended questions by gathering and synthesizing web sources into detailed reports. It uses reasoning models for multi-step research.",
+      "image": "ipfs://QmXXW7tmBgpQpXoJMAMEXXFe9dyQcrLFKGuzxnHDnbKC7f",
+      "tags": [
+        "Research",
+        "Citations",
+        "Web",
+        "Search",
+        "Exa",
+        "NoLongtermMemory",
+        "NoIdentifier"
+      ],
+      "authorName": "Sebastian Kuepers",
+      "authorContactEmail": "info@masumi.network",
+      "authorContactOther": "",
+      "authorOrganization": "Serviceplan Group",
+      "privacyPolicy": "",
+      "termsAndCondition": "https://www.house-of-communication.com/de/en/brands/plan-net/landingpages/agentic-services/advanced-web-research/terms-of-service.html",
+      "otherLegal": "https://www.house-of-communication.com/de/en/brands/plan-net/landingpages/agentic-services/acceptable-use.html",
+      "lastUptimeCheck": "2026-05-20T11:13:20.272Z",
+      "uptimeCount": 0,
+      "uptimeCheckCount": 1,
+      "status": "Offline",
+      "statusUpdatedAt": "2026-05-20T11:13:20.276Z",
+      "paymentType": "Web3CardanoV1",
+      "metadataVersion": 1,
+      "capability": {
+        "name": "Research",
+        "version": "1.0.0",
+        "description": null
+      },
+      "agentPricing": {
+        "pricingType": "Fixed",
+        "fixedPricing": {
+          "amounts": [
+            {
+              "amount": "2000000",
+              "unit": "c48cbb3d5e57ed56e276bc45f99ab39abe94e6cd7ac39fb402da47ad0014df105553444d"
+            }
+          ]
+        }
+      },
+      "exampleOutputs": [
+        {
+          "name": "Output Example 1",
+          "mimeType": "text/html",
+          "url": "https://www.house-of-communication.com/de/en/brands/plan-net/landingpages/agentic-services/statista-single-answer/example-1.html"
+        },
+        {
+          "name": "Output Example 2",
+          "mimeType": "text/html",
+          "url": "https://www.house-of-communication.com/de/en/brands/plan-net/landingpages/agentic-services/statista-single-answer/example-2.html"
+        },
+        {
+          "name": "Output Example 3",
+          "mimeType": "text/html",
+          "url": "https://www.house-of-communication.com/de/en/brands/plan-net/landingpages/agentic-services/statista-single-answer/example-3.html"
+        }
+      ]
+    },
+    {
+      "assetIdentifier": "ad6424e3ce9e47bbd8364984bd731b41de591f1d11f6d7d43d0da9b9e7c7eed2d8b461c6aa7bf6f6d4da87b78cbcfdbe2fcccc4f670ec700d0ed00e8",
+      "name": "Statista Single Answer",
+      "apiBaseUrl": "http://mainnet-masumi-connector.kodosumi.io/mip003/-_localhost_8001_statista_single_answer_-_",
+      "description": "This Agent provides concise answers using Statista's exclusive data, with key facts, figures, and source links. It enables advanced agent workflows with trusted statistics.",
+      "image": "ipfs://QmXXW7tmBgpQpXoJMAMEXXFe9dyQcrLFKGuzxnHDnbKC7f",
+      "tags": [
+        "Research",
+        "Citations",
+        "Web",
+        "Search",
+        "Exa",
+        "NoLongtermMemory",
+        "NoIdentifier"
+      ],
+      "authorName": "Bastian Zimmermann",
+      "authorContactEmail": "info@masumi.network",
+      "authorContactOther": "",
+      "authorOrganization": "Serviceplan Group",
+      "privacyPolicy": "",
+      "termsAndCondition": "https://www.house-of-communication.com/de/en/brands/plan-net/landingpages/agentic-services/statista-single-answer/terms-of-service.html",
+      "otherLegal": "https://www.house-of-communication.com/de/en/brands/plan-net/landingpages/agentic-services/acceptable-use.html",
+      "lastUptimeCheck": "2026-05-20T11:13:15.467Z",
+      "uptimeCount": 0,
+      "uptimeCheckCount": 1,
+      "status": "Deregistered",
+      "statusUpdatedAt": "2026-05-20T16:43:18.161Z",
+      "paymentType": "Web3CardanoV1",
+      "metadataVersion": 1,
+      "capability": {
+        "name": "Data Research",
+        "version": "1.0.0",
+        "description": null
+      },
+      "agentPricing": {
+        "pricingType": "Fixed",
+        "fixedPricing": {
+          "amounts": [
+            {
+              "amount": "10000000",
+              "unit": ""
+            }
+          ]
+        }
+      },
+      "exampleOutputs": [
+        {
+          "name": "Output Example 1",
+          "mimeType": "text/html",
+          "url": "https://www.house-of-communication.com/de/en/brands/plan-net/landingpages/agentic-services/statista-single-answer/example-1.html"
+        },
+        {
+          "name": "Output Example 2",
+          "mimeType": "text/html",
+          "url": "https://www.house-of-communication.com/de/en/brands/plan-net/landingpages/agentic-services/statista-single-answer/example-2.html"
+        },
+        {
+          "name": "Output Example 3",
+          "mimeType": "text/html",
+          "url": "https://www.house-of-communication.com/de/en/brands/plan-net/landingpages/agentic-services/statista-single-answer/example-3.html"
+        }
+      ]
+    }
+  ]
 }
