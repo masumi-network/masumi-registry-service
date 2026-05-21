@@ -26,7 +26,10 @@
     "build": "prisma generate && tsc --noEmit && pkgroll && mkdir -p dist/public && cp -r public/* dist/public/",
     "start": "NODE_ENV=production && node ./dist/index.js",
     "swagger-json": "export DATABASE_URL=postgresql://mock-user:mock-pass@localhost:5432/mock-testdb && tsx ./src/utils/swagger-generator/cli.ts",
-    "knip": "knip"
+    "knip": "knip",
+    "snapshot:export": "tsx ./src/scripts/snapshot-export.ts",
+    "snapshot:import": "tsx ./src/scripts/snapshot-import.ts",
+    "snapshot:import:dry": "tsx ./src/scripts/snapshot-import.ts --dry-run"
   },
   "dependencies": {
     "@asteasolutions/zod-to-openapi": "8.5.0",
