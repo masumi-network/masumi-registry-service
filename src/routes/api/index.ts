@@ -28,7 +28,6 @@ import {
 } from './inbox-agent-registration';
 import { inboxAgentRegistrationDiffPost } from './inbox-agent-registration-diff';
 import {
-  createSimpleApiListingPost,
   querySimpleApiListingPost,
   searchSimpleApiListingPost,
   diffSimpleApiListingPost,
@@ -85,7 +84,6 @@ export const apiRouter: Routing = {
       delete: deleteRegistrySourceEndpointDelete,
     },
     'simple-api-listing': {
-      post: createSimpleApiListingPost,
       patch: updateSimpleApiListingPatch,
       delete: deleteSimpleApiListingDelete,
     },

@@ -1,104 +1,11 @@
-import { Network, Prisma, SimpleApiStatus } from '@prisma/client';
-import createHttpError from 'http-errors';
+import { Network } from '@prisma/client';
 import { simpleApiListingRepository } from '@/repositories/simple-api-listing';
-import { validateX402Url, computeUrlHash } from '@/utils/x402-validator';
-import { logger } from '@/utils/logger';
 import { z } from '@/utils/zod-openapi';
 import {
-  createSimpleApiListingSchemaInput,
   querySimpleApiListingSchemaInput,
   searchSimpleApiListingSchemaInput,
   updateSimpleApiListingSchemaInput,
 } from '@/routes/api/simple-api-listing/schemas';
-
-async function submitSimpleApiListing(
-  input: z.infer<typeof createSimpleApiListingSchemaInput>,
-  submittedByApiKeyId: string
-) {
-  const { url, network, name, description, category, tags } = input;
-
-  const urlHash = computeUrlHash(url);
-
-  const existing =
-    await simpleApiListingRepository.findSimpleApiListingByUrlHash(urlHash);
-  if (existing) {
-    if (existing.status !== SimpleApiStatus.Deregistered) {
-      throw createHttpError(
-        409,
-        'A listing for this URL already exists in this registry'
-      );
-    }
-    // Only the original submitter may re-register a deregistered listing
-    if (
-      existing.submittedByApiKeyId &&
-      existing.submittedByApiKeyId !== submittedByApiKeyId
-    ) {
-      throw createHttpError(
-        403,
-        'Only the original submitter may re-register this listing'
-      );
-    }
-    logger.info('Re-registering previously deregistered Simple API listing', {
-      id: existing.id,
-      url,
-    });
-  }
-
-  const validation = await validateX402Url(url);
-  if (validation.outcome === 'failure') {
-    throw createHttpError(422, `URL validation failed: ${validation.reason}`);
-  }
-
-  logger.info('Simple API listing validated', {
-    url,
-    source: validation.source,
-    acceptsCount: validation.accepts.length,
-  });
-
-  if (existing && existing.status === SimpleApiStatus.Deregistered) {
-    // Update both payment metadata and user-supplied fields on re-registration
-    await simpleApiListingRepository.updateSimpleApiListingMeta({
-      id: existing.id,
-      name,
-      description,
-      category,
-      tags: tags ?? [],
-    });
-    return simpleApiListingRepository.updateSimpleApiListingStatus({
-      id: existing.id,
-      status: SimpleApiStatus.Online,
-      lastActiveAt: new Date(),
-      accepts: validation.accepts,
-    });
-  }
-
-  try {
-    return await simpleApiListingRepository.createSimpleApiListing({
-      network,
-      name,
-      description,
-      url,
-      urlHash,
-      category,
-      tags: tags ?? [],
-      accepts: validation.accepts,
-      httpMethod: validation.httpMethod,
-      extra: validation.extra,
-      submittedByApiKeyId,
-    });
-  } catch (error) {
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === 'P2002'
-    ) {
-      throw createHttpError(
-        409,
-        'A listing for this URL already exists in this registry'
-      );
-    }
-    throw error;
-  }
-}
 
 async function getSimpleApiListings(
   input: z.infer<typeof querySimpleApiListingSchemaInput>
@@ -159,7 +66,6 @@ async function deregisterSimpleApiListing(id: string) {
 }
 
 export const simpleApiListingService = {
-  submitSimpleApiListing,
   getSimpleApiListings,
   searchSimpleApiListings,
   getSimpleApiListingDiff,

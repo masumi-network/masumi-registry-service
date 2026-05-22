@@ -285,14 +285,14 @@ model SimpleApiListing {
   // Any vendor-specific extras (outputSchema, etc.)
   extra      Json?
 
+  // On-chain NFT asset identifier (policyId + assetName)
+  assetIdentifier String? @unique
+
   // Health / validation state
   status              SimpleApiStatus @default(Offline)
   statusUpdatedAt     DateTime        @default(now())
   lastActiveAt        DateTime?
   lastValidationError String?
-
-  // Audit — which API key submitted this listing
-  submittedByApiKeyId String?
 
   @@index([network, status])
   @@index([statusUpdatedAt, id])

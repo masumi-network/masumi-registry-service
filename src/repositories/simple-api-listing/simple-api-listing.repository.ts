@@ -13,7 +13,7 @@ type CreateSimpleApiListingParams = {
   accepts: X402PaymentRequirement[];
   httpMethod?: string | null;
   extra?: Record<string, unknown> | null;
-  submittedByApiKeyId?: string | null;
+  assetIdentifier?: string | null;
 };
 
 type SimpleApiListingQueryParams = {
@@ -55,13 +55,9 @@ async function createSimpleApiListing(params: CreateSimpleApiListingParams) {
       status: SimpleApiStatus.Online,
       statusUpdatedAt: new Date(),
       lastActiveAt: new Date(),
-      submittedByApiKeyId: params.submittedByApiKeyId ?? null,
+      assetIdentifier: params.assetIdentifier ?? null,
     },
   });
-}
-
-async function findSimpleApiListingByUrlHash(urlHash: string) {
-  return prisma.simpleApiListing.findUnique({ where: { urlHash } });
 }
 
 async function getSimpleApiListings(params: SimpleApiListingQueryParams) {
@@ -223,7 +219,6 @@ async function getSimpleApiListingsForHealthCheck(params: {
 
 export const simpleApiListingRepository = {
   createSimpleApiListing,
-  findSimpleApiListingByUrlHash,
   getSimpleApiListings,
   searchSimpleApiListings,
   getSimpleApiListingDiffEntries,

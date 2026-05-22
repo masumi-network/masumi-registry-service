@@ -6,15 +6,6 @@ import { Network, SimpleApiStatus } from '@prisma/client';
 // Input schemas
 // ---------------------------------------------------------------------------
 
-export const createSimpleApiListingSchemaInput = z.object({
-  network: z.nativeEnum(Network),
-  url: z.string().url().min(1).max(500),
-  name: z.string().min(1).max(250),
-  description: z.string().max(500).optional(),
-  category: z.string().min(1).max(100).optional(),
-  tags: z.array(z.string().min(1).max(100)).max(15).optional(),
-});
-
 export const querySimpleApiListingSchemaInput = z.object({
   network: z.nativeEnum(Network),
   limit: z.coerce.number().int().min(1).max(50).default(10),
@@ -110,10 +101,6 @@ export const simpleApiListingSchemaOutput = z
 
 export const querySimpleApiListingSchemaOutput = z.object({
   listings: z.array(simpleApiListingSchemaOutput),
-});
-
-export const createSimpleApiListingSchemaOutput = z.object({
-  listing: simpleApiListingSchemaOutput,
 });
 
 export const updateSimpleApiListingSchemaOutput = z.object({

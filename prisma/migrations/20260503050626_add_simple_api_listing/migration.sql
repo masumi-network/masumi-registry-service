@@ -39,10 +39,13 @@ CREATE TABLE "SimpleApiListing" (
     "statusUpdatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "lastActiveAt" TIMESTAMP(3),
     "lastValidationError" TEXT,
-    "submittedByApiKeyId" TEXT,
+    "assetIdentifier" TEXT,
 
     CONSTRAINT "SimpleApiListing_pkey" PRIMARY KEY ("id")
 );
+
+-- CreateIndex
+CREATE UNIQUE INDEX "SimpleApiListing_assetIdentifier_key" ON "SimpleApiListing"("assetIdentifier");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "SimpleApiListing_urlHash_key" ON "SimpleApiListing"("urlHash");

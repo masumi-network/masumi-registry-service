@@ -2,8 +2,10 @@ import {
   $Enums,
   InboxAgentRegistration,
   InboxAgentRegistrationStatus,
+  Prisma,
   PricingType,
   RegistrySource,
+  SimpleApiStatus,
 } from '@prisma/client';
 import { Mutex, tryAcquire, MutexInterface } from 'async-mutex';
 import { prisma } from '@/utils/db';
@@ -13,6 +15,7 @@ import { healthCheckService } from '@/services/health-check';
 import { logger } from '@/utils/logger';
 import { DEFAULTS } from '@/utils/config';
 import { getBlockfrostInstance } from '@/utils/blockfrost';
+import { validateX402Url, computeUrlHash } from '@/utils/x402-validator';
 import {
   getInboxAgentRegistrationVerificationDataReset,
   INBOX_REGISTRY_METADATA_TYPE,
@@ -20,6 +23,24 @@ import {
   nextInboxAgentRegistrationStatus,
   parseInboxAgentRegistrationMetadata,
 } from './inbox-agent-registration';
+
+const X402_REGISTRY_METADATA_TYPE = 'SimpleApiV1' as const;
+
+const x402RegistryMetadataSchema = z.object({
+  type: z.literal(X402_REGISTRY_METADATA_TYPE),
+  metadata_version: z.coerce.number().int().min(1).max(1),
+  name: z
+    .string()
+    .min(1)
+    .or(z.array(z.string().min(1))),
+  url: z
+    .string()
+    .min(1)
+    .or(z.array(z.string().min(1))),
+  description: z.string().or(z.array(z.string())).optional(),
+  category: z.string().or(z.array(z.string())).optional(),
+  tags: z.array(z.string().min(1)).optional(),
+});
 
 const web3CardanoMetadataSchema = z.object({
   name: z
@@ -591,6 +612,119 @@ async function syncInboxAgentRegistration(params: {
   };
 }
 
+async function syncX402SimpleApiListing(params: {
+  source: SyncableRegistrySource;
+  asset: string;
+  onchainMetadata: unknown;
+}): Promise<boolean> {
+  const parsedMetadata = x402RegistryMetadataSchema.safeParse(
+    params.onchainMetadata
+  );
+  if (!parsedMetadata.success) return false;
+
+  const url = metadataStringConvert(parsedMetadata.data.url)!;
+  const name = metadataStringConvert(parsedMetadata.data.name)!;
+  const description =
+    metadataStringConvert(parsedMetadata.data.description) ?? null;
+  const category = metadataStringConvert(parsedMetadata.data.category) ?? null;
+  const tags = parsedMetadata.data.tags ?? [];
+  const urlHash = computeUrlHash(url);
+  const validation = await validateX402Url(url);
+
+  const sharedCreate = {
+    assetIdentifier: params.asset,
+    network: params.source.network,
+    name,
+    description,
+    url,
+    urlHash,
+    category,
+    tags,
+  };
+  const sharedUpdate = { name, description, category, tags };
+
+  if (validation.outcome === 'success') {
+    const first = validation.accepts[0];
+    const paymentFields = {
+      scheme: first?.scheme ?? null,
+      x402Network: first?.network ?? null,
+      maxAmountRequired: first?.maxAmountRequired
+        ? BigInt(first.maxAmountRequired)
+        : null,
+      payTo: first?.payTo ?? null,
+      asset: first?.asset ?? null,
+      resource: first?.resource ?? null,
+      mimeType: first?.mimeType ?? null,
+      httpMethod: validation.httpMethod ?? null,
+      rawAccepts: validation.accepts as unknown as Prisma.InputJsonValue,
+      extra:
+        validation.extra != null
+          ? (validation.extra as unknown as Prisma.InputJsonValue)
+          : Prisma.JsonNull,
+      status: SimpleApiStatus.Online,
+      statusUpdatedAt: new Date(),
+      lastActiveAt: new Date(),
+      lastValidationError: null,
+    };
+    try {
+      await prisma.simpleApiListing.upsert({
+        where: { assetIdentifier: params.asset },
+        create: { ...sharedCreate, ...paymentFields },
+        update: { ...sharedUpdate, ...paymentFields },
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        logger.warn('SimpleApiListing URL already registered by another NFT', {
+          asset: params.asset,
+          url,
+        });
+        return false;
+      }
+      throw error;
+    }
+  } else {
+    const isNetworkError = /ENOTFOUND|ECONNREFUSED|ETIMEDOUT/.test(
+      validation.reason
+    );
+    const status = isNetworkError
+      ? SimpleApiStatus.Offline
+      : SimpleApiStatus.Invalid;
+    try {
+      await prisma.simpleApiListing.upsert({
+        where: { assetIdentifier: params.asset },
+        create: {
+          ...sharedCreate,
+          status,
+          statusUpdatedAt: new Date(),
+          lastValidationError: validation.reason,
+        },
+        update: {
+          ...sharedUpdate,
+          status,
+          statusUpdatedAt: new Date(),
+          lastValidationError: validation.reason,
+        },
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        logger.warn('SimpleApiListing URL already registered by another NFT', {
+          asset: params.asset,
+          url,
+        });
+        return false;
+      }
+      throw error;
+    }
+  }
+  return true;
+}
+
 async function syncMintedAsset(params: {
   source: SyncableRegistrySource;
   asset: string;
@@ -610,6 +744,11 @@ async function syncMintedAsset(params: {
         inboxAgentRegistrations: [syncResult.inboxAgentRegistration],
       });
     }
+    return;
+  }
+
+  if (metadataType === X402_REGISTRY_METADATA_TYPE) {
+    await syncX402SimpleApiListing(params);
     return;
   }
 
@@ -634,6 +773,13 @@ async function markAssetDeregistered(params: {
         encryptionKeyVersion: null,
         signingPublicKey: null,
         signingKeyVersion: null,
+      },
+    }),
+    prisma.simpleApiListing.updateMany({
+      where: { assetIdentifier: params.asset },
+      data: {
+        status: SimpleApiStatus.Deregistered,
+        statusUpdatedAt: new Date(),
       },
     }),
   ]);

@@ -4,8 +4,6 @@ import { z } from '@/utils/zod-openapi';
 import { simpleApiListingService } from '@/services/simple-api-listing';
 import { tokenCreditService } from '@/services/token-credit';
 import {
-  createSimpleApiListingSchemaInput,
-  createSimpleApiListingSchemaOutput,
   querySimpleApiListingSchemaInput,
   querySimpleApiListingSchemaOutput,
   searchSimpleApiListingSchemaInput,
@@ -26,39 +24,6 @@ type AuthCtx = {
   maxUsageCredits: number | null;
   usageLimited: boolean;
 };
-
-// ---------------------------------------------------------------------------
-// POST /api/v1/simple-api-listing — register a new listing
-// ---------------------------------------------------------------------------
-
-export const createSimpleApiListingPost = authenticatedEndpointFactory.build<
-  typeof createSimpleApiListingSchemaOutput,
-  typeof createSimpleApiListingSchemaInput
->({
-  method: 'post',
-  input: createSimpleApiListingSchemaInput,
-  output: createSimpleApiListingSchemaOutput,
-  handler: async ({
-    input,
-    ctx,
-  }: {
-    input: z.infer<typeof createSimpleApiListingSchemaInput>;
-    ctx: AuthCtx;
-  }) => {
-    await tokenCreditService.handleTokenCredits(
-      ctx,
-      0,
-      'submit simple-api-listing: ' + input.url
-    );
-    const listing = await simpleApiListingService.submitSimpleApiListing(
-      input,
-      ctx.id
-    );
-    return createSimpleApiListingSchemaOutput.parse({
-      listing: serializeSimpleApiListing(listing),
-    });
-  },
-});
 
 // ---------------------------------------------------------------------------
 // POST /api/v1/simple-api-listing-query — paginated list
