@@ -181,6 +181,8 @@ export async function updateHealthCheck(onlyEntriesAfter?: Date | undefined) {
               },
             },
             ExampleOutput: true,
+            SupportedPaymentSources: true,
+            Verifications: true,
           },
         });
         logger.info(
@@ -212,6 +214,8 @@ export async function updateHealthCheck(onlyEntriesAfter?: Date | undefined) {
               },
             },
             ExampleOutput: true,
+            SupportedPaymentSources: true,
+            Verifications: true,
           },
         });
         logger.info(

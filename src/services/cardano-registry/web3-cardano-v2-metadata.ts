@@ -143,7 +143,10 @@ export function resolveV2PaymentType(
   const pricingType = pricing
     ? metadataStringConvert(pricing.pricingType)
     : undefined;
-  return pricingType === PricingType.Free
+  // No Cardano source (e.g. an x402/EVM-only entry) means no Cardano escrow, so
+  // the Cardano payment type is None — same as Free. Keeps paymentType consistent
+  // with resolveV2AgentPricingCreate, which resolves to Free in both cases.
+  return pricingType == null || pricingType === PricingType.Free
     ? $Enums.PaymentType.None
     : $Enums.PaymentType.Web3CardanoV2;
 }

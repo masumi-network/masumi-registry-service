@@ -23,12 +23,20 @@ SELECT
   v1."registrySourceConfigId",
   1,
   'Auto-provisioned V2 registry source (migrated from the V1 source)'
-FROM "RegistrySource" v1
-WHERE v1."policyId" IN (
-  '7e8bdaf2b2b919a3a4b94002cafb50086c0c845fe535d07a77ab7f77',
-  'ad6424e3ce9e47bbd8364984bd731b41de591f1d11f6d7d43d0da9b9'
-)
-AND NOT EXISTS (
+FROM (
+  -- Collapse to at most one V1 source per network (a network may hold more than
+  -- one V1 policyId), so the V2 insert can never produce two rows for the same
+  -- network and abort on @@unique([network, policyId]). Picks the oldest source.
+  SELECT DISTINCT ON ("network")
+    "network", "url", "registrySourceConfigId"
+  FROM "RegistrySource"
+  WHERE "policyId" IN (
+    '7e8bdaf2b2b919a3a4b94002cafb50086c0c845fe535d07a77ab7f77',
+    'ad6424e3ce9e47bbd8364984bd731b41de591f1d11f6d7d43d0da9b9'
+  )
+  ORDER BY "network", "createdAt"
+) v1
+WHERE NOT EXISTS (
   SELECT 1
   FROM "RegistrySource" existing
   WHERE existing."network" = v1."network"
