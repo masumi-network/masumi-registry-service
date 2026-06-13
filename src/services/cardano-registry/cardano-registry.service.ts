@@ -17,6 +17,13 @@ import {
   nextInboxAgentRegistrationStatus,
   parseInboxAgentRegistrationMetadata,
 } from './inbox-agent-registration';
+import {
+  buildV2SupportedPaymentSourceRows,
+  buildV2VerificationRows,
+  resolveV2AgentPricingCreate,
+  resolveV2PaymentType,
+  web3CardanoV2MetadataSchema,
+} from './web3-cardano-v2-metadata';
 
 const web3CardanoMetadataSchema = z.object({
   name: z
@@ -480,6 +487,141 @@ async function syncWeb3CardanoRegistryEntry(params: {
   return true;
 }
 
+// The V2 registry validator is unparameterized, so the V2 policyId is the same on
+// both networks (see DEFAULTS + registry-script.spec.ts).
+function isV2RegistrySource(policyId: string): boolean {
+  return (
+    policyId === DEFAULTS.REGISTRY_POLICY_ID_PREPROD_V2 ||
+    policyId === DEFAULTS.REGISTRY_POLICY_ID_MAINNET_V2
+  );
+}
+
+// Sync a Web3CardanoV2 registry entry. V2 metadata groups payment sources (with
+// per-source pricing) and adds verifications, and drops the top-level
+// agentPricing — so pricing is resolved from the Cardano source. Re-synced via
+// the same upsert-by-assetIdentifier path, so on-chain metadata updates are
+// picked up; the relational read models are fully replaced each sync.
+async function syncWeb3CardanoV2RegistryEntry(params: {
+  source: SyncableRegistrySource;
+  asset: string;
+  onchainMetadata: unknown;
+}): Promise<boolean> {
+  const parsedMetadata = web3CardanoV2MetadataSchema.safeParse(
+    params.onchainMetadata
+  );
+  if (!parsedMetadata.success) {
+    return false;
+  }
+  const metadata = parsedMetadata.data;
+
+  const endpoint = metadataStringConvert(metadata.api_base_url)!;
+  const isAvailable = await healthCheckService.checkAndVerifyEndpoint({
+    api_url: endpoint,
+  });
+  const status =
+    isAvailable.returnedAgentIdentifier != null
+      ? isAvailable.returnedAgentIdentifier == params.asset
+        ? isAvailable.status
+        : $Enums.Status.Invalid
+      : isAvailable.status;
+
+  const capabilityName = metadataStringConvert(metadata.capability?.name);
+  const capabilityVersion = metadataStringConvert(metadata.capability?.version);
+
+  const exampleOutputCreate =
+    metadata.example_output && metadata.example_output.length > 0
+      ? {
+          createMany: {
+            data: metadata.example_output.map((example) => ({
+              name: metadataStringConvert(example.name)!,
+              mimeType: metadataStringConvert(example.mime_type)!,
+              url: metadataStringConvert(example.url)!,
+            })),
+          },
+        }
+      : undefined;
+
+  const supportedPaymentSourceRows =
+    buildV2SupportedPaymentSourceRows(metadata);
+  const verificationRows = buildV2VerificationRows(metadata);
+
+  const sharedQuery = {
+    status,
+    name: metadataStringConvert(metadata.name)!,
+    description: metadataStringConvert(metadata.description),
+    apiBaseUrl: metadataStringConvert(metadata.api_base_url)!,
+    authorName: metadataStringConvert(metadata.author.name),
+    authorOrganization: metadataStringConvert(metadata.author.organization),
+    authorContactEmail: metadataStringConvert(metadata.author.contact_email),
+    authorContactOther: metadataStringConvert(metadata.author.contact_other),
+    image: metadataStringConvert(metadata.image)!,
+    privacyPolicy: metadataStringConvert(metadata.legal?.privacy_policy),
+    termsAndCondition: metadataStringConvert(metadata.legal?.terms),
+    otherLegal: metadataStringConvert(metadata.legal?.other),
+    tags: metadata.tags,
+    metadataVersion: DEFAULTS.METADATA_VERSION_V2,
+    assetIdentifier: params.asset,
+    paymentType: resolveV2PaymentType(metadata),
+    RegistrySource: { connect: { id: params.source.id } },
+    Capability:
+      capabilityName == null || capabilityVersion == null
+        ? undefined
+        : {
+            connectOrCreate: {
+              create: { name: capabilityName, version: capabilityVersion },
+              where: {
+                name_version: {
+                  name: capabilityName,
+                  version: capabilityVersion,
+                },
+              },
+            },
+          },
+  };
+
+  await prisma.registryEntry.upsert({
+    where: { assetIdentifier: params.asset },
+    update: {
+      ...sharedQuery,
+      lastUptimeCheck: new Date(),
+      uptimeCount: { increment: status == $Enums.Status.Online ? 1 : 0 },
+      uptimeCheckCount: { increment: 1 },
+      AgentPricing: { create: resolveV2AgentPricingCreate(metadata) },
+      ExampleOutput: { deleteMany: {}, ...(exampleOutputCreate ?? {}) },
+      SupportedPaymentSources: {
+        deleteMany: {},
+        ...(supportedPaymentSourceRows.length > 0
+          ? { createMany: { data: supportedPaymentSourceRows } }
+          : {}),
+      },
+      Verifications: {
+        deleteMany: {},
+        ...(verificationRows.length > 0
+          ? { createMany: { data: verificationRows } }
+          : {}),
+      },
+    },
+    create: {
+      ...sharedQuery,
+      lastUptimeCheck: new Date(),
+      uptimeCount: status == $Enums.Status.Online ? 1 : 0,
+      uptimeCheckCount: 1,
+      AgentPricing: { create: resolveV2AgentPricingCreate(metadata) },
+      ExampleOutput: exampleOutputCreate,
+      SupportedPaymentSources:
+        supportedPaymentSourceRows.length > 0
+          ? { createMany: { data: supportedPaymentSourceRows } }
+          : undefined,
+      Verifications:
+        verificationRows.length > 0
+          ? { createMany: { data: verificationRows } }
+          : undefined,
+    },
+  });
+
+  return true;
+}
+
 async function syncInboxAgentRegistration(params: {
   source: SyncableRegistrySource;
   asset: string;
@@ -542,6 +684,11 @@ async function syncMintedAsset(params: {
 
   if (metadataType === INBOX_REGISTRY_METADATA_TYPE) {
     await syncInboxAgentRegistration(params);
+    return;
+  }
+
+  if (isV2RegistrySource(params.source.policyId)) {
+    await syncWeb3CardanoV2RegistryEntry(params);
     return;
   }
 
