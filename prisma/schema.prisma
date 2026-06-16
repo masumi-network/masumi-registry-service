@@ -9,9 +9,7 @@ generator client {
 }
 
 datasource db {
-  provider          = "postgresql"
-  url               = env("DATABASE_URL")
-  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
+  provider = "postgresql"
 }
 
 model ApiKey {
@@ -87,10 +85,65 @@ model RegistryEntry {
 
   ExampleOutput ExampleOutput[]
 
+  SupportedPaymentSources SupportedPaymentSource[]
+  Verifications           AgentVerification[]
+
   metadataVersion Int
 
   @@index([statusUpdatedAt])
   @@index([statusUpdatedAt, id])
+}
+
+// Payment sources advertised in a V2 registry entry's metadata
+// (supported_payment_sources). One row per advertised source: Cardano escrow
+// rows carry paymentSourceType + address; x402/EVM rows carry the scheme/asset/
+// amount/decimals/payTo. Indexed read model — re-synced from chain, never minted.
+model SupportedPaymentSource {
+  id                String   @id @default(cuid())
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  chain             String
+  network           String
+  paymentSourceType String?
+  address           String
+  scheme            String?
+  asset             String?
+  amount            BigInt?
+  decimals          Int?
+  payTo             String?
+  resource          String?
+  extra             Json?
+
+  RegistryEntry   RegistryEntry @relation(fields: [registryEntryId], references: [id], onDelete: Cascade)
+  registryEntryId String
+
+  @@index([registryEntryId])
+}
+
+// KERI/Veridian verification claim advertised in a V2 registry entry's metadata.
+// Flat columns reconstruct the nested issuer/schema/credential/holder shape at
+// the API boundary. Read model — re-synced from chain.
+model AgentVerification {
+  id                 String   @id @default(cuid())
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  method             String
+  schemaVersion      String?
+  issuerAid          String
+  issuerOobi         String
+  schemaSaid         String
+  schemaOobi         String
+  credentialSaid     String
+  credentialOobi     String
+  credentialRegistry String?
+  holderAid          String
+  holderOobi         String
+  baseUrl            String?
+
+  RegistryEntry   RegistryEntry @relation(fields: [registryEntryId], references: [id], onDelete: Cascade)
+  registryEntryId String
+
+  @@index([registryEntryId])
 }
 
 model InboxAgentRegistration {
@@ -175,6 +228,7 @@ model UnitValue {
 
 enum PaymentType {
   Web3CardanoV1
+  Web3CardanoV2
   None
 }
 

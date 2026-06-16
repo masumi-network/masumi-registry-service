@@ -2,8 +2,9 @@ import { Network, PrismaClient, RPCProvider } from '@prisma/client';
 import dotenv from 'dotenv';
 import { DEFAULTS } from '../src/utils/config';
 import { hashToken } from '../src/utils/crypto';
+import { importSnapshotsForConfiguredSources } from '../src/utils/snapshot';
+import { prisma, cleanupDB } from '../src/utils/db';
 dotenv.config();
-const prisma = new PrismaClient();
 export const seed = async (prisma: PrismaClient) => {
   const seedOnlyIfEmpty = process.env.SEED_ONLY_IF_EMPTY;
   if (seedOnlyIfEmpty?.toLowerCase() === 'true') {
@@ -88,13 +89,26 @@ export const seed = async (prisma: PrismaClient) => {
   } else {
     console.log('REGISTRY_SOURCE_IDENTIFIER_CARDANO_Mainnet is not seeded');
   }
+
+  console.log('Attempting snapshot auto-import...');
+  const importResults =
+    await importSnapshotsForConfiguredSources('./snapshots');
+  for (const result of importResults) {
+    if (result.success) {
+      console.log(`Snapshot auto-import: imported ${result.imported} entries`);
+    } else if (result.skipped) {
+      console.log(`Snapshot auto-import skipped: ${result.reason}`);
+    } else {
+      console.log(`Snapshot auto-import failed: ${result.reason}`);
+    }
+  }
 };
 seed(prisma)
   .then(() => {
-    prisma.$disconnect();
+    cleanupDB();
     console.log('Seed completed');
   })
   .catch((e) => {
-    prisma.$disconnect();
+    cleanupDB();
     console.error(e);
   });

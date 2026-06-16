@@ -23,10 +23,10 @@ export const queryRegistryEntryPost = authenticatedEndpointFactory.build<
   output: queryRegistrySchemaOutput,
   handler: async ({
     input,
-    options,
+    ctx,
   }: {
     input: z.infer<typeof queryRegistrySchemaInput>;
-    options: {
+    ctx: {
       id: string;
       accumulatedUsageCredits: number;
       maxUsageCredits: number | null;
@@ -35,7 +35,7 @@ export const queryRegistryEntryPost = authenticatedEndpointFactory.build<
   }) => {
     const tokenCost = 0;
     await tokenCreditService.handleTokenCredits(
-      options,
+      ctx,
       tokenCost,
       'query for: ' + input.filter?.capability?.name
     );
@@ -55,10 +55,10 @@ export const searchRegistryEntryPost = authenticatedEndpointFactory.build<
   output: queryRegistrySchemaOutput,
   handler: async ({
     input,
-    options,
+    ctx,
   }: {
     input: z.infer<typeof searchRegistrySchemaInput>;
-    options: {
+    ctx: {
       id: string;
       accumulatedUsageCredits: number;
       maxUsageCredits: number | null;
@@ -67,7 +67,7 @@ export const searchRegistryEntryPost = authenticatedEndpointFactory.build<
   }) => {
     const tokenCost = 0;
     await tokenCreditService.handleTokenCredits(
-      options,
+      ctx,
       tokenCost,
       'search registry entries: ' + input.query
     );
@@ -88,10 +88,10 @@ export const refreshRegistryEntryPost = authenticatedEndpointFactory.build<
   output: refreshRegistryEntrySchemaOutput,
   handler: async ({
     input,
-    options,
+    ctx,
   }: {
     input: z.infer<typeof refreshRegistryEntrySchemaInput>;
-    options: {
+    ctx: {
       id: string;
       accumulatedUsageCredits: number;
       maxUsageCredits: number | null;
@@ -100,7 +100,7 @@ export const refreshRegistryEntryPost = authenticatedEndpointFactory.build<
   }) => {
     const tokenCost = 0;
     await tokenCreditService.handleTokenCredits(
-      options,
+      ctx,
       tokenCost,
       'refresh registry entry: ' + input.agentIdentifier
     );

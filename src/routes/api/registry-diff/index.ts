@@ -17,10 +17,10 @@ export const registryDiffPost = authenticatedEndpointFactory.build<
   output: queryRegistrySchemaOutput,
   handler: async ({
     input,
-    options,
+    ctx,
   }: {
     input: z.infer<typeof registryDiffSchemaInput>;
-    options: {
+    ctx: {
       id: string;
       accumulatedUsageCredits: number;
       maxUsageCredits: number | null;
@@ -29,7 +29,7 @@ export const registryDiffPost = authenticatedEndpointFactory.build<
   }) => {
     const tokenCost = 0;
     await tokenCreditService.handleTokenCredits(
-      options,
+      ctx,
       tokenCost,
       'registry diff since: ' + input.statusUpdatedAfter.toISOString()
     );

@@ -1,9 +1,7 @@
 import {
   $Enums,
-  InboxAgentRegistration,
   InboxAgentRegistrationStatus,
   PricingType,
-  RegistrySource,
 } from '@prisma/client';
 import { Mutex, tryAcquire, MutexInterface } from 'async-mutex';
 import { prisma } from '@/utils/db';
@@ -14,12 +12,18 @@ import { logger } from '@/utils/logger';
 import { DEFAULTS } from '@/utils/config';
 import { getBlockfrostInstance } from '@/utils/blockfrost';
 import {
-  getInboxAgentRegistrationVerificationDataReset,
   INBOX_REGISTRY_METADATA_TYPE,
   hasInboxAgentRegistrationContentChanged,
   nextInboxAgentRegistrationStatus,
   parseInboxAgentRegistrationMetadata,
 } from './inbox-agent-registration';
+import {
+  buildV2SupportedPaymentSourceRows,
+  buildV2VerificationRows,
+  resolveV2AgentPricingCreate,
+  resolveV2PaymentType,
+  web3CardanoV2MetadataSchema,
+} from './web3-cardano-v2-metadata';
 
 const web3CardanoMetadataSchema = z.object({
   name: z
@@ -79,7 +83,7 @@ const web3CardanoMetadataSchema = z.object({
       fixedPricing: z
         .array(
           z.object({
-            amount: z.number({ coerce: true }).int().min(1),
+            amount: z.coerce.number().int().min(1),
             unit: z
               .string()
               .min(1)
@@ -100,7 +104,7 @@ const web3CardanoMetadataSchema = z.object({
       })
     ),
   image: z.string().or(z.array(z.string())),
-  metadata_version: z.number({ coerce: true }).int().min(1).max(1),
+  metadata_version: z.coerce.number().int().min(1).max(1),
 });
 
 type SyncableRegistrySource = {
@@ -113,42 +117,6 @@ type SyncableRegistrySource = {
     rpcProviderApiKey: string;
   };
 };
-type InboxAgentRegistrationWithSource = InboxAgentRegistration & {
-  RegistrySource: RegistrySource;
-};
-type SyncInboxAgentRegistrationResult =
-  | {
-      synced: false;
-    }
-  | {
-      synced: true;
-      shouldVerifyImmediately: boolean;
-      inboxAgentRegistration: InboxAgentRegistrationWithSource;
-    };
-
-function getCapabilityRelationWrite(params: {
-  capabilityName: string | null;
-  capabilityVersion: string | null;
-}) {
-  if (params.capabilityName == null || params.capabilityVersion == null) {
-    return undefined;
-  }
-
-  return {
-    connectOrCreate: {
-      create: {
-        name: params.capabilityName,
-        version: params.capabilityVersion,
-      },
-      where: {
-        name_version: {
-          name: params.capabilityName,
-          version: params.capabilityVersion,
-        },
-      },
-    },
-  };
-}
 
 const healthMutex = new Mutex();
 export async function updateHealthCheck(onlyEntriesAfter?: Date | undefined) {
@@ -213,6 +181,8 @@ export async function updateHealthCheck(onlyEntriesAfter?: Date | undefined) {
               },
             },
             ExampleOutput: true,
+            SupportedPaymentSources: true,
+            Verifications: true,
           },
         });
         logger.info(
@@ -244,6 +214,8 @@ export async function updateHealthCheck(onlyEntriesAfter?: Date | undefined) {
               },
             },
             ExampleOutput: true,
+            SupportedPaymentSources: true,
+            Verifications: true,
           },
         });
         logger.info(
@@ -396,30 +368,9 @@ async function syncWeb3CardanoRegistryEntry(params: {
       ? $Enums.PaymentType.None
       : $Enums.PaymentType.Web3CardanoV1;
 
-  const name = metadataStringConvert(parsedMetadata.data.name)!;
-  const description = metadataStringConvert(parsedMetadata.data.description);
-  const apiBaseUrl = metadataStringConvert(parsedMetadata.data.api_base_url)!;
-  const authorName = metadataStringConvert(parsedMetadata.data.author?.name);
-  const authorOrganization = metadataStringConvert(
-    parsedMetadata.data.author?.organization
-  );
-  const authorContactEmail = metadataStringConvert(
-    parsedMetadata.data.author?.contact_email
-  );
-  const authorContactOther = metadataStringConvert(
-    parsedMetadata.data.author?.contact_other
-  );
-  const image = metadataStringConvert(parsedMetadata.data.image)!;
-  const privacyPolicy = metadataStringConvert(
-    parsedMetadata.data.legal?.privacy_policy
-  );
-  const termsAndCondition = metadataStringConvert(
-    parsedMetadata.data.legal?.terms
-  );
-  const otherLegal = metadataStringConvert(parsedMetadata.data.legal?.other);
-  const tags = parsedMetadata.data.tags;
+  const endpoint = metadataStringConvert(parsedMetadata.data.api_base_url)!;
   const isAvailable = await healthCheckService.checkAndVerifyEndpoint({
-    api_url: apiBaseUrl,
+    api_url: endpoint,
   });
   const status =
     isAvailable.returnedAgentIdentifier != null
@@ -433,23 +384,27 @@ async function syncWeb3CardanoRegistryEntry(params: {
   const capability_version = metadataStringConvert(
     parsedMetadata.data.capability?.version
   )!;
-  const capabilityRelationWrite = getCapabilityRelationWrite({
-    capabilityName: capability_name,
-    capabilityVersion: capability_version,
-  });
   const sharedQuery = {
     status: status,
-    name,
-    description,
-    apiBaseUrl,
-    authorName,
-    authorOrganization,
-    authorContactEmail,
-    authorContactOther,
-    image,
-    privacyPolicy,
-    termsAndCondition,
-    otherLegal,
+    name: metadataStringConvert(parsedMetadata.data.name)!,
+    description: metadataStringConvert(parsedMetadata.data.description),
+    apiBaseUrl: metadataStringConvert(parsedMetadata.data.api_base_url)!,
+    authorName: metadataStringConvert(parsedMetadata.data.author?.name),
+    authorOrganization: metadataStringConvert(
+      parsedMetadata.data.author?.organization
+    ),
+    authorContactEmail: metadataStringConvert(
+      parsedMetadata.data.author?.contact_email
+    ),
+    authorContactOther: metadataStringConvert(
+      parsedMetadata.data.author?.contact_other
+    ),
+    image: metadataStringConvert(parsedMetadata.data.image)!,
+    privacyPolicy: metadataStringConvert(
+      parsedMetadata.data.legal?.privacy_policy
+    ),
+    termsAndCondition: metadataStringConvert(parsedMetadata.data.legal?.terms),
+    otherLegal: metadataStringConvert(parsedMetadata.data.legal?.other),
     ExampleOutput:
       parsedMetadata.data.example_output &&
       parsedMetadata.data.example_output.length > 0
@@ -463,7 +418,7 @@ async function syncWeb3CardanoRegistryEntry(params: {
             },
           }
         : undefined,
-    tags,
+    tags: parsedMetadata.data.tags,
     metadataVersion: DEFAULTS.METADATA_VERSION,
     AgentPricing: {
       create:
@@ -492,11 +447,27 @@ async function syncWeb3CardanoRegistryEntry(params: {
     assetIdentifier: params.asset,
     paymentType: paymentType,
     RegistrySource: { connect: { id: params.source.id } },
+    Capability:
+      capability_name == null || capability_version == null
+        ? undefined
+        : {
+            connectOrCreate: {
+              create: {
+                name: capability_name,
+                version: capability_version,
+              },
+              where: {
+                name_version: {
+                  name: capability_name,
+                  version: capability_version,
+                },
+              },
+            },
+          },
   };
 
   const updateData = {
     ...sharedQuery,
-    Capability: capabilityRelationWrite ?? { disconnect: true },
     lastUptimeCheck: new Date(),
     uptimeCount: {
       increment: status == $Enums.Status.Online ? 1 : 0,
@@ -506,7 +477,6 @@ async function syncWeb3CardanoRegistryEntry(params: {
 
   const createData = {
     ...sharedQuery,
-    Capability: capabilityRelationWrite,
     lastUptimeCheck: new Date(),
     uptimeCount: status == $Enums.Status.Online ? 1 : 0,
     uptimeCheckCount: 1,
@@ -521,17 +491,152 @@ async function syncWeb3CardanoRegistryEntry(params: {
   return true;
 }
 
+// The V2 registry validator is unparameterized, so the V2 policyId is the same on
+// both networks (see DEFAULTS + registry-script.spec.ts).
+function isV2RegistrySource(policyId: string): boolean {
+  return (
+    policyId === DEFAULTS.REGISTRY_POLICY_ID_PREPROD_V2 ||
+    policyId === DEFAULTS.REGISTRY_POLICY_ID_MAINNET_V2
+  );
+}
+
+// Sync a Web3CardanoV2 registry entry. V2 metadata groups payment sources (with
+// per-source pricing) and adds verifications, and drops the top-level
+// agentPricing — so pricing is resolved from the Cardano source. Re-synced via
+// the same upsert-by-assetIdentifier path, so on-chain metadata updates are
+// picked up; the relational read models are fully replaced each sync.
+async function syncWeb3CardanoV2RegistryEntry(params: {
+  source: SyncableRegistrySource;
+  asset: string;
+  onchainMetadata: unknown;
+}): Promise<boolean> {
+  const parsedMetadata = web3CardanoV2MetadataSchema.safeParse(
+    params.onchainMetadata
+  );
+  if (!parsedMetadata.success) {
+    return false;
+  }
+  const metadata = parsedMetadata.data;
+
+  const endpoint = metadataStringConvert(metadata.api_base_url)!;
+  const isAvailable = await healthCheckService.checkAndVerifyEndpoint({
+    api_url: endpoint,
+  });
+  const status =
+    isAvailable.returnedAgentIdentifier != null
+      ? isAvailable.returnedAgentIdentifier == params.asset
+        ? isAvailable.status
+        : $Enums.Status.Invalid
+      : isAvailable.status;
+
+  const capabilityName = metadataStringConvert(metadata.capability?.name);
+  const capabilityVersion = metadataStringConvert(metadata.capability?.version);
+
+  const exampleOutputCreate =
+    metadata.example_output && metadata.example_output.length > 0
+      ? {
+          createMany: {
+            data: metadata.example_output.map((example) => ({
+              name: metadataStringConvert(example.name)!,
+              mimeType: metadataStringConvert(example.mime_type)!,
+              url: metadataStringConvert(example.url)!,
+            })),
+          },
+        }
+      : undefined;
+
+  const supportedPaymentSourceRows =
+    buildV2SupportedPaymentSourceRows(metadata);
+  const verificationRows = buildV2VerificationRows(metadata);
+
+  const sharedQuery = {
+    status,
+    name: metadataStringConvert(metadata.name)!,
+    description: metadataStringConvert(metadata.description),
+    apiBaseUrl: metadataStringConvert(metadata.api_base_url)!,
+    authorName: metadataStringConvert(metadata.author.name),
+    authorOrganization: metadataStringConvert(metadata.author.organization),
+    authorContactEmail: metadataStringConvert(metadata.author.contact_email),
+    authorContactOther: metadataStringConvert(metadata.author.contact_other),
+    image: metadataStringConvert(metadata.image)!,
+    privacyPolicy: metadataStringConvert(metadata.legal?.privacy_policy),
+    termsAndCondition: metadataStringConvert(metadata.legal?.terms),
+    otherLegal: metadataStringConvert(metadata.legal?.other),
+    tags: metadata.tags,
+    metadataVersion: DEFAULTS.METADATA_VERSION_V2,
+    assetIdentifier: params.asset,
+    paymentType: resolveV2PaymentType(metadata),
+    RegistrySource: { connect: { id: params.source.id } },
+    Capability:
+      capabilityName == null || capabilityVersion == null
+        ? undefined
+        : {
+            connectOrCreate: {
+              create: { name: capabilityName, version: capabilityVersion },
+              where: {
+                name_version: {
+                  name: capabilityName,
+                  version: capabilityVersion,
+                },
+              },
+            },
+          },
+  };
+
+  await prisma.registryEntry.upsert({
+    where: { assetIdentifier: params.asset },
+    update: {
+      ...sharedQuery,
+      lastUptimeCheck: new Date(),
+      uptimeCount: { increment: status == $Enums.Status.Online ? 1 : 0 },
+      uptimeCheckCount: { increment: 1 },
+      AgentPricing: { create: resolveV2AgentPricingCreate(metadata) },
+      ExampleOutput: { deleteMany: {}, ...(exampleOutputCreate ?? {}) },
+      SupportedPaymentSources: {
+        deleteMany: {},
+        ...(supportedPaymentSourceRows.length > 0
+          ? { createMany: { data: supportedPaymentSourceRows } }
+          : {}),
+      },
+      Verifications: {
+        deleteMany: {},
+        ...(verificationRows.length > 0
+          ? { createMany: { data: verificationRows } }
+          : {}),
+      },
+    },
+    create: {
+      ...sharedQuery,
+      lastUptimeCheck: new Date(),
+      uptimeCount: status == $Enums.Status.Online ? 1 : 0,
+      uptimeCheckCount: 1,
+      AgentPricing: { create: resolveV2AgentPricingCreate(metadata) },
+      ExampleOutput: exampleOutputCreate,
+      SupportedPaymentSources:
+        supportedPaymentSourceRows.length > 0
+          ? { createMany: { data: supportedPaymentSourceRows } }
+          : undefined,
+      Verifications:
+        verificationRows.length > 0
+          ? { createMany: { data: verificationRows } }
+          : undefined,
+    },
+  });
+
+  return true;
+}
+
 async function syncInboxAgentRegistration(params: {
   source: SyncableRegistrySource;
   asset: string;
   onchainMetadata: unknown;
-}): Promise<SyncInboxAgentRegistrationResult> {
+}): Promise<boolean> {
   const normalizedMetadata = parseInboxAgentRegistrationMetadata(
     params.onchainMetadata
   );
 
   if (!normalizedMetadata) {
-    return { synced: false };
+    return false;
   }
 
   const existing = await prisma.inboxAgentRegistration.findUnique({
@@ -549,33 +654,20 @@ async function syncInboxAgentRegistration(params: {
         changed,
       })
     : InboxAgentRegistrationStatus.Pending;
-  const shouldVerifyImmediately =
-    existing == null ||
-    (status === InboxAgentRegistrationStatus.Pending &&
-      (changed ||
-        existing.status === InboxAgentRegistrationStatus.Deregistered));
 
   const sharedQuery = {
     name: normalizedMetadata.name,
     description: normalizedMetadata.description,
     agentSlug: normalizedMetadata.agentSlug,
-    providerUrl: normalizedMetadata.providerUrl,
     metadataVersion: normalizedMetadata.metadataVersion,
     registrySourceId: params.source.id,
   };
 
-  const inboxAgentRegistration = await prisma.inboxAgentRegistration.upsert({
+  await prisma.inboxAgentRegistration.upsert({
     where: { assetIdentifier: params.asset },
-    include: {
-      RegistrySource: true,
-    },
     update: {
       ...sharedQuery,
       status,
-      ...getInboxAgentRegistrationVerificationDataReset({
-        changed,
-        nextStatus: status,
-      }),
     },
     create: {
       ...sharedQuery,
@@ -584,11 +676,7 @@ async function syncInboxAgentRegistration(params: {
     },
   });
 
-  return {
-    synced: true,
-    shouldVerifyImmediately,
-    inboxAgentRegistration,
-  };
+  return true;
 }
 
 async function syncMintedAsset(params: {
@@ -599,17 +687,12 @@ async function syncMintedAsset(params: {
   const metadataType = getRegistryMetadataType(params.onchainMetadata);
 
   if (metadataType === INBOX_REGISTRY_METADATA_TYPE) {
-    const syncResult = await syncInboxAgentRegistration(params);
-    if (syncResult.synced && syncResult.shouldVerifyImmediately) {
-      logger.info('Trying immediate inbox agent registration verification', {
-        assetIdentifier: params.asset,
-        agentSlug: syncResult.inboxAgentRegistration.agentSlug,
-        registrySourceId: params.source.id,
-      });
-      await healthCheckService.checkVerifyAndUpdateInboxAgentRegistrations({
-        inboxAgentRegistrations: [syncResult.inboxAgentRegistration],
-      });
-    }
+    await syncInboxAgentRegistration(params);
+    return;
+  }
+
+  if (isV2RegistrySource(params.source.policyId)) {
+    await syncWeb3CardanoV2RegistryEntry(params);
     return;
   }
 
