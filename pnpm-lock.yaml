@@ -17,6 +17,9 @@ importers:
       '@meshsdk/core':
         specifier: 1.9.0-beta.102
         version: 1.9.0-beta.102(@bufbuild/protobuf@1.10.1)(@harmoniclabs/bytestring@1.0.0)(@harmoniclabs/crypto@0.2.4)(bufferutil@4.1.0)(rxjs@7.8.2)
+      '@meshsdk/core-cst':
+        specifier: 1.9.0-beta.102
+        version: 1.9.0-beta.102(@harmoniclabs/bytestring@1.0.0)(@harmoniclabs/crypto@0.2.4)(bufferutil@4.1.0)(rxjs@7.8.2)
       '@paralleldrive/cuid2':
         specifier: 3.3.0
         version: 3.3.0

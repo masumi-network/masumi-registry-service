@@ -131,6 +131,36 @@ const registryEntrySchemaOutput = z
         url: z.string(),
       })
     ),
+    SupportedPaymentSources: z.array(
+      z.object({
+        chain: z.string(),
+        network: z.string(),
+        paymentSourceType: z.string().nullable(),
+        address: z.string(),
+        scheme: z.string().nullable(),
+        asset: z.string().nullable(),
+        amount: z.string().nullable(),
+        decimals: z.number().int().nullable(),
+        payTo: z.string().nullable(),
+        resource: z.string().nullable(),
+      })
+    ),
+    Verifications: z.array(
+      z.object({
+        method: z.string(),
+        schemaVersion: z.string().nullable(),
+        issuerAid: z.string(),
+        issuerOobi: z.string(),
+        schemaSaid: z.string(),
+        schemaOobi: z.string(),
+        credentialSaid: z.string(),
+        credentialOobi: z.string(),
+        credentialRegistry: z.string().nullable(),
+        holderAid: z.string(),
+        holderOobi: z.string(),
+        baseUrl: z.string().nullable(),
+      })
+    ),
     metadataVersion: z.number().int(),
     updatedAt: z.date(),
   })
@@ -184,6 +214,32 @@ export type RegistryEntrySerializable = {
     } | null;
   };
   ExampleOutput: { name: string; mimeType: string; url: string }[];
+  SupportedPaymentSources: {
+    chain: string;
+    network: string;
+    paymentSourceType: string | null;
+    address: string;
+    scheme: string | null;
+    asset: string | null;
+    amount: bigint | number | string | null;
+    decimals: number | null;
+    payTo: string | null;
+    resource: string | null;
+  }[];
+  Verifications: {
+    method: string;
+    schemaVersion: string | null;
+    issuerAid: string;
+    issuerOobi: string;
+    schemaSaid: string;
+    schemaOobi: string;
+    credentialSaid: string;
+    credentialOobi: string;
+    credentialRegistry: string | null;
+    holderAid: string;
+    holderOobi: string;
+    baseUrl: string | null;
+  }[];
 };
 
 export function serializeRegistryEntries(
@@ -221,6 +277,34 @@ export function serializeRegistryEntries(
         name: output.name,
         mimeType: output.mimeType,
         url: output.url,
+      })),
+      SupportedPaymentSources: (entry.SupportedPaymentSources ?? []).map(
+        (source) => ({
+          chain: source.chain,
+          network: source.network,
+          paymentSourceType: source.paymentSourceType,
+          address: source.address,
+          scheme: source.scheme,
+          asset: source.asset,
+          amount: source.amount != null ? source.amount.toString() : null,
+          decimals: source.decimals,
+          payTo: source.payTo,
+          resource: source.resource,
+        })
+      ),
+      Verifications: (entry.Verifications ?? []).map((verification) => ({
+        method: verification.method,
+        schemaVersion: verification.schemaVersion,
+        issuerAid: verification.issuerAid,
+        issuerOobi: verification.issuerOobi,
+        schemaSaid: verification.schemaSaid,
+        schemaOobi: verification.schemaOobi,
+        credentialSaid: verification.credentialSaid,
+        credentialOobi: verification.credentialOobi,
+        credentialRegistry: verification.credentialRegistry,
+        holderAid: verification.holderAid,
+        holderOobi: verification.holderOobi,
+        baseUrl: verification.baseUrl,
       })),
       metadataVersion: entry.metadataVersion,
     }));
