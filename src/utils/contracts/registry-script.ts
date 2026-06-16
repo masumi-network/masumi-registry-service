@@ -23,7 +23,7 @@ function convertNetworkToId(network: Network): number {
  *
  * Mirrors `getRegistryScriptV2` in masumi-payment-service
  * (packages/payment-source-v2). The correct policy hash REQUIRES the V2 mesh line
- * (`@meshsdk/core(-cst)@1.9.0-beta.102` — this repo's current pin); a different
+ * (`@meshsdk/core(-cst)@1.9.0` — this repo's current pin); a different
  * mesh version would derive a different hash. See ADR-0005 in the payment service.
  */
 export function getRegistryScriptV2(network: Network): {

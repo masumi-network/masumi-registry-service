@@ -52,7 +52,7 @@ export const DEFAULTS = {
     'ad6424e3ce9e47bbd8364984bd731b41de591f1d11f6d7d43d0da9b9',
   // V2 registry minting policy. The V2 registry validator is unparameterized, so
   // the policy hash is identical on both networks. Derived via getRegistryScriptV2
-  // (mesh 1.9.0-beta.102) and asserted in registry-script.spec.ts.
+  // (mesh 1.9.0) and asserted in registry-script.spec.ts.
   REGISTRY_POLICY_ID_PREPROD_V2:
     '7890b485b808043ef80136a447a3a43c18893a309dc323d1f8b0a13d',
   REGISTRY_POLICY_ID_MAINNET_V2:
