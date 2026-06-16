@@ -11,7 +11,7 @@
     "seed": "tsx ./prisma/seed.ts"
   },
   "scripts": {
-    "prepare": "husky",
+    "prepare": "husky || true",
     "preinstall": "node -e \"if (!(process.env.npm_config_user_agent||'').startsWith('pnpm')) { console.error('\\nThis project uses pnpm. Use: pnpm install\\n'); process.exit(1); }\"",
     "lint": "eslint --fix --quiet --config eslint.config.mjs src/",
     "format": "prettier --log-level silent --write src/**/*.ts",
