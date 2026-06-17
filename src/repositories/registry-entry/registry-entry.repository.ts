@@ -54,6 +54,8 @@ async function findRegistryEntries(params: RegistryEntryQueryParams) {
         include: { FixedPricing: { include: { Amounts: true } } },
       },
       ExampleOutput: true,
+      SupportedPaymentSources: true,
+      Verifications: true,
     },
     orderBy: [
       {
@@ -92,6 +94,8 @@ async function getRegistryEntryByIdentifier(params: {
         include: { FixedPricing: { include: { Amounts: true } } },
       },
       ExampleOutput: true,
+      SupportedPaymentSources: true,
+      Verifications: true,
     },
   });
 }
@@ -137,6 +141,8 @@ async function getRegistryDiffEntries(
         include: { FixedPricing: { include: { Amounts: true } } },
       },
       ExampleOutput: true,
+      SupportedPaymentSources: true,
+      Verifications: true,
     },
     orderBy: [
       {

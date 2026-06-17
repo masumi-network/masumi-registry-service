@@ -6,12 +6,14 @@ import {
   A2ARegistryEntry,
   A2ASkill,
   A2ASupportedInterface,
+  AgentVerification,
   Capability,
   InboxAgentRegistration,
   InboxAgentRegistrationStatus,
   PricingType,
   RegistryEntry,
   RegistrySource,
+  SupportedPaymentSource,
 } from '@prisma/client';
 import {
   PublicUrlValidationError,
@@ -346,6 +348,8 @@ async function checkVerifyAndUpdateRegistryEntries({
       } | null;
     };
     ExampleOutput: { name: string; mimeType: string; url: string }[];
+    SupportedPaymentSources: SupportedPaymentSource[];
+    Verifications: AgentVerification[];
   })[];
   minHealthCheckDate: Date | undefined;
 }) {
@@ -461,6 +465,8 @@ async function checkVerifyAndUpdateRegistryEntries({
             Capability: true,
             RegistrySource: true,
             ExampleOutput: true,
+            SupportedPaymentSources: true,
+            Verifications: true,
           },
           data: {
             status: s.status,

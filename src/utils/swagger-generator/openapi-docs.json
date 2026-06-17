@@ -232,6 +232,7 @@
                         "type": "string",
                         "enum": [
                             "Web3CardanoV1",
+                            "Web3CardanoV2",
                             "None"
                         ]
                     },
@@ -384,6 +385,7 @@
                         "type": "string",
                         "enum": [
                             "Web3CardanoV1",
+                            "Web3CardanoV2",
                             "None"
                         ]
                     },
@@ -523,6 +525,124 @@
                                 "url"
                             ]
                         }
+                    },
+                    "SupportedPaymentSources": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "chain": {
+                                    "type": "string"
+                                },
+                                "network": {
+                                    "type": "string"
+                                },
+                                "paymentSourceType": {
+                                    "type": "string",
+                                    "nullable": true
+                                },
+                                "address": {
+                                    "type": "string"
+                                },
+                                "scheme": {
+                                    "type": "string",
+                                    "nullable": true
+                                },
+                                "asset": {
+                                    "type": "string",
+                                    "nullable": true
+                                },
+                                "amount": {
+                                    "type": "string",
+                                    "nullable": true
+                                },
+                                "decimals": {
+                                    "type": "integer",
+                                    "nullable": true
+                                },
+                                "payTo": {
+                                    "type": "string",
+                                    "nullable": true
+                                },
+                                "resource": {
+                                    "type": "string",
+                                    "nullable": true
+                                }
+                            },
+                            "required": [
+                                "chain",
+                                "network",
+                                "paymentSourceType",
+                                "address",
+                                "scheme",
+                                "asset",
+                                "amount",
+                                "decimals",
+                                "payTo",
+                                "resource"
+                            ]
+                        }
+                    },
+                    "Verifications": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "method": {
+                                    "type": "string"
+                                },
+                                "schemaVersion": {
+                                    "type": "string",
+                                    "nullable": true
+                                },
+                                "issuerAid": {
+                                    "type": "string"
+                                },
+                                "issuerOobi": {
+                                    "type": "string"
+                                },
+                                "schemaSaid": {
+                                    "type": "string"
+                                },
+                                "schemaOobi": {
+                                    "type": "string"
+                                },
+                                "credentialSaid": {
+                                    "type": "string"
+                                },
+                                "credentialOobi": {
+                                    "type": "string"
+                                },
+                                "credentialRegistry": {
+                                    "type": "string",
+                                    "nullable": true
+                                },
+                                "holderAid": {
+                                    "type": "string"
+                                },
+                                "holderOobi": {
+                                    "type": "string"
+                                },
+                                "baseUrl": {
+                                    "type": "string",
+                                    "nullable": true
+                                }
+                            },
+                            "required": [
+                                "method",
+                                "schemaVersion",
+                                "issuerAid",
+                                "issuerOobi",
+                                "schemaSaid",
+                                "schemaOobi",
+                                "credentialSaid",
+                                "credentialOobi",
+                                "credentialRegistry",
+                                "holderAid",
+                                "holderOobi",
+                                "baseUrl"
+                            ]
+                        }
                     }
                 },
                 "required": [
@@ -552,7 +672,9 @@
                     "RegistrySource",
                     "Capability",
                     "AgentPricing",
-                    "ExampleOutput"
+                    "ExampleOutput",
+                    "SupportedPaymentSources",
+                    "Verifications"
                 ]
             },
             "InboxAgentRegistration": {
@@ -1059,6 +1181,7 @@
                                                     "type": "string",
                                                     "enum": [
                                                         "Web3CardanoV1",
+                                                        "Web3CardanoV2",
                                                         "None"
                                                     ]
                                                 },
@@ -1432,6 +1555,7 @@
                                                     "type": "string",
                                                     "enum": [
                                                         "Web3CardanoV1",
+                                                        "Web3CardanoV2",
                                                         "None"
                                                     ]
                                                 },

@@ -11,7 +11,7 @@
     "seed": "tsx ./prisma/seed.ts"
   },
   "scripts": {
-    "prepare": "husky",
+    "prepare": "husky || true",
     "preinstall": "node -e \"if (!(process.env.npm_config_user_agent||'').startsWith('pnpm')) { console.error('\\nThis project uses pnpm. Use: pnpm install\\n'); process.exit(1); }\"",
     "lint": "eslint --fix --quiet --config eslint.config.mjs src/",
     "format": "prettier --log-level silent --write src/**/*.ts",
@@ -26,12 +26,16 @@
     "build": "prisma generate && tsc --noEmit && pkgroll && mkdir -p dist/public && cp -r public/* dist/public/",
     "start": "NODE_ENV=production && node ./dist/index.js",
     "swagger-json": "export DATABASE_URL=postgresql://mock-user:mock-pass@localhost:5432/mock-testdb && tsx ./src/utils/swagger-generator/cli.ts",
-    "knip": "knip"
+    "knip": "knip",
+    "snapshot:export": "tsx ./src/scripts/snapshot-export.ts",
+    "snapshot:import": "tsx ./src/scripts/snapshot-import.ts",
+    "snapshot:import:dry": "tsx ./src/scripts/snapshot-import.ts --dry-run"
   },
   "dependencies": {
     "@asteasolutions/zod-to-openapi": "8.5.0",
     "@blockfrost/blockfrost-js": "6.1.1",
-    "@meshsdk/core": "1.9.0-beta.102",
+    "@meshsdk/core": "1.9.0",
+    "@meshsdk/core-cst": "1.9.0",
     "@paralleldrive/cuid2": "3.3.0",
     "@prisma/adapter-pg": "7.8.0",
     "@prisma/client": "7.8.0",
