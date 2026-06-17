@@ -2,6 +2,7 @@ import { prisma } from '@/utils/db';
 import { logger } from '@/utils/logger';
 import {
   $Enums,
+  AgentVerification,
   Capability,
   InboxAgentRegistration,
   InboxAgentRegistrationStatus,
@@ -10,6 +11,7 @@ import {
   RegistryEntry,
   RegistrySource,
   SimpleApiStatus,
+  SupportedPaymentSource,
 } from '@prisma/client';
 import {
   PublicUrlValidationError,
@@ -309,6 +311,8 @@ async function checkVerifyAndUpdateRegistryEntries({
       } | null;
     };
     ExampleOutput: { name: string; mimeType: string; url: string }[];
+    SupportedPaymentSources: SupportedPaymentSource[];
+    Verifications: AgentVerification[];
   })[];
   minHealthCheckDate: Date | undefined;
 }) {
@@ -428,6 +432,8 @@ async function checkVerifyAndUpdateRegistryEntries({
             Capability: true,
             RegistrySource: true,
             ExampleOutput: true,
+            SupportedPaymentSources: true,
+            Verifications: true,
           },
           data: {
             status: s.status,
