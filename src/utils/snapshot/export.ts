@@ -6,6 +6,8 @@ import type {
   Snapshot,
   SnapshotEntry,
   SnapshotAgentPricing,
+  PaymentSourcesSnapshot,
+  SnapshotEntryPaymentSources,
   ExportResult,
 } from './types';
 
@@ -84,7 +86,10 @@ function mapEntryToSnapshot(
   };
 }
 
-async function exportSnapshotForSource(sourceId: string): Promise<Snapshot> {
+async function exportSnapshotForSource(sourceId: string): Promise<{
+  snapshot: Snapshot;
+  paymentSources: PaymentSourcesSnapshot | null;
+}> {
   const source = await prisma.registrySource.findUniqueOrThrow({
     where: { id: sourceId },
   });
@@ -101,15 +106,17 @@ async function exportSnapshotForSource(sourceId: string): Promise<Snapshot> {
         },
       },
       ExampleOutput: true,
+      SupportedPaymentSources: true,
     },
     orderBy: { assetIdentifier: 'asc' },
   });
 
   const snapshotEntries = entries.map(mapEntryToSnapshot);
+  const exportedAt = new Date().toISOString();
 
-  return {
+  const snapshot: Snapshot = {
     version: '1.0.0',
-    exportedAt: new Date().toISOString(),
+    exportedAt,
     network: source.network,
     policyId: source.policyId,
     lastTxId: source.lastTxId,
@@ -117,23 +124,68 @@ async function exportSnapshotForSource(sourceId: string): Promise<Snapshot> {
     entryCount: snapshotEntries.length,
     entries: snapshotEntries,
   };
+
+  // V2 payment sources go in a companion file, keyed by assetIdentifier. Only
+  // build it when at least one entry actually carries payment sources.
+  const paymentSourceEntries: SnapshotEntryPaymentSources[] = entries
+    .filter((entry) => entry.SupportedPaymentSources.length > 0)
+    .map((entry) => ({
+      assetIdentifier: entry.assetIdentifier,
+      sources: entry.SupportedPaymentSources.map((s) => ({
+        chain: s.chain,
+        network: s.network,
+        paymentSourceType: s.paymentSourceType,
+        address: s.address,
+        scheme: s.scheme,
+        asset: s.asset,
+        amount: s.amount != null ? s.amount.toString() : null, // BigInt -> string
+        decimals: s.decimals,
+        payTo: s.payTo,
+        resource: s.resource,
+        ...(s.extra != null ? { extra: s.extra } : {}),
+      })),
+    }));
+
+  const paymentSources: PaymentSourcesSnapshot | null =
+    paymentSourceEntries.length > 0
+      ? {
+          version: '1.0.0',
+          exportedAt,
+          network: source.network,
+          policyId: source.policyId,
+          entryCount: paymentSourceEntries.length,
+          sourceCount: paymentSourceEntries.reduce(
+            (sum, e) => sum + e.sources.length,
+            0
+          ),
+          entries: paymentSourceEntries,
+        }
+      : null;
+
+  return { snapshot, paymentSources };
 }
 
-async function writeSnapshotFiles(
-  snapshot: Snapshot,
+// Writes both a timestamped archive file and a stable "latest" file (the one
+// import reads). `suffix` lets the companion payment-sources file share the same
+// naming scheme, e.g. `preprod_<policy>.payment-sources.json`.
+async function writeJsonFiles(
+  data: unknown,
   network: string,
   policyId: string,
-  outputDir: string
+  outputDir: string,
+  suffix: string = ''
 ): Promise<{ timestampedPath: string; latestPath: string }> {
-  const json = JSON.stringify(snapshot, bigIntReplacer, 2);
+  const json = JSON.stringify(data, bigIntReplacer, 2);
+  const base = `${network.toLowerCase()}_${policyId}`;
 
   const dateStr = new Date().toISOString().split('T')[0];
-  const timestampedFilename = `${network.toLowerCase()}_${policyId}_${dateStr}.json`;
-  const timestampedPath = path.join(outputDir, timestampedFilename);
+  const timestampedPath = path.join(
+    outputDir,
+    `${base}_${dateStr}${suffix}.json`
+  );
   await fs.writeFile(timestampedPath, json, 'utf-8');
 
-  const latestFilename = `${network.toLowerCase()}_${policyId}.json`;
-  const latestPath = path.join(outputDir, latestFilename);
+  const latestPath = path.join(outputDir, `${base}${suffix}.json`);
   await fs.writeFile(latestPath, json, 'utf-8');
 
   return { timestampedPath, latestPath };
@@ -159,9 +211,11 @@ export async function exportAllSnapshots(
         `Exporting snapshot for ${source.network} ${source.policyId}`
       );
 
-      const snapshot = await exportSnapshotForSource(source.id);
+      const { snapshot, paymentSources } = await exportSnapshotForSource(
+        source.id
+      );
 
-      const { timestampedPath, latestPath } = await writeSnapshotFiles(
+      const { timestampedPath, latestPath } = await writeJsonFiles(
         snapshot,
         source.network,
         source.policyId,
@@ -171,6 +225,20 @@ export async function exportAllSnapshots(
       logger.info(
         `Exported ${snapshot.entryCount} entries to ${timestampedPath} and ${latestPath}`
       );
+
+      if (paymentSources) {
+        const paymentPaths = await writeJsonFiles(
+          paymentSources,
+          source.network,
+          source.policyId,
+          outputDir,
+          '.payment-sources'
+        );
+        logger.info(
+          `Exported ${paymentSources.sourceCount} payment sources for ` +
+            `${paymentSources.entryCount} entries to ${paymentPaths.latestPath}`
+        );
+      }
 
       results.push({
         success: true,
@@ -209,9 +277,11 @@ export async function exportSnapshotByPolicyId(
   }
 
   try {
-    const snapshot = await exportSnapshotForSource(source.id);
+    const { snapshot, paymentSources } = await exportSnapshotForSource(
+      source.id
+    );
 
-    const { timestampedPath, latestPath } = await writeSnapshotFiles(
+    const { timestampedPath, latestPath } = await writeJsonFiles(
       snapshot,
       source.network,
       policyId,
@@ -221,6 +291,20 @@ export async function exportSnapshotByPolicyId(
     logger.info(
       `Exported ${snapshot.entryCount} entries to ${timestampedPath} and ${latestPath}`
     );
+
+    if (paymentSources) {
+      const paymentPaths = await writeJsonFiles(
+        paymentSources,
+        source.network,
+        policyId,
+        outputDir,
+        '.payment-sources'
+      );
+      logger.info(
+        `Exported ${paymentSources.sourceCount} payment sources for ` +
+          `${paymentSources.entryCount} entries to ${paymentPaths.latestPath}`
+      );
+    }
 
     return {
       success: true,
