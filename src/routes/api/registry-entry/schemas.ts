@@ -14,6 +14,17 @@ const registryEntryFilterSchema = z.object({
       version: z.string().max(150).optional(),
     })
     .optional(),
+  resolveToLatestVersion: z
+    .boolean()
+    .optional()
+    .describe(
+      'When true and an assetIdentifier filter is provided, the assetIdentifier ' +
+        'is first resolved to the latest version of the same V2 agent (same ' +
+        'root, highest version) before matching — so passing any older version ' +
+        'returns the current one. No effect on V1 assets or when no ' +
+        'assetIdentifier is given. The plain assetIdentifier filter always stays ' +
+        'an exact match.'
+    ),
 });
 
 export const queryRegistrySchemaInput = z.object({
@@ -90,6 +101,22 @@ const registryEntrySchemaOutput = z
     otherLegal: z.string().nullable(),
     tags: z.array(z.string()).nullable(),
     agentIdentifier: z.string(),
+    supersedesAgentIdentifier: z
+      .string()
+      .nullable()
+      .describe(
+        'For a V2 agent, the older version this entry replaced (same root, ' +
+          'next-lower version), or null if this is the first/only version. ' +
+          'Always null for V1 assets. Computed live from stored versions.'
+      ),
+    supersededByAgentIdentifier: z
+      .string()
+      .nullable()
+      .describe(
+        'For a V2 agent, the newer version that replaced this entry (same ' +
+          'root, next-higher version), or null if this is the latest version. ' +
+          'Always null for V1 assets. Computed live from stored versions.'
+      ),
     paymentType: z.nativeEnum($Enums.PaymentType),
     RegistrySource: z.object({
       id: z.string(),
@@ -196,6 +223,8 @@ export type RegistryEntrySerializable = {
   otherLegal: string | null;
   tags: string[] | null;
   assetIdentifier: string;
+  supersedesAgentIdentifier?: string | null;
+  supersededByAgentIdentifier?: string | null;
   paymentType: $Enums.PaymentType;
   metadataVersion: number;
   RegistrySource: {
@@ -251,6 +280,8 @@ export function serializeRegistryEntries(
     .map((entry) => ({
       ...entry,
       agentIdentifier: entry.assetIdentifier,
+      supersedesAgentIdentifier: entry.supersedesAgentIdentifier ?? null,
+      supersededByAgentIdentifier: entry.supersededByAgentIdentifier ?? null,
       lastUptimeCheck:
         entry.lastUptimeCheck instanceof Date
           ? entry.lastUptimeCheck
