@@ -35,6 +35,23 @@ const snapshotExampleOutputSchema = z.object({
   url: z.string(),
 });
 
+const snapshotSupportedPaymentSourceSchema = z.object({
+  chain: z.string(),
+  network: z.string(),
+  paymentSourceType: z.string().nullable(),
+  address: z.string(),
+  scheme: z.string().nullable(),
+  asset: z.string().nullable(),
+  amount: z
+    .string()
+    .regex(/^\d+$/, 'Amount must be a numeric string (BigInt format)')
+    .nullable(),
+  decimals: z.number().int().nullable(),
+  payTo: z.string().nullable(),
+  resource: z.string().nullable(),
+  extra: z.unknown().optional(),
+});
+
 const snapshotEntrySchema = z.object({
   assetIdentifier: z.string().min(1),
   name: z.string(),
@@ -85,6 +102,49 @@ export function validateSnapshot(data: unknown): {
   errors?: z.ZodError;
 } {
   const result = snapshotSchema.safeParse(data);
+  if (result.success) {
+    return { success: true, data: result.data };
+  }
+  return { success: false, errors: result.error };
+}
+
+const paymentSourcesEntrySchema = z.object({
+  assetIdentifier: z.string().min(1),
+  sources: z.array(snapshotSupportedPaymentSourceSchema),
+});
+
+const paymentSourcesSchema = z
+  .object({
+    version: z.literal('1.0.0'),
+    exportedAt: z.string().datetime(),
+    network: z.nativeEnum(Network),
+    policyId: z.string().min(1),
+    entryCount: z.number().int().min(0),
+    sourceCount: z.number().int().min(0),
+    entries: z.array(paymentSourcesEntrySchema),
+  })
+  .refine((data) => data.entries.length === data.entryCount, {
+    message: 'entryCount does not match entries array length',
+    path: ['entryCount'],
+  })
+  .refine(
+    (data) =>
+      data.entries.reduce((sum, e) => sum + e.sources.length, 0) ===
+      data.sourceCount,
+    {
+      message: 'sourceCount does not match total payment sources',
+      path: ['sourceCount'],
+    }
+  );
+
+type ValidatedPaymentSources = z.infer<typeof paymentSourcesSchema>;
+
+export function validatePaymentSources(data: unknown): {
+  success: boolean;
+  data?: ValidatedPaymentSources;
+  errors?: z.ZodError;
+} {
+  const result = paymentSourcesSchema.safeParse(data);
   if (result.success) {
     return { success: true, data: result.data };
   }
