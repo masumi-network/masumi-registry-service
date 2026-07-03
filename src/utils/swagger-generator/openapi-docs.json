@@ -170,7 +170,8 @@
                             "Online",
                             "Offline",
                             "Deregistered",
-                            "Invalid"
+                            "Invalid",
+                            "SchemaInvalid"
                         ]
                     },
                     "id": {
@@ -315,7 +316,8 @@
                             "Online",
                             "Offline",
                             "Deregistered",
-                            "Invalid"
+                            "Invalid",
+                            "SchemaInvalid"
                         ]
                     },
                     "statusUpdatedAt": {
@@ -376,6 +378,16 @@
                     },
                     "agentIdentifier": {
                         "type": "string"
+                    },
+                    "supersedesAgentIdentifier": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "For a V2 agent, the older version this entry replaced (same root, next-lower version), or null if this is the first/only version. Always null for V1 assets. Computed live from stored versions."
+                    },
+                    "supersededByAgentIdentifier": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "For a V2 agent, the newer version that replaced this entry (same root, next-higher version), or null if this is the latest version. Always null for V1 assets. Computed live from stored versions."
                     },
                     "paymentType": {
                         "type": "string",
@@ -666,6 +678,8 @@
                     "otherLegal",
                     "tags",
                     "agentIdentifier",
+                    "supersedesAgentIdentifier",
+                    "supersededByAgentIdentifier",
                     "paymentType",
                     "RegistrySource",
                     "Capability",
@@ -1195,7 +1209,8 @@
                                                         "Online",
                                                         "Offline",
                                                         "Deregistered",
-                                                        "Invalid"
+                                                        "Invalid",
+                                                        "SchemaInvalid"
                                                     ]
                                                 },
                                                 "maxItems": 5
@@ -1234,6 +1249,10 @@
                                                 "required": [
                                                     "name"
                                                 ]
+                                            },
+                                            "resolveToLatestVersion": {
+                                                "type": "boolean",
+                                                "description": "When true and an assetIdentifier filter is provided, the assetIdentifier is first resolved to the latest version of the same V2 agent (same root, highest version) before matching — so passing any older version returns the current one. No effect on V1 assets or when no assetIdentifier is given. The plain assetIdentifier filter always stays an exact match."
                                             }
                                         }
                                     },
@@ -1457,7 +1476,8 @@
                                                         "Online",
                                                         "Offline",
                                                         "Deregistered",
-                                                        "Invalid"
+                                                        "Invalid",
+                                                        "SchemaInvalid"
                                                     ]
                                                 },
                                                 "maxItems": 5
@@ -1496,6 +1516,10 @@
                                                 "required": [
                                                     "name"
                                                 ]
+                                            },
+                                            "resolveToLatestVersion": {
+                                                "type": "boolean",
+                                                "description": "When true and an assetIdentifier filter is provided, the assetIdentifier is first resolved to the latest version of the same V2 agent (same root, highest version) before matching — so passing any older version returns the current one. No effect on V1 assets or when no assetIdentifier is given. The plain assetIdentifier filter always stays an exact match."
                                             }
                                         }
                                     },

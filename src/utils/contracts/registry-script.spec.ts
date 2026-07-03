@@ -8,7 +8,7 @@ describe('getRegistryScriptV2', () => {
     const mainnet = getRegistryScriptV2(Network.Mainnet);
 
     expect(preprod.policyId).toBe(
-      '7890b485b808043ef80136a447a3a43c18893a309dc323d1f8b0a13d'
+      '67ab0c92c4ac1610895a1c965ee50aba41a8f1513b15240723b3bd0b'
     );
     expect(mainnet.policyId).toBe(preprod.policyId);
     expect(preprod.policyId).toBe(DEFAULTS.REGISTRY_POLICY_ID_PREPROD_V2);

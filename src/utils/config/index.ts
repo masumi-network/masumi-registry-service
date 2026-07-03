@@ -52,11 +52,13 @@ export const DEFAULTS = {
     'ad6424e3ce9e47bbd8364984bd731b41de591f1d11f6d7d43d0da9b9',
   // V2 registry minting policy. The V2 registry validator is unparameterized, so
   // the policy hash is identical on both networks. Derived via getRegistryScriptV2
-  // (mesh 1.9.0) and asserted in registry-script.spec.ts.
+  // (mesh 1.9.0) and asserted in registry-script.spec.ts. Bumped from
+  // 7890b485... when the V2 contract was recompiled with Aiken v1.1.23 (see
+  // masumi-payment-service docs/migrations/v2-contract-cip30-upgrade.md).
   REGISTRY_POLICY_ID_PREPROD_V2:
-    '7890b485b808043ef80136a447a3a43c18893a309dc323d1f8b0a13d',
+    '67ab0c92c4ac1610895a1c965ee50aba41a8f1513b15240723b3bd0b',
   REGISTRY_POLICY_ID_MAINNET_V2:
-    '7890b485b808043ef80136a447a3a43c18893a309dc323d1f8b0a13d',
+    '67ab0c92c4ac1610895a1c965ee50aba41a8f1513b15240723b3bd0b',
   METADATA_VERSION: 1,
   METADATA_VERSION_V2: 2,
 };

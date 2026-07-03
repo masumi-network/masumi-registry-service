@@ -66,6 +66,42 @@ export interface Snapshot extends SnapshotMetadata {
   entries: SnapshotEntry[];
 }
 
+// V2 registry entry payment source (SupportedPaymentSource row), stored in a
+// companion `{network}_{policyId}.payment-sources.json` file rather than inline,
+// so V1 entry snapshots stay untouched.
+export interface SnapshotSupportedPaymentSource {
+  chain: string;
+  network: string;
+  paymentSourceType: string | null;
+  address: string;
+  scheme: string | null;
+  asset: string | null;
+  amount: string | null; // BigInt -> string
+  decimals: number | null;
+  payTo: string | null;
+  resource: string | null;
+  extra?: unknown; // Prisma Json, passed through verbatim
+}
+
+// Payment sources for one entry, keyed by its stable assetIdentifier so the
+// companion file can be matched back to entries on import.
+export interface SnapshotEntryPaymentSources {
+  assetIdentifier: string;
+  sources: SnapshotSupportedPaymentSource[];
+}
+
+// The companion payment-sources file. Only written when at least one entry in
+// the source carries payment sources.
+export interface PaymentSourcesSnapshot {
+  version: '1.0.0';
+  exportedAt: string;
+  network: Network;
+  policyId: string;
+  entryCount: number; // entries that carry payment sources
+  sourceCount: number; // total payment source rows
+  entries: SnapshotEntryPaymentSources[];
+}
+
 export interface ImportResult {
   success: boolean;
   skipped?: boolean;

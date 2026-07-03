@@ -11,6 +11,7 @@ import { healthCheckService } from '@/services/health-check';
 import { logger } from '@/utils/logger';
 import { DEFAULTS } from '@/utils/config';
 import { getBlockfrostInstance } from '@/utils/blockfrost';
+import { isV2Policy } from '@/utils/agent-version';
 import {
   INBOX_REGISTRY_METADATA_TYPE,
   hasInboxAgentRegistrationContentChanged,
@@ -491,15 +492,6 @@ async function syncWeb3CardanoRegistryEntry(params: {
   return true;
 }
 
-// The V2 registry validator is unparameterized, so the V2 policyId is the same on
-// both networks (see DEFAULTS + registry-script.spec.ts).
-function isV2RegistrySource(policyId: string): boolean {
-  return (
-    policyId === DEFAULTS.REGISTRY_POLICY_ID_PREPROD_V2 ||
-    policyId === DEFAULTS.REGISTRY_POLICY_ID_MAINNET_V2
-  );
-}
-
 // Sync a Web3CardanoV2 registry entry. V2 metadata groups payment sources (with
 // per-source pricing) and adds verifications, and drops the top-level
 // agentPricing — so pricing is resolved from the Cardano source. Re-synced via
@@ -691,7 +683,7 @@ async function syncMintedAsset(params: {
     return;
   }
 
-  if (isV2RegistrySource(params.source.policyId)) {
+  if (isV2Policy(params.source.policyId)) {
     await syncWeb3CardanoV2RegistryEntry(params);
     return;
   }

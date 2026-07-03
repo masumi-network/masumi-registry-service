@@ -100,6 +100,31 @@ async function getRegistryEntryByIdentifier(params: {
   });
 }
 
+// Returns the assetIdentifiers of every stored registry entry whose
+// version-root matches one of the given roots (an exact-prefix match, since the
+// root is the assetIdentifier minus its 3-byte version postfix), scoped to a
+// network. Used to derive supersedes/supersededBy links and to resolve an
+// identifier to its latest version. The unique index on assetIdentifier makes
+// each startsWith an index-backed prefix scan.
+async function findVersionSiblingAssetIdentifiers(params: {
+  roots: string[];
+  network: Network;
+}): Promise<string[]> {
+  if (params.roots.length === 0) {
+    return [];
+  }
+  const rows = await prisma.registryEntry.findMany({
+    where: {
+      OR: params.roots.map((root) => ({
+        assetIdentifier: { startsWith: root },
+      })),
+      RegistrySource: { network: params.network },
+    },
+    select: { assetIdentifier: true },
+  });
+  return rows.map((row) => row.assetIdentifier);
+}
+
 async function getRegistryDiffEntries(
   statusUpdatedAfter: Date,
   cursorId: string | undefined,
@@ -160,5 +185,6 @@ export const registryEntryRepository = {
   getRegistryEntry,
   searchRegistryEntries,
   getRegistryEntryByIdentifier,
+  findVersionSiblingAssetIdentifiers,
   getRegistryDiffEntries,
 };
