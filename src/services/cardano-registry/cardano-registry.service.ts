@@ -41,14 +41,18 @@ const web3CardanoMetadataSchema = z.object({
       z.object({
         name: z
           .string()
+          .min(1)
           .max(60)
-          .or(z.array(z.string().max(60)).min(1).max(1)),
+          .or(z.array(z.string().min(1).max(60)).min(1).max(1)),
         mime_type: z
           .string()
           .min(1)
           .max(60)
           .or(z.array(z.string().min(1).max(60)).min(1).max(1)),
-        url: z.string().or(z.array(z.string())),
+        url: z
+          .string()
+          .min(1)
+          .or(z.array(z.string().min(1))),
       })
     )
     .optional(),
@@ -104,7 +108,10 @@ const web3CardanoMetadataSchema = z.object({
         pricingType: z.enum([PricingType.Dynamic]),
       })
     ),
-  image: z.string().or(z.array(z.string())),
+  image: z
+    .string()
+    .min(1)
+    .or(z.array(z.string().min(1))),
   metadata_version: z.coerce.number().int().min(1).max(1),
 });
 
