@@ -305,9 +305,16 @@ async function checkVerifyAndUpdateRegistryEntries({
       FixedPricing: {
         Amounts: { amount: bigint; unit: string }[];
       } | null;
-    };
+    } | null;
     ExampleOutput: { name: string; mimeType: string; url: string }[];
-    SupportedPaymentSources: SupportedPaymentSource[];
+    SupportedPaymentSources: (SupportedPaymentSource & {
+      Pricing: {
+        pricingType: PricingType;
+        FixedPricing: {
+          Amounts: { amount: bigint; unit: string }[];
+        } | null;
+      } | null;
+    })[];
     Verifications: AgentVerification[];
   })[];
   minHealthCheckDate: Date | undefined;
@@ -428,7 +435,16 @@ async function checkVerifyAndUpdateRegistryEntries({
             Capability: true,
             RegistrySource: true,
             ExampleOutput: true,
-            SupportedPaymentSources: true,
+            SupportedPaymentSources: {
+              include: {
+                Pricing: {
+                  include: {
+                    FixedPricing: { include: { Amounts: true } },
+                  },
+                },
+              },
+              orderBy: { sourceIndex: 'asc' },
+            },
             Verifications: true,
           },
           data: {

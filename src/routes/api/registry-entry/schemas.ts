@@ -150,7 +150,8 @@ const registryEntrySchemaOutput = z
         z.object({
           pricingType: z.literal($Enums.PricingType.Dynamic),
         })
-      ),
+      )
+      .nullable(),
     ExampleOutput: z.array(
       z.object({
         name: z.string(),
@@ -162,13 +163,40 @@ const registryEntrySchemaOutput = z
       z.object({
         chain: z.string(),
         network: z.string(),
+        sourceIndex: z.number().int().min(0),
         paymentSourceType: z.string().nullable(),
         address: z.string(),
         scheme: z.string().nullable(),
-        pricingType: z.nativeEnum($Enums.PricingType).nullable(),
-        asset: z.string().nullable(),
-        amount: z.string().nullable(),
-        decimals: z.number().int().nullable(),
+        pricing: z
+          .object({
+            pricingType: z.literal($Enums.PricingType.Fixed),
+            fixed: z.array(
+              z.object({
+                asset: z.string(),
+                amount: z.string(),
+                decimals: z.number().int().min(0).max(255).optional(),
+              })
+            ),
+          })
+          .or(
+            z.object({
+              pricingType: z.literal($Enums.PricingType.Dynamic),
+              dynamic: z
+                .array(
+                  z.object({
+                    asset: z.string(),
+                    decimals: z.number().int().min(0).max(255),
+                  })
+                )
+                .max(1)
+                .optional(),
+            })
+          )
+          .or(
+            z.object({
+              pricingType: z.literal($Enums.PricingType.Free),
+            })
+          ),
         payTo: z.string().nullable(),
         resource: z.string().nullable(),
       })
@@ -242,18 +270,24 @@ export type RegistryEntrySerializable = {
     FixedPricing?: {
       Amounts?: { amount: bigint | number | string; unit: string }[] | null;
     } | null;
-  };
+  } | null;
   ExampleOutput: { name: string; mimeType: string; url: string }[];
   SupportedPaymentSources: {
     chain: string;
     network: string;
+    sourceIndex: number;
     paymentSourceType: string | null;
     address: string;
     scheme: string | null;
-    pricingType: $Enums.PricingType | null;
-    asset: string | null;
-    amount: bigint | number | string | null;
-    decimals: number | null;
+    dynamicAsset: string | null;
+    dynamicDecimals: number | null;
+    fixedDecimals: number | null;
+    Pricing: {
+      pricingType: $Enums.PricingType;
+      FixedPricing?: {
+        Amounts?: { amount: bigint | number | string; unit: string }[] | null;
+      } | null;
+    } | null;
     payTo: string | null;
     resource: string | null;
   }[];
@@ -291,41 +325,77 @@ export function serializeRegistryEntries(
             ? new Date(entry.lastUptimeCheck)
             : entry.lastUptimeCheck,
       AgentPricing:
-        entry.AgentPricing.pricingType === $Enums.PricingType.Fixed
-          ? {
-              pricingType: $Enums.PricingType.Fixed,
-              FixedPricing: {
-                Amounts:
-                  entry.AgentPricing.FixedPricing?.Amounts?.map((amount) => ({
-                    amount: amount.amount.toString(),
-                    unit: amount.unit,
-                  })) ?? [],
+        entry.AgentPricing == null
+          ? null
+          : entry.AgentPricing.pricingType === $Enums.PricingType.Fixed
+            ? {
+                pricingType: $Enums.PricingType.Fixed,
+                FixedPricing: {
+                  Amounts:
+                    entry.AgentPricing.FixedPricing?.Amounts?.map((amount) => ({
+                      amount: amount.amount.toString(),
+                      unit: amount.unit,
+                    })) ?? [],
+                },
+              }
+            : {
+                // Free or Dynamic — no FixedPricing
+                pricingType: entry.AgentPricing.pricingType,
               },
-            }
-          : {
-              // Free or Dynamic — no FixedPricing
-              pricingType: entry.AgentPricing.pricingType,
-            },
       ExampleOutput: (entry.ExampleOutput ?? []).map((output) => ({
         name: output.name,
         mimeType: output.mimeType,
         url: output.url,
       })),
-      SupportedPaymentSources: (entry.SupportedPaymentSources ?? []).map(
-        (source) => ({
-          chain: source.chain,
-          network: source.network,
-          paymentSourceType: source.paymentSourceType,
-          address: source.address,
-          scheme: source.scheme,
-          pricingType: source.pricingType,
-          asset: source.asset,
-          amount: source.amount != null ? source.amount.toString() : null,
-          decimals: source.decimals,
-          payTo: source.payTo,
-          resource: source.resource,
-        })
-      ),
+      SupportedPaymentSources: [...(entry.SupportedPaymentSources ?? [])]
+        .sort((left, right) => left.sourceIndex - right.sourceIndex)
+        .map((source) => {
+          if (source.Pricing == null) {
+            throw new Error(
+              `Registry entry ${entry.assetIdentifier} payment source ${source.sourceIndex} is missing pricing`
+            );
+          }
+          const amounts = source.Pricing.FixedPricing?.Amounts ?? [];
+          const pricing =
+            source.Pricing.pricingType === $Enums.PricingType.Fixed
+              ? {
+                  pricingType: $Enums.PricingType.Fixed,
+                  fixed: amounts.map((amount) => ({
+                    asset: amount.unit,
+                    amount: amount.amount.toString(),
+                    ...(source.fixedDecimals != null
+                      ? { decimals: source.fixedDecimals }
+                      : {}),
+                  })),
+                }
+              : source.Pricing.pricingType === $Enums.PricingType.Dynamic
+                ? {
+                    pricingType: $Enums.PricingType.Dynamic,
+                    ...(source.dynamicAsset != null &&
+                    source.dynamicDecimals != null
+                      ? {
+                          dynamic: [
+                            {
+                              asset: source.dynamicAsset,
+                              decimals: source.dynamicDecimals,
+                            },
+                          ],
+                        }
+                      : {}),
+                  }
+                : { pricingType: $Enums.PricingType.Free };
+          return {
+            chain: source.chain,
+            network: source.network,
+            sourceIndex: source.sourceIndex,
+            paymentSourceType: source.paymentSourceType,
+            address: source.address,
+            scheme: source.scheme,
+            pricing,
+            payTo: source.payTo,
+            resource: source.resource,
+          };
+        }),
       Verifications: (entry.Verifications ?? []).map((verification) => ({
         method: verification.method,
         schemaVersion: verification.schemaVersion,

@@ -1,7 +1,9 @@
 import { Network, PaymentType, PricingType, Status } from '@prisma/client';
 
+export const SNAPSHOT_VERSION = '2.0.0' as const;
+
 interface SnapshotMetadata {
-  version: '1.0.0';
+  version: typeof SNAPSHOT_VERSION;
   exportedAt: string;
   network: Network;
   policyId: string;
@@ -58,7 +60,7 @@ export interface SnapshotEntry {
   paymentType: PaymentType;
   metadataVersion: number;
   capability: SnapshotCapability | null;
-  agentPricing: SnapshotAgentPricing;
+  agentPricing: SnapshotAgentPricing | null;
   exampleOutputs: SnapshotExampleOutput[];
 }
 
@@ -72,13 +74,20 @@ export interface Snapshot extends SnapshotMetadata {
 export interface SnapshotSupportedPaymentSource {
   chain: string;
   network: string;
+  sourceIndex: number;
   paymentSourceType: string | null;
   address: string;
   scheme: string | null;
-  pricingType: PricingType | null;
-  asset: string | null;
-  amount: string | null; // BigInt -> string
-  decimals: number | null;
+  pricing:
+    | {
+        pricingType: 'Fixed';
+        fixed: Array<{ asset: string; amount: string; decimals?: number }>;
+      }
+    | {
+        pricingType: 'Dynamic';
+        dynamic?: Array<{ asset: string; decimals: number }>;
+      }
+    | { pricingType: 'Free' };
   payTo: string | null;
   resource: string | null;
   extra?: unknown; // Prisma Json, passed through verbatim
@@ -94,7 +103,7 @@ export interface SnapshotEntryPaymentSources {
 // The companion payment-sources file. Only written when at least one entry in
 // the source carries payment sources.
 export interface PaymentSourcesSnapshot {
-  version: '1.0.0';
+  version: typeof SNAPSHOT_VERSION;
   exportedAt: string;
   network: Network;
   policyId: string;

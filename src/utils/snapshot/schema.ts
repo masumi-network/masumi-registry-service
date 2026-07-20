@@ -1,5 +1,6 @@
 import { z } from '@/utils/zod-openapi';
 import { Network, PaymentType, PricingType, Status } from '@prisma/client';
+import { SNAPSHOT_VERSION } from './types';
 
 const snapshotAmountSchema = z.object({
   amount: z
@@ -21,6 +22,10 @@ const snapshotAgentPricingSchema = z.discriminatedUnion('pricingType', [
     pricingType: z.literal(PricingType.Fixed),
     fixedPricing: snapshotFixedPricingSchema,
   }),
+  z.object({
+    pricingType: z.literal(PricingType.Dynamic),
+    fixedPricing: z.null(),
+  }),
 ]);
 
 const snapshotCapabilitySchema = z.object({
@@ -35,31 +40,46 @@ const snapshotExampleOutputSchema = z.object({
   url: z.string(),
 });
 
-const snapshotSupportedPaymentSourceSchema = z
-  .object({
-    chain: z.string(),
-    network: z.string(),
-    paymentSourceType: z.string().nullable(),
-    address: z.string(),
-    scheme: z.string().nullable(),
-    // Legacy companion snapshots predate per-source pricing; every EVM row in
-    // that format was Fixed by construction.
-    pricingType: z.nativeEnum(PricingType).nullable().optional(),
-    asset: z.string().nullable(),
-    amount: z
-      .string()
-      .regex(/^\d+$/, 'Amount must be a numeric string (BigInt format)')
-      .nullable(),
-    decimals: z.number().int().nullable(),
-    payTo: z.string().nullable(),
-    resource: z.string().nullable(),
-    extra: z.unknown().optional(),
-  })
-  .transform((source) => ({
-    ...source,
-    pricingType:
-      source.pricingType ?? (source.chain === 'EVM' ? PricingType.Fixed : null),
-  }));
+const snapshotSourcePricingSchema = z.discriminatedUnion('pricingType', [
+  z.object({
+    pricingType: z.literal(PricingType.Fixed),
+    fixed: z.array(
+      z.object({
+        asset: z.string(),
+        amount: z
+          .string()
+          .regex(/^\d+$/, 'Amount must be a numeric string (BigInt format)'),
+        decimals: z.number().int().min(0).max(255).optional(),
+      })
+    ),
+  }),
+  z.object({
+    pricingType: z.literal(PricingType.Dynamic),
+    dynamic: z
+      .array(
+        z.object({
+          asset: z.string(),
+          decimals: z.number().int().min(0).max(255),
+        })
+      )
+      .max(1)
+      .optional(),
+  }),
+  z.object({ pricingType: z.literal(PricingType.Free) }),
+]);
+
+const snapshotSupportedPaymentSourceSchema = z.object({
+  chain: z.string(),
+  network: z.string(),
+  sourceIndex: z.number().int().min(0),
+  paymentSourceType: z.string().nullable(),
+  address: z.string(),
+  scheme: z.string().nullable(),
+  pricing: snapshotSourcePricingSchema,
+  payTo: z.string().nullable(),
+  resource: z.string().nullable(),
+  extra: z.unknown().optional(),
+});
 
 const snapshotEntrySchema = z.object({
   assetIdentifier: z.string().min(1),
@@ -83,13 +103,13 @@ const snapshotEntrySchema = z.object({
   paymentType: z.nativeEnum(PaymentType),
   metadataVersion: z.number().int().min(1),
   capability: snapshotCapabilitySchema.nullable(),
-  agentPricing: snapshotAgentPricingSchema,
+  agentPricing: snapshotAgentPricingSchema.nullable(),
   exampleOutputs: z.array(snapshotExampleOutputSchema),
 });
 
 const snapshotSchema = z
   .object({
-    version: z.literal('1.0.0'),
+    version: z.literal(SNAPSHOT_VERSION),
     exportedAt: z.string().datetime(),
     network: z.nativeEnum(Network),
     policyId: z.string().min(1),
@@ -124,7 +144,7 @@ const paymentSourcesEntrySchema = z.object({
 
 const paymentSourcesSchema = z
   .object({
-    version: z.literal('1.0.0'),
+    version: z.literal(SNAPSHOT_VERSION),
     exportedAt: z.string().datetime(),
     network: z.nativeEnum(Network),
     policyId: z.string().min(1),

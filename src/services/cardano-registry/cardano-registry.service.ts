@@ -21,92 +21,93 @@ import {
 import {
   buildV2SupportedPaymentSourceRows,
   buildV2VerificationRows,
-  resolveV2AgentPricingCreate,
   resolveV2PaymentType,
   web3CardanoV2MetadataSchema,
 } from './web3-cardano-v2-metadata';
 
-const web3CardanoMetadataSchema = z.object({
-  name: z
-    .string()
-    .min(1)
-    .or(z.array(z.string().min(1))),
-  description: z.string().or(z.array(z.string())).optional(),
-  api_base_url: z
-    .string()
-    .min(1)
-    .or(z.array(z.string().min(1))),
-  example_output: z
-    .array(
-      z.object({
-        name: z
-          .string()
-          .max(60)
-          .or(z.array(z.string().max(60)).min(1).max(1)),
-        mime_type: z
-          .string()
-          .min(1)
-          .max(60)
-          .or(z.array(z.string().min(1).max(60)).min(1).max(1)),
-        url: z.string().or(z.array(z.string())),
-      })
-    )
-    .optional(),
-  capability: z
-    .object({
-      name: z.string().or(z.array(z.string())),
-      version: z
-        .string()
-        .max(60)
-        .or(z.array(z.string().max(60)).min(1).max(1)),
-    })
-    .optional(),
-  author: z.object({
+const web3CardanoMetadataSchema = z
+  .object({
     name: z
       .string()
       .min(1)
       .or(z.array(z.string().min(1))),
-    contact_email: z.string().or(z.array(z.string())).optional(),
-    contact_other: z.string().or(z.array(z.string())).optional(),
-    organization: z.string().or(z.array(z.string())).optional(),
-  }),
-  legal: z
-    .object({
-      privacy_policy: z.string().or(z.array(z.string())).optional(),
-      terms: z.string().or(z.array(z.string())).optional(),
-      other: z.string().or(z.array(z.string())).optional(),
-    })
-    .optional(),
-  tags: z.array(z.string().min(1)).min(1),
-  agentPricing: z
-    .object({
-      pricingType: z.enum([PricingType.Fixed]),
-      fixedPricing: z
-        .array(
-          z.object({
-            amount: z.coerce.number().int().min(1),
-            unit: z
-              .string()
-              .min(1)
-              .or(z.array(z.string().min(1))),
-          })
-        )
+    description: z.string().or(z.array(z.string())).optional(),
+    api_base_url: z
+      .string()
+      .min(1)
+      .or(z.array(z.string().min(1))),
+    example_output: z
+      .array(
+        z.object({
+          name: z
+            .string()
+            .max(60)
+            .or(z.array(z.string().max(60)).min(1).max(1)),
+          mime_type: z
+            .string()
+            .min(1)
+            .max(60)
+            .or(z.array(z.string().min(1).max(60)).min(1).max(1)),
+          url: z.string().or(z.array(z.string())),
+        })
+      )
+      .optional(),
+    capability: z
+      .object({
+        name: z.string().or(z.array(z.string())),
+        version: z
+          .string()
+          .max(60)
+          .or(z.array(z.string().max(60)).min(1).max(1)),
+      })
+      .optional(),
+    author: z.object({
+      name: z
+        .string()
         .min(1)
-        .max(25),
-    })
-    .or(
-      z.object({
-        pricingType: z.enum([PricingType.Free]),
+        .or(z.array(z.string().min(1))),
+      contact_email: z.string().or(z.array(z.string())).optional(),
+      contact_other: z.string().or(z.array(z.string())).optional(),
+      organization: z.string().or(z.array(z.string())).optional(),
+    }),
+    legal: z
+      .object({
+        privacy_policy: z.string().or(z.array(z.string())).optional(),
+        terms: z.string().or(z.array(z.string())).optional(),
+        other: z.string().or(z.array(z.string())).optional(),
       })
-    )
-    .or(
-      z.object({
-        pricingType: z.enum([PricingType.Dynamic]),
+      .optional(),
+    tags: z.array(z.string().min(1)).min(1),
+    agentPricing: z
+      .object({
+        pricingType: z.enum([PricingType.Fixed]),
+        fixedPricing: z
+          .array(
+            z.object({
+              amount: z.coerce.number().int().min(1),
+              unit: z
+                .string()
+                .min(1)
+                .or(z.array(z.string().min(1))),
+            })
+          )
+          .min(1)
+          .max(25),
       })
-    ),
-  image: z.string().or(z.array(z.string())),
-  metadata_version: z.coerce.number().int().min(1).max(1),
-});
+      .or(
+        z.object({
+          pricingType: z.enum([PricingType.Free]),
+        })
+      )
+      .or(
+        z.object({
+          pricingType: z.enum([PricingType.Dynamic]),
+        })
+      ),
+    image: z.string().or(z.array(z.string())),
+    metadata_version: z.coerce.number().int().min(1).max(1),
+  })
+  .strict();
 
 type SyncableRegistrySource = {
   id: string;
@@ -120,6 +121,23 @@ type SyncableRegistrySource = {
 };
 
 const healthMutex = new Mutex();
+
+async function markRegistryMetadataInvalid(params: {
+  sourceId: string;
+  assetIdentifier: string;
+}): Promise<void> {
+  await prisma.registryEntry.updateMany({
+    where: {
+      registrySourceId: params.sourceId,
+      assetIdentifier: params.assetIdentifier,
+    },
+    data: {
+      status: $Enums.Status.Invalid,
+      statusUpdatedAt: new Date(),
+    },
+  });
+}
+
 export async function updateHealthCheck(onlyEntriesAfter?: Date | undefined) {
   logger.info('Updating cardano registry entries health check: ', {
     onlyEntriesAfter: onlyEntriesAfter,
@@ -182,7 +200,16 @@ export async function updateHealthCheck(onlyEntriesAfter?: Date | undefined) {
               },
             },
             ExampleOutput: true,
-            SupportedPaymentSources: true,
+            SupportedPaymentSources: {
+              include: {
+                Pricing: {
+                  include: {
+                    FixedPricing: { include: { Amounts: true } },
+                  },
+                },
+              },
+              orderBy: { sourceIndex: 'asc' },
+            },
             Verifications: true,
           },
         });
@@ -215,7 +242,16 @@ export async function updateHealthCheck(onlyEntriesAfter?: Date | undefined) {
               },
             },
             ExampleOutput: true,
-            SupportedPaymentSources: true,
+            SupportedPaymentSources: {
+              include: {
+                Pricing: {
+                  include: {
+                    FixedPricing: { include: { Amounts: true } },
+                  },
+                },
+              },
+              orderBy: { sourceIndex: 'asc' },
+            },
             Verifications: true,
           },
         });
@@ -361,6 +397,14 @@ async function syncWeb3CardanoRegistryEntry(params: {
   );
 
   if (!parsedMetadata.success) {
+    logger.warn('Rejected invalid V1 registry metadata', {
+      assetIdentifier: params.asset,
+      validationIssues: parsedMetadata.error.issues,
+    });
+    await markRegistryMetadataInvalid({
+      sourceId: params.source.id,
+      assetIdentifier: params.asset,
+    });
     return false;
   }
 
@@ -506,6 +550,14 @@ async function syncWeb3CardanoV2RegistryEntry(params: {
     params.onchainMetadata
   );
   if (!parsedMetadata.success) {
+    logger.warn('Rejected invalid V2 registry metadata', {
+      assetIdentifier: params.asset,
+      validationIssues: parsedMetadata.error.issues,
+    });
+    await markRegistryMetadataInvalid({
+      sourceId: params.source.id,
+      assetIdentifier: params.asset,
+    });
     return false;
   }
   const metadata = parsedMetadata.data;
@@ -582,12 +634,11 @@ async function syncWeb3CardanoV2RegistryEntry(params: {
       lastUptimeCheck: new Date(),
       uptimeCount: { increment: status == $Enums.Status.Online ? 1 : 0 },
       uptimeCheckCount: { increment: 1 },
-      AgentPricing: { create: resolveV2AgentPricingCreate(metadata) },
       ExampleOutput: { deleteMany: {}, ...(exampleOutputCreate ?? {}) },
       SupportedPaymentSources: {
         deleteMany: {},
         ...(supportedPaymentSourceRows.length > 0
-          ? { createMany: { data: supportedPaymentSourceRows } }
+          ? { create: supportedPaymentSourceRows }
           : {}),
       },
       Verifications: {
@@ -602,11 +653,10 @@ async function syncWeb3CardanoV2RegistryEntry(params: {
       lastUptimeCheck: new Date(),
       uptimeCount: status == $Enums.Status.Online ? 1 : 0,
       uptimeCheckCount: 1,
-      AgentPricing: { create: resolveV2AgentPricingCreate(metadata) },
       ExampleOutput: exampleOutputCreate,
       SupportedPaymentSources:
         supportedPaymentSourceRows.length > 0
-          ? { createMany: { data: supportedPaymentSourceRows } }
+          ? { create: supportedPaymentSourceRows }
           : undefined,
       Verifications:
         verificationRows.length > 0
