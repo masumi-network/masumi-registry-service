@@ -2,6 +2,7 @@ import { $Enums, InboxAgentRegistrationStatus } from '@prisma/client';
 import { prisma } from '@/utils/db';
 import { getBlockfrostInstance } from '@/utils/blockfrost';
 import { healthCheckService } from '@/services/health-check';
+import { DEFAULTS } from '@/utils/config';
 import { updateLatestCardanoRegistryEntries } from './cardano-registry.service';
 import { INBOX_REGISTRY_METADATA_TYPE } from './inbox-agent-registration';
 
@@ -42,6 +43,7 @@ jest.mock('@/utils/logger', () => ({
     error: jest.fn(),
     info: jest.fn(),
     log: jest.fn(),
+    warn: jest.fn(),
   },
 }));
 
@@ -145,5 +147,129 @@ describe('updateLatestCardanoRegistryEntries', () => {
     expect(
       healthCheckService.checkVerifyAndUpdateInboxAgentRegistrations
     ).not.toHaveBeenCalled();
+  });
+
+  it('advances past semantically invalid V2 metadata and syncs later mints', async () => {
+    const v2Source = {
+      ...source,
+      policyId: DEFAULTS.REGISTRY_POLICY_ID_PREPROD_V2,
+    };
+    const invalidAsset = `${v2Source.policyId}invalid`;
+    const validAsset = `${v2Source.policyId}valid`;
+    const commonMetadata = {
+      name: 'V2 Agent',
+      api_base_url: 'https://agent.example/mip',
+      author: { name: 'Author' },
+      tags: ['ai'],
+      image: 'https://agent.example/logo.png',
+      metadata_version: 2,
+    };
+
+    (prisma.registrySource.findMany as jest.Mock).mockResolvedValue([v2Source]);
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve([
+            { tx_hash: 'tx-invalid', purpose: 'mint' },
+            { tx_hash: 'tx-valid', purpose: 'mint' },
+          ]),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve([]),
+      });
+
+    const blockfrost = {
+      txsUtxos: jest.fn((txHash: string) => ({
+        inputs: [],
+        outputs: [
+          {
+            amount: [
+              {
+                unit: txHash === 'tx-invalid' ? invalidAsset : validAsset,
+                quantity: '1',
+              },
+            ],
+          },
+        ],
+      })),
+      assetsById: jest.fn((assetIdentifier: string) => ({
+        onchain_metadata:
+          assetIdentifier === invalidAsset
+            ? {
+                ...commonMetadata,
+                supported_payment_sources: [
+                  {
+                    chain: 'EVM',
+                    network: 'eip155:8453',
+                    settlement: {
+                      scheme: 'Exact',
+                      payTo: '0x1111111111111111111111111111111111111111',
+                    },
+                    pricing: {
+                      pricingType: 'Fixed',
+                      fixed: [
+                        {
+                          asset: 'native',
+                          amount: '1',
+                          decimals: '18',
+                        },
+                      ],
+                    },
+                  },
+                ],
+              }
+            : {
+                ...commonMetadata,
+                supported_payment_sources: [
+                  {
+                    chain: 'Cardano',
+                    network: 'Preprod',
+                    settlement: {
+                      paymentSourceType: 'Web3CardanoV2',
+                      address: 'addr_test1example',
+                    },
+                    pricing: { pricingType: 'Free' },
+                  },
+                ],
+              },
+      })),
+    };
+    (getBlockfrostInstance as jest.Mock).mockReturnValue(blockfrost);
+    (healthCheckService.checkAndVerifyEndpoint as jest.Mock).mockResolvedValue({
+      returnedAgentIdentifier: null,
+      status: $Enums.Status.Online,
+    });
+    (prisma.registryEntry.updateMany as jest.Mock).mockResolvedValue({
+      count: 0,
+    });
+    (prisma.registryEntry.upsert as jest.Mock).mockResolvedValue({});
+
+    await updateLatestCardanoRegistryEntries();
+
+    expect(prisma.registryEntry.updateMany).toHaveBeenCalledWith({
+      where: {
+        registrySourceId: v2Source.id,
+        assetIdentifier: invalidAsset,
+      },
+      data: {
+        status: $Enums.Status.Invalid,
+        statusUpdatedAt: expect.any(Date),
+      },
+    });
+    expect(prisma.registryEntry.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { assetIdentifier: validAsset },
+      })
+    );
+    expect(prisma.registrySource.update).toHaveBeenCalledWith({
+      where: { id: v2Source.id },
+      data: { lastCheckedPage: 1, lastTxId: 'tx-invalid' },
+    });
+    expect(prisma.registrySource.update).toHaveBeenCalledWith({
+      where: { id: v2Source.id },
+      data: { lastCheckedPage: 1, lastTxId: 'tx-valid' },
+    });
   });
 });
