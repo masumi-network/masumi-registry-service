@@ -589,8 +589,22 @@ async function syncWeb3CardanoV2RegistryEntry(params: {
         }
       : undefined;
 
-  const supportedPaymentSourceRows =
-    buildV2SupportedPaymentSourceRows(metadata);
+  let supportedPaymentSourceRows: ReturnType<
+    typeof buildV2SupportedPaymentSourceRows
+  >;
+  try {
+    supportedPaymentSourceRows = buildV2SupportedPaymentSourceRows(metadata);
+  } catch (error) {
+    logger.warn('Rejected invalid V2 registry payment sources', {
+      assetIdentifier: params.asset,
+      validationError: error instanceof Error ? error.message : String(error),
+    });
+    await markRegistryMetadataInvalid({
+      sourceId: params.source.id,
+      assetIdentifier: params.asset,
+    });
+    return false;
+  }
   const verificationRows = buildV2VerificationRows(metadata);
 
   const sharedQuery = {
