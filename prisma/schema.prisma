@@ -99,14 +99,15 @@ model RegistryEntry {
 // rows carry paymentSourceType + address; x402/EVM rows carry the scheme/asset/
 // amount/decimals/payTo. Indexed read model — re-synced from chain, never minted.
 model SupportedPaymentSource {
-  id                String   @id @default(cuid())
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id                String       @id @default(cuid())
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
   chain             String
   network           String
   paymentSourceType String?
   address           String
   scheme            String?
+  pricingType       PricingType?
   asset             String?
   amount            BigInt?
   decimals          Int?

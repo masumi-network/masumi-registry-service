@@ -75,6 +75,7 @@ export interface SnapshotSupportedPaymentSource {
   paymentSourceType: string | null;
   address: string;
   scheme: string | null;
+  pricingType: PricingType | null;
   asset: string | null;
   amount: string | null; // BigInt -> string
   decimals: number | null;

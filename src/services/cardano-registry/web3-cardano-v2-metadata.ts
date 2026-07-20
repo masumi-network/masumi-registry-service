@@ -5,15 +5,19 @@ import { metadataStringConvert } from '@/utils/metadata-string-convert';
 // On-chain metadata leaves are string | string[] (CIP-25 60-char chunks).
 const metadataString = z.string().or(z.array(z.string()));
 
-const v2AmountSchema = z.object({
+const v2AssetSchema = z.object({
   asset: metadataString,
-  amount: metadataString,
   decimals: metadataString.optional(),
+});
+
+const v2AmountSchema = v2AssetSchema.extend({
+  amount: metadataString,
 });
 
 const v2PricingSchema = z.object({
   pricingType: metadataString,
   fixed: z.array(v2AmountSchema).optional(),
+  dynamic: z.array(v2AssetSchema).optional(),
 });
 
 const v2SettlementSchema = z.object({
@@ -95,6 +99,21 @@ export type Web3CardanoV2Metadata = z.infer<typeof web3CardanoV2MetadataSchema>;
 
 const CARDANO_CHAIN = 'Cardano';
 const EVM_CHAIN = 'EVM';
+const POSTGRES_BIGINT_MAX = 9223372036854775807n;
+
+function parseAtomicAmount(value: string | undefined): bigint | null {
+  if (value == null || !/^\d+$/.test(value)) return null;
+  const amount = BigInt(value);
+  return amount > 0n && amount <= POSTGRES_BIGINT_MAX ? amount : null;
+}
+
+function parseAssetDecimals(value: string | undefined): number | null {
+  if (value == null || !/^\d+$/.test(value)) return null;
+  const decimals = Number(value);
+  return Number.isInteger(decimals) && decimals >= 0 && decimals <= 255
+    ? decimals
+    : null;
+}
 
 function findCardanoPricing(metadata: Web3CardanoV2Metadata) {
   const cardano = (metadata.supported_payment_sources ?? []).find(
@@ -163,19 +182,64 @@ export function buildV2SupportedPaymentSourceRows(
     const settlement = source.settlement ?? {};
 
     if (chain === EVM_CHAIN) {
-      const fixed = source.pricing?.fixed?.[0];
-      const amount = metadataStringConvert(fixed?.amount);
-      const decimals = metadataStringConvert(fixed?.decimals);
+      const pricingType = metadataStringConvert(source.pricing?.pricingType);
       const payTo = metadataStringConvert(settlement.payTo);
+      const scheme = metadataStringConvert(settlement.scheme);
+      if (
+        payTo == null ||
+        scheme == null ||
+        (pricingType !== PricingType.Fixed &&
+          pricingType !== PricingType.Dynamic &&
+          pricingType !== PricingType.Free)
+      ) {
+        continue;
+      }
+
+      let asset: string | null = null;
+      let amount: bigint | null = null;
+      let decimals: number | null = null;
+      if (pricingType === PricingType.Fixed) {
+        const fixed = source.pricing?.fixed?.[0];
+        const fixedAsset = metadataStringConvert(fixed?.asset);
+        const fixedAmount = metadataStringConvert(fixed?.amount);
+        const fixedDecimals = metadataStringConvert(fixed?.decimals);
+        const parsedAmount = parseAtomicAmount(fixedAmount);
+        const parsedDecimals = parseAssetDecimals(fixedDecimals);
+        if (
+          fixedAsset == null ||
+          parsedAmount == null ||
+          parsedDecimals == null
+        ) {
+          continue;
+        }
+        asset = fixedAsset;
+        amount = parsedAmount;
+        decimals = parsedDecimals;
+      } else if (pricingType === PricingType.Dynamic) {
+        const dynamic = source.pricing?.dynamic?.[0];
+        const dynamicAsset = metadataStringConvert(dynamic?.asset);
+        const dynamicDecimals = metadataStringConvert(dynamic?.decimals);
+        if ((dynamicAsset == null) !== (dynamicDecimals == null)) {
+          continue;
+        }
+        asset = dynamicAsset ?? null;
+        decimals =
+          dynamicDecimals != null ? parseAssetDecimals(dynamicDecimals) : null;
+        if (dynamicDecimals != null && decimals == null) {
+          continue;
+        }
+      }
+
       rows.push({
         chain,
         network,
-        address: payTo ?? '',
-        scheme: metadataStringConvert(settlement.scheme) ?? null,
-        asset: metadataStringConvert(fixed?.asset) ?? null,
-        amount: amount != null ? BigInt(amount) : null,
-        decimals: decimals != null ? Number(decimals) : null,
-        payTo: payTo ?? null,
+        address: payTo,
+        scheme,
+        pricingType,
+        asset,
+        amount,
+        decimals,
+        payTo,
         resource: metadataStringConvert(settlement.resource) ?? null,
         ...(settlement.extra !== undefined
           ? { extra: settlement.extra as Prisma.InputJsonValue }

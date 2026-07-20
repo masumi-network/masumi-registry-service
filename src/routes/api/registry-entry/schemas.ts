@@ -165,6 +165,7 @@ const registryEntrySchemaOutput = z
         paymentSourceType: z.string().nullable(),
         address: z.string(),
         scheme: z.string().nullable(),
+        pricingType: z.nativeEnum($Enums.PricingType).nullable(),
         asset: z.string().nullable(),
         amount: z.string().nullable(),
         decimals: z.number().int().nullable(),
@@ -249,6 +250,7 @@ export type RegistryEntrySerializable = {
     paymentSourceType: string | null;
     address: string;
     scheme: string | null;
+    pricingType: $Enums.PricingType | null;
     asset: string | null;
     amount: bigint | number | string | null;
     decimals: number | null;
@@ -316,6 +318,7 @@ export function serializeRegistryEntries(
           paymentSourceType: source.paymentSourceType,
           address: source.address,
           scheme: source.scheme,
+          pricingType: source.pricingType,
           asset: source.asset,
           amount: source.amount != null ? source.amount.toString() : null,
           decimals: source.decimals,

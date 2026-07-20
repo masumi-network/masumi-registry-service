@@ -88,6 +88,55 @@ describe('web3CardanoV2 metadata', () => {
     });
   });
 
+  it('preserves dynamic asset allowlists and free x402 pricing', () => {
+    const metadata = web3CardanoV2MetadataSchema.parse({
+      ...sampleV2Metadata,
+      supported_payment_sources: [
+        {
+          chain: 'EVM',
+          network: 'eip155:8453',
+          settlement: {
+            scheme: 'Exact',
+            payTo: '0x1111111111111111111111111111111111111111',
+          },
+          pricing: {
+            pricingType: 'Dynamic',
+            dynamic: [
+              {
+                asset: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+                decimals: '6',
+              },
+            ],
+          },
+        },
+        {
+          chain: 'EVM',
+          network: 'eip155:8453',
+          settlement: {
+            scheme: 'Exact',
+            payTo: '0x2222222222222222222222222222222222222222',
+          },
+          pricing: { pricingType: 'Free' },
+        },
+      ],
+    });
+
+    expect(buildV2SupportedPaymentSourceRows(metadata)).toEqual([
+      expect.objectContaining({
+        pricingType: 'Dynamic',
+        asset: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+        amount: null,
+        decimals: 6,
+      }),
+      expect.objectContaining({
+        pricingType: 'Free',
+        asset: null,
+        amount: null,
+        decimals: null,
+      }),
+    ]);
+  });
+
   it('resolves pricing + paymentType from the Cardano source', () => {
     const metadata = web3CardanoV2MetadataSchema.parse(sampleV2Metadata);
     expect(resolveV2AgentPricingCreate(metadata).pricingType).toBe('Fixed');
