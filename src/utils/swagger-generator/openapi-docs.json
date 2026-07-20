@@ -170,8 +170,7 @@
                             "Online",
                             "Offline",
                             "Deregistered",
-                            "Invalid",
-                            "SchemaInvalid"
+                            "Invalid"
                         ]
                     },
                     "id": {
@@ -316,8 +315,7 @@
                             "Online",
                             "Offline",
                             "Deregistered",
-                            "Invalid",
-                            "SchemaInvalid"
+                            "Invalid"
                         ]
                     },
                     "statusUpdatedAt": {
@@ -553,6 +551,16 @@
                                     "type": "string",
                                     "nullable": true
                                 },
+                                "pricingType": {
+                                    "type": "string",
+                                    "nullable": true,
+                                    "enum": [
+                                        "Fixed",
+                                        "Free",
+                                        "Dynamic",
+                                        null
+                                    ]
+                                },
                                 "asset": {
                                     "type": "string",
                                     "nullable": true
@@ -580,6 +588,7 @@
                                 "paymentSourceType",
                                 "address",
                                 "scheme",
+                                "pricingType",
                                 "asset",
                                 "amount",
                                 "decimals",
@@ -1209,8 +1218,7 @@
                                                         "Online",
                                                         "Offline",
                                                         "Deregistered",
-                                                        "Invalid",
-                                                        "SchemaInvalid"
+                                                        "Invalid"
                                                     ]
                                                 },
                                                 "maxItems": 5
@@ -1476,8 +1484,7 @@
                                                         "Online",
                                                         "Offline",
                                                         "Deregistered",
-                                                        "Invalid",
-                                                        "SchemaInvalid"
+                                                        "Invalid"
                                                     ]
                                                 },
                                                 "maxItems": 5

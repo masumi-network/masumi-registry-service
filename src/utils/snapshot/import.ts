@@ -282,6 +282,7 @@ async function importSnapshotForSource(
             paymentSourceType: paymentSource.paymentSourceType,
             address: paymentSource.address,
             scheme: paymentSource.scheme,
+            pricingType: paymentSource.pricingType,
             asset: paymentSource.asset,
             amount:
               paymentSource.amount != null
