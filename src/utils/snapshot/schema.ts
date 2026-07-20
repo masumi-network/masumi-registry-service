@@ -35,22 +35,31 @@ const snapshotExampleOutputSchema = z.object({
   url: z.string(),
 });
 
-const snapshotSupportedPaymentSourceSchema = z.object({
-  chain: z.string(),
-  network: z.string(),
-  paymentSourceType: z.string().nullable(),
-  address: z.string(),
-  scheme: z.string().nullable(),
-  asset: z.string().nullable(),
-  amount: z
-    .string()
-    .regex(/^\d+$/, 'Amount must be a numeric string (BigInt format)')
-    .nullable(),
-  decimals: z.number().int().nullable(),
-  payTo: z.string().nullable(),
-  resource: z.string().nullable(),
-  extra: z.unknown().optional(),
-});
+const snapshotSupportedPaymentSourceSchema = z
+  .object({
+    chain: z.string(),
+    network: z.string(),
+    paymentSourceType: z.string().nullable(),
+    address: z.string(),
+    scheme: z.string().nullable(),
+    // Legacy companion snapshots predate per-source pricing; every EVM row in
+    // that format was Fixed by construction.
+    pricingType: z.nativeEnum(PricingType).nullable().optional(),
+    asset: z.string().nullable(),
+    amount: z
+      .string()
+      .regex(/^\d+$/, 'Amount must be a numeric string (BigInt format)')
+      .nullable(),
+    decimals: z.number().int().nullable(),
+    payTo: z.string().nullable(),
+    resource: z.string().nullable(),
+    extra: z.unknown().optional(),
+  })
+  .transform((source) => ({
+    ...source,
+    pricingType:
+      source.pricingType ?? (source.chain === 'EVM' ? PricingType.Fixed : null),
+  }));
 
 const snapshotEntrySchema = z.object({
   assetIdentifier: z.string().min(1),

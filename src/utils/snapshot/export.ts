@@ -137,6 +137,7 @@ async function exportSnapshotForSource(sourceId: string): Promise<{
         paymentSourceType: s.paymentSourceType,
         address: s.address,
         scheme: s.scheme,
+        pricingType: s.pricingType,
         asset: s.asset,
         amount: s.amount != null ? s.amount.toString() : null, // BigInt -> string
         decimals: s.decimals,

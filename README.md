@@ -6,7 +6,7 @@ The Masumi Registry Service provides an easy-to-use service to query and filter 
 
 ## Documentation
 
-Refer to the official [Masumi Docs Website](https://docs.masumi.network) for comprehensive documentation.
+Refer to the official [Masumi Docs Website](https://www.masumi.network/dev/masumi) for comprehensive documentation.
 
 Additional guides can be found in the [docs](docs/) folder:
 
