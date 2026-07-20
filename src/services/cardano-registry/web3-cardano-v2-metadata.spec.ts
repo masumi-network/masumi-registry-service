@@ -1,7 +1,6 @@
 import {
   buildV2SupportedPaymentSourceRows,
   buildV2VerificationRows,
-  resolveV2AgentPricingCreate,
   resolveV2PaymentType,
   web3CardanoV2MetadataSchema,
 } from './web3-cardano-v2-metadata';
@@ -29,10 +28,19 @@ const sampleV2Metadata = {
     {
       chain: 'EVM',
       network: 'eip155:8453',
-      settlement: { scheme: 'Exact', payTo: '0xRecipient' },
+      settlement: {
+        scheme: 'Exact',
+        payTo: '0x1111111111111111111111111111111111111111',
+      },
       pricing: {
         pricingType: 'Fixed',
-        fixed: [{ asset: '0xUSDC', amount: '1000000', decimals: '6' }],
+        fixed: [
+          {
+            asset: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+            amount: '1000000',
+            decimals: '6',
+          },
+        ],
       },
     },
   ],
@@ -59,17 +67,19 @@ describe('web3CardanoV2 metadata', () => {
     expect(rows).toHaveLength(2);
     expect(rows.find((row) => row.chain === 'Cardano')).toMatchObject({
       network: 'Preprod',
+      sourceIndex: 0,
       paymentSourceType: 'Web3CardanoV2',
       address: 'addr_test1example',
+      Pricing: { create: expect.objectContaining({ pricingType: 'Fixed' }) },
     });
     expect(rows.find((row) => row.chain === 'EVM')).toMatchObject({
       network: 'eip155:8453',
+      sourceIndex: 1,
       scheme: 'Exact',
-      asset: '0xUSDC',
-      amount: 1000000n,
-      decimals: 6,
-      payTo: '0xRecipient',
-      address: '0xRecipient',
+      fixedDecimals: 6,
+      payTo: '0x1111111111111111111111111111111111111111',
+      address: '0x1111111111111111111111111111111111111111',
+      Pricing: { create: expect.objectContaining({ pricingType: 'Fixed' }) },
     });
   });
 
@@ -123,24 +133,99 @@ describe('web3CardanoV2 metadata', () => {
 
     expect(buildV2SupportedPaymentSourceRows(metadata)).toEqual([
       expect.objectContaining({
-        pricingType: 'Dynamic',
-        asset: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
-        amount: null,
-        decimals: 6,
+        dynamicAsset: '0x833589fcd6edb6e08f4c7c32d4f71b54bda02913',
+        dynamicDecimals: 6,
+        Pricing: {
+          create: expect.objectContaining({ pricingType: 'Dynamic' }),
+        },
       }),
       expect.objectContaining({
-        pricingType: 'Free',
-        asset: null,
-        amount: null,
-        decimals: null,
+        dynamicAsset: null,
+        dynamicDecimals: null,
+        fixedDecimals: null,
+        Pricing: { create: expect.objectContaining({ pricingType: 'Free' }) },
       }),
     ]);
   });
 
-  it('resolves pricing + paymentType from the Cardano source', () => {
+  it('resolves paymentType from all Cardano sources', () => {
     const metadata = web3CardanoV2MetadataSchema.parse(sampleV2Metadata);
-    expect(resolveV2AgentPricingCreate(metadata).pricingType).toBe('Fixed');
     expect(resolveV2PaymentType(metadata)).toBe('Web3CardanoV2');
+  });
+
+  it('preserves independently priced Cardano sources', () => {
+    const metadata = web3CardanoV2MetadataSchema.parse({
+      ...sampleV2Metadata,
+      supported_payment_sources: [
+        sampleV2Metadata.supported_payment_sources[0],
+        {
+          ...sampleV2Metadata.supported_payment_sources[0],
+          pricing: { pricingType: 'Dynamic' },
+        },
+      ],
+    });
+
+    const rows = buildV2SupportedPaymentSourceRows(metadata);
+    expect(rows.map((row) => row.Pricing)).toEqual([
+      { create: expect.objectContaining({ pricingType: 'Fixed' }) },
+      { create: { pricingType: 'Dynamic' } },
+    ]);
+  });
+
+  it('rejects duplicate source options with a row-level error', () => {
+    const metadata = web3CardanoV2MetadataSchema.parse({
+      ...sampleV2Metadata,
+      supported_payment_sources: [
+        sampleV2Metadata.supported_payment_sources[0],
+        sampleV2Metadata.supported_payment_sources[0],
+      ],
+    });
+
+    expect(() => buildV2SupportedPaymentSourceRows(metadata)).toThrow(
+      'supported_payment_sources[1] duplicates an earlier supported payment source'
+    );
+  });
+
+  it('rejects legacy top-level agentPricing on V2', () => {
+    const result = web3CardanoV2MetadataSchema.safeParse({
+      ...sampleV2Metadata,
+      agentPricing: { pricingType: 'Free' },
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0]?.message).toContain('Unrecognized key');
+    }
+  });
+
+  it('caps payment sources and Cardano fixed-price baskets', () => {
+    expect(
+      web3CardanoV2MetadataSchema.safeParse({
+        ...sampleV2Metadata,
+        supported_payment_sources: Array.from(
+          { length: 26 },
+          () => sampleV2Metadata.supported_payment_sources[0]
+        ),
+      }).success
+    ).toBe(false);
+
+    const metadata = web3CardanoV2MetadataSchema.parse({
+      ...sampleV2Metadata,
+      supported_payment_sources: [
+        {
+          ...sampleV2Metadata.supported_payment_sources[0],
+          pricing: {
+            pricingType: 'Fixed',
+            fixed: Array.from({ length: 6 }, (_, index) => ({
+              asset: index === 0 ? '' : `asset-${index}`,
+              amount: '1',
+            })),
+          },
+        },
+      ],
+    });
+    expect(() => buildV2SupportedPaymentSourceRows(metadata)).toThrow(
+      'must not contain more than 5 assets'
+    );
   });
 
   it('drops a verification missing a required anchor', () => {

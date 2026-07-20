@@ -10,6 +10,7 @@ import type {
   SnapshotEntryPaymentSources,
   ExportResult,
 } from './types';
+import { SNAPSHOT_VERSION } from './types';
 
 function bigIntReplacer(_key: string, value: unknown): unknown {
   if (typeof value === 'bigint') {
@@ -30,24 +31,30 @@ function mapEntryToSnapshot(
       FixedPricing: {
         Amounts: { amount: bigint; unit: string }[];
       } | null;
-    };
+    } | null;
     ExampleOutput: { name: string; mimeType: string; url: string }[];
   }
 ): SnapshotEntry {
   // Build pricing object
-  const agentPricing: SnapshotAgentPricing =
-    entry.AgentPricing.pricingType === 'Free'
-      ? { pricingType: 'Free', fixedPricing: null }
-      : {
-          pricingType: 'Fixed',
-          fixedPricing: {
-            amounts:
-              entry.AgentPricing.FixedPricing?.Amounts.map((a) => ({
-                amount: a.amount.toString(), // BigInt -> string
-                unit: a.unit,
-              })) ?? [],
-          },
-        };
+  const agentPricing: SnapshotAgentPricing | null =
+    entry.AgentPricing == null
+      ? null
+      : entry.AgentPricing.pricingType === 'Free' ||
+          entry.AgentPricing.pricingType === 'Dynamic'
+        ? {
+            pricingType: entry.AgentPricing.pricingType,
+            fixedPricing: null,
+          }
+        : {
+            pricingType: 'Fixed',
+            fixedPricing: {
+              amounts:
+                entry.AgentPricing.FixedPricing?.Amounts.map((a) => ({
+                  amount: a.amount.toString(), // BigInt -> string
+                  unit: a.unit,
+                })) ?? [],
+            },
+          };
 
   return {
     assetIdentifier: entry.assetIdentifier,
@@ -106,7 +113,16 @@ async function exportSnapshotForSource(sourceId: string): Promise<{
         },
       },
       ExampleOutput: true,
-      SupportedPaymentSources: true,
+      SupportedPaymentSources: {
+        include: {
+          Pricing: {
+            include: {
+              FixedPricing: { include: { Amounts: true } },
+            },
+          },
+        },
+        orderBy: { sourceIndex: 'asc' },
+      },
     },
     orderBy: { assetIdentifier: 'asc' },
   });
@@ -115,7 +131,7 @@ async function exportSnapshotForSource(sourceId: string): Promise<{
   const exportedAt = new Date().toISOString();
 
   const snapshot: Snapshot = {
-    version: '1.0.0',
+    version: SNAPSHOT_VERSION,
     exportedAt,
     network: source.network,
     policyId: source.policyId,
@@ -131,26 +147,59 @@ async function exportSnapshotForSource(sourceId: string): Promise<{
     .filter((entry) => entry.SupportedPaymentSources.length > 0)
     .map((entry) => ({
       assetIdentifier: entry.assetIdentifier,
-      sources: entry.SupportedPaymentSources.map((s) => ({
-        chain: s.chain,
-        network: s.network,
-        paymentSourceType: s.paymentSourceType,
-        address: s.address,
-        scheme: s.scheme,
-        pricingType: s.pricingType,
-        asset: s.asset,
-        amount: s.amount != null ? s.amount.toString() : null, // BigInt -> string
-        decimals: s.decimals,
-        payTo: s.payTo,
-        resource: s.resource,
-        ...(s.extra != null ? { extra: s.extra } : {}),
-      })),
+      sources: entry.SupportedPaymentSources.map((s) => {
+        if (s.Pricing == null) {
+          throw new Error(
+            `Registry entry ${entry.assetIdentifier} payment source ${s.sourceIndex} is missing pricing`
+          );
+        }
+        const amounts = s.Pricing.FixedPricing?.Amounts ?? [];
+        const pricing =
+          s.Pricing.pricingType === 'Fixed'
+            ? {
+                pricingType: 'Fixed' as const,
+                fixed: amounts.map((amount) => ({
+                  asset: amount.unit,
+                  amount: amount.amount.toString(),
+                  ...(s.fixedDecimals != null
+                    ? { decimals: s.fixedDecimals }
+                    : {}),
+                })),
+              }
+            : s.Pricing.pricingType === 'Dynamic'
+              ? {
+                  pricingType: 'Dynamic' as const,
+                  ...(s.dynamicAsset != null && s.dynamicDecimals != null
+                    ? {
+                        dynamic: [
+                          {
+                            asset: s.dynamicAsset,
+                            decimals: s.dynamicDecimals,
+                          },
+                        ],
+                      }
+                    : {}),
+                }
+              : { pricingType: 'Free' as const };
+        return {
+          chain: s.chain,
+          network: s.network,
+          sourceIndex: s.sourceIndex,
+          paymentSourceType: s.paymentSourceType,
+          address: s.address,
+          scheme: s.scheme,
+          pricing,
+          payTo: s.payTo,
+          resource: s.resource,
+          ...(s.extra != null ? { extra: s.extra } : {}),
+        };
+      }),
     }));
 
   const paymentSources: PaymentSourcesSnapshot | null =
     paymentSourceEntries.length > 0
       ? {
-          version: '1.0.0',
+          version: SNAPSHOT_VERSION,
           exportedAt,
           network: source.network,
           policyId: source.policyId,
