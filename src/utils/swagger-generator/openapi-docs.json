@@ -154,8 +154,150 @@
                                 "required": [
                                     "pricingType"
                                 ]
+                            },
+                            {
+                                "nullable": true
                             }
                         ]
+                    },
+                    "SupportedPaymentSources": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "chain": {
+                                    "type": "string"
+                                },
+                                "network": {
+                                    "type": "string"
+                                },
+                                "sourceIndex": {
+                                    "type": "integer",
+                                    "minimum": 0
+                                },
+                                "paymentSourceType": {
+                                    "type": "string",
+                                    "nullable": true
+                                },
+                                "address": {
+                                    "type": "string"
+                                },
+                                "scheme": {
+                                    "type": "string",
+                                    "nullable": true
+                                },
+                                "pricing": {
+                                    "anyOf": [
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "pricingType": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "Fixed"
+                                                    ]
+                                                },
+                                                "fixed": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "asset": {
+                                                                "type": "string"
+                                                            },
+                                                            "amount": {
+                                                                "type": "string"
+                                                            },
+                                                            "decimals": {
+                                                                "type": "integer",
+                                                                "minimum": 0,
+                                                                "maximum": 255
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "asset",
+                                                            "amount"
+                                                        ]
+                                                    }
+                                                }
+                                            },
+                                            "required": [
+                                                "pricingType",
+                                                "fixed"
+                                            ]
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "pricingType": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "Dynamic"
+                                                    ]
+                                                },
+                                                "dynamic": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "asset": {
+                                                                "type": "string"
+                                                            },
+                                                            "decimals": {
+                                                                "type": "integer",
+                                                                "minimum": 0,
+                                                                "maximum": 255
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "asset",
+                                                            "decimals"
+                                                        ]
+                                                    },
+                                                    "maxItems": 1
+                                                }
+                                            },
+                                            "required": [
+                                                "pricingType"
+                                            ]
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "pricingType": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "Free"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "pricingType"
+                                            ]
+                                        }
+                                    ]
+                                },
+                                "payTo": {
+                                    "type": "string",
+                                    "nullable": true
+                                },
+                                "resource": {
+                                    "type": "string",
+                                    "nullable": true
+                                }
+                            },
+                            "required": [
+                                "chain",
+                                "network",
+                                "sourceIndex",
+                                "paymentSourceType",
+                                "address",
+                                "scheme",
+                                "pricing",
+                                "payTo",
+                                "resource"
+                            ]
+                        }
                     },
                     "name": {
                         "type": "string"
@@ -270,6 +412,7 @@
                     "sellerWallet",
                     "Capability",
                     "AgentPricing",
+                    "SupportedPaymentSources",
                     "name",
                     "description",
                     "status",
@@ -504,6 +647,9 @@
                                 "required": [
                                     "pricingType"
                                 ]
+                            },
+                            {
+                                "nullable": true
                             }
                         ]
                     },
@@ -540,6 +686,10 @@
                                 "network": {
                                     "type": "string"
                                 },
+                                "sourceIndex": {
+                                    "type": "integer",
+                                    "minimum": 0
+                                },
                                 "paymentSourceType": {
                                     "type": "string",
                                     "nullable": true
@@ -551,27 +701,96 @@
                                     "type": "string",
                                     "nullable": true
                                 },
-                                "pricingType": {
-                                    "type": "string",
-                                    "nullable": true,
-                                    "enum": [
-                                        "Fixed",
-                                        "Free",
-                                        "Dynamic",
-                                        null
+                                "pricing": {
+                                    "anyOf": [
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "pricingType": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "Fixed"
+                                                    ]
+                                                },
+                                                "fixed": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "asset": {
+                                                                "type": "string"
+                                                            },
+                                                            "amount": {
+                                                                "type": "string"
+                                                            },
+                                                            "decimals": {
+                                                                "type": "integer",
+                                                                "minimum": 0,
+                                                                "maximum": 255
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "asset",
+                                                            "amount"
+                                                        ]
+                                                    }
+                                                }
+                                            },
+                                            "required": [
+                                                "pricingType",
+                                                "fixed"
+                                            ]
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "pricingType": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "Dynamic"
+                                                    ]
+                                                },
+                                                "dynamic": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "asset": {
+                                                                "type": "string"
+                                                            },
+                                                            "decimals": {
+                                                                "type": "integer",
+                                                                "minimum": 0,
+                                                                "maximum": 255
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "asset",
+                                                            "decimals"
+                                                        ]
+                                                    },
+                                                    "maxItems": 1
+                                                }
+                                            },
+                                            "required": [
+                                                "pricingType"
+                                            ]
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "pricingType": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "Free"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "pricingType"
+                                            ]
+                                        }
                                     ]
-                                },
-                                "asset": {
-                                    "type": "string",
-                                    "nullable": true
-                                },
-                                "amount": {
-                                    "type": "string",
-                                    "nullable": true
-                                },
-                                "decimals": {
-                                    "type": "integer",
-                                    "nullable": true
                                 },
                                 "payTo": {
                                     "type": "string",
@@ -585,13 +804,11 @@
                             "required": [
                                 "chain",
                                 "network",
+                                "sourceIndex",
                                 "paymentSourceType",
                                 "address",
                                 "scheme",
-                                "pricingType",
-                                "asset",
-                                "amount",
-                                "decimals",
+                                "pricing",
                                 "payTo",
                                 "resource"
                             ]

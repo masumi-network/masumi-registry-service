@@ -26,6 +26,14 @@ async function getPaymentInformation(currentAgentIdentifier: string) {
       AgentPricing: {
         include: { FixedPricing: { include: { Amounts: true } } },
       },
+      SupportedPaymentSources: {
+        include: {
+          Pricing: {
+            include: { FixedPricing: { include: { Amounts: true } } },
+          },
+        },
+        orderBy: { sourceIndex: 'asc' },
+      },
       Capability: true,
       ExampleOutput: true,
       RegistrySource: {

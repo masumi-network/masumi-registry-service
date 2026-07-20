@@ -78,10 +78,9 @@ model RegistryEntry {
 
   registrySourceId String
 
-  assetIdentifier String       @unique
-  searchText      String       @default("")
-  AgentPricing    AgentPricing @relation(fields: [agentPricingId], references: [id])
-  agentPricingId  String
+  assetIdentifier String        @unique
+  searchText      String        @default("")
+  AgentPricing    AgentPricing?
 
   ExampleOutput ExampleOutput[]
 
@@ -96,28 +95,31 @@ model RegistryEntry {
 
 // Payment sources advertised in a V2 registry entry's metadata
 // (supported_payment_sources). One row per advertised source: Cardano escrow
-// rows carry paymentSourceType + address; x402/EVM rows carry the scheme/asset/
-// amount/decimals/payTo. Indexed read model — re-synced from chain, never minted.
+// rows carry paymentSourceType + address; x402/EVM rows carry settlement and
+// token constraint fields. Complete pricing is source-owned through Pricing.
+// Indexed read model — re-synced from chain, never minted.
 model SupportedPaymentSource {
-  id                String       @id @default(cuid())
-  createdAt         DateTime     @default(now())
-  updatedAt         DateTime     @updatedAt
+  id                String   @id @default(cuid())
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
   chain             String
   network           String
+  sourceIndex       Int
   paymentSourceType String?
   address           String
   scheme            String?
-  pricingType       PricingType?
-  asset             String?
-  amount            BigInt?
-  decimals          Int?
+  dynamicAsset      String?
+  dynamicDecimals   Int?
+  fixedDecimals     Int?
   payTo             String?
   resource          String?
   extra             Json?
 
   RegistryEntry   RegistryEntry @relation(fields: [registryEntryId], references: [id], onDelete: Cascade)
   registryEntryId String
+  Pricing         AgentPricing?
 
+  @@unique([registryEntryId, sourceIndex])
   @@index([registryEntryId])
 }
 
@@ -196,10 +198,12 @@ model AgentPricing {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  pricingType         PricingType
-  FixedPricing        AgentFixedPricing? @relation(fields: [agentFixedPricingId], references: [id])
-  agentFixedPricingId String?            @unique
-  RegistryEntry       RegistryEntry[]
+  pricingType              PricingType
+  FixedPricing             AgentFixedPricing?
+  RegistryEntry            RegistryEntry?          @relation(fields: [registryEntryId], references: [id], onDelete: Cascade)
+  registryEntryId          String?                 @unique
+  SupportedPaymentSource   SupportedPaymentSource? @relation(fields: [supportedPaymentSourceId], references: [id], onDelete: Cascade)
+  supportedPaymentSourceId String?                 @unique
 }
 
 enum PricingType {
@@ -209,11 +213,12 @@ enum PricingType {
 }
 
 model AgentFixedPricing {
-  id           String        @id @default(cuid())
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  AgentPricing AgentPricing?
-  Amounts      UnitValue[]
+  id             String       @id @default(cuid())
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  AgentPricing   AgentPricing @relation(fields: [agentPricingId], references: [id], onDelete: Cascade)
+  agentPricingId String       @unique
+  Amounts        UnitValue[]
 }
 
 model UnitValue {
@@ -223,8 +228,8 @@ model UnitValue {
 
   amount              BigInt
   unit                String
-  AgentFixedPricing   AgentFixedPricing? @relation(fields: [agentFixedPricingId], references: [id])
-  agentFixedPricingId String?
+  AgentFixedPricing   AgentFixedPricing @relation(fields: [agentFixedPricingId], references: [id], onDelete: Cascade)
+  agentFixedPricingId String
 }
 
 enum PaymentType {

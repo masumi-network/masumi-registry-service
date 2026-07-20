@@ -5,7 +5,13 @@ import { createId } from '@paralleldrive/cuid2';
 import { prisma } from '@/utils/db';
 import { logger } from '@/utils/logger';
 import { validateSnapshot, validatePaymentSources } from './schema';
-import type { Snapshot, PaymentSourcesSnapshot, ImportResult } from './types';
+import {
+  SNAPSHOT_VERSION,
+  type Snapshot,
+  type PaymentSourcesSnapshot,
+  type ImportResult,
+} from './types';
+import { validateSnapshotPricingLayout } from './pricing-layout';
 
 const MAX_SNAPSHOT_BYTES = 100 * 1024 * 1024; // 100 MB
 
@@ -99,7 +105,7 @@ async function importSnapshotForSource(
     );
   }
 
-  if (snapshot.version !== '1.0.0') {
+  if (snapshot.version !== SNAPSHOT_VERSION) {
     throw new Error(`Unsupported snapshot version: ${snapshot.version}`);
   }
 
@@ -108,6 +114,8 @@ async function importSnapshotForSource(
       `Entry count mismatch: array has ${snapshot.entries.length}, metadata says ${snapshot.entryCount}`
     );
   }
+
+  validateSnapshotPricingLayout(snapshot, paymentSources ?? null);
 
   if (options.dryRun) {
     const existingCount = await prisma.registryEntry.count({
@@ -188,7 +196,7 @@ async function importSnapshotForSource(
       }
 
       // 2. Build the flat row sets, wiring FKs via client-generated ids.
-      const fixedPricingRows: { id: string }[] = [];
+      const fixedPricingRows: Prisma.AgentFixedPricingCreateManyInput[] = [];
       const amountRows: {
         agentFixedPricingId: string;
         amount: bigint;
@@ -197,32 +205,43 @@ async function importSnapshotForSource(
       const agentPricingRows: Prisma.AgentPricingCreateManyInput[] = [];
       const entryRows: Prisma.RegistryEntryCreateManyInput[] = [];
       const exampleOutputRows: Prisma.ExampleOutputCreateManyInput[] = [];
+      const supportedPaymentSourceRows: Prisma.SupportedPaymentSourceCreateManyInput[] =
+        [];
 
       // assetIdentifier -> generated entry id, used to attach the companion
       // payment-sources file back to its entries.
       const entryIdByAsset = new Map<string, string>();
 
-      for (const entry of snapshot.entries) {
+      const addPricingRows = (params: {
+        pricingType: 'Fixed' | 'Free' | 'Dynamic';
+        amounts?: { amount: string; unit: string }[];
+        registryEntryId?: string;
+        supportedPaymentSourceId?: string;
+      }) => {
         const agentPricingId = createId();
-        if (entry.agentPricing.pricingType === 'Free') {
-          agentPricingRows.push({ id: agentPricingId, pricingType: 'Free' });
-        } else {
-          const agentFixedPricingId = createId();
-          fixedPricingRows.push({ id: agentFixedPricingId });
-          for (const a of entry.agentPricing.fixedPricing!.amounts) {
-            amountRows.push({
-              agentFixedPricingId,
-              amount: BigInt(a.amount),
-              unit: a.unit,
-            });
-          }
-          agentPricingRows.push({
-            id: agentPricingId,
-            pricingType: 'Fixed',
+        agentPricingRows.push({
+          id: agentPricingId,
+          pricingType: params.pricingType,
+          registryEntryId: params.registryEntryId,
+          supportedPaymentSourceId: params.supportedPaymentSourceId,
+        });
+        if (params.pricingType !== 'Fixed') return;
+
+        const agentFixedPricingId = createId();
+        fixedPricingRows.push({
+          id: agentFixedPricingId,
+          agentPricingId,
+        });
+        for (const amount of params.amounts ?? []) {
+          amountRows.push({
             agentFixedPricingId,
+            amount: BigInt(amount.amount),
+            unit: amount.unit,
           });
         }
+      };
 
+      for (const entry of snapshot.entries) {
         const entryId = createId();
         entryIdByAsset.set(entry.assetIdentifier, entryId);
         entryRows.push({
@@ -253,8 +272,14 @@ async function importSnapshotForSource(
                 capabilityKey(entry.capability.name, entry.capability.version)
               )
             : null,
-          agentPricingId,
         });
+        if (entry.agentPricing != null) {
+          addPricingRows({
+            pricingType: entry.agentPricing.pricingType,
+            amounts: entry.agentPricing.fixedPricing?.amounts,
+            registryEntryId: entryId,
+          });
+        }
 
         for (const output of entry.exampleOutputs) {
           exampleOutputRows.push({ registryEntryId: entryId, ...output });
@@ -262,60 +287,56 @@ async function importSnapshotForSource(
       }
 
       // Optional companion file: V2 payment sources, matched back to entries by
-      // assetIdentifier. Unknown identifiers (file drift) are skipped, not fatal.
-      const supportedPaymentSourceRows: Prisma.SupportedPaymentSourceCreateManyInput[] =
-        [];
-      let unmatchedPaymentSources = 0;
+      // assetIdentifier. Unknown identifiers indicate incompatible or corrupted
+      // snapshot files and must fail instead of silently dropping payment rails.
       for (const paymentEntry of paymentSources?.entries ?? []) {
         const registryEntryId = entryIdByAsset.get(
           paymentEntry.assetIdentifier
         );
         if (registryEntryId == null) {
-          unmatchedPaymentSources += paymentEntry.sources.length;
-          continue;
+          throw new Error(
+            `Payment-sources entry ${paymentEntry.assetIdentifier} has no matching registry entry`
+          );
         }
         for (const paymentSource of paymentEntry.sources) {
+          const supportedPaymentSourceId = createId();
+          const fixedPrice =
+            paymentSource.pricing.pricingType === 'Fixed'
+              ? paymentSource.pricing.fixed
+              : undefined;
+          const dynamicAsset =
+            paymentSource.pricing.pricingType === 'Dynamic'
+              ? paymentSource.pricing.dynamic?.[0]
+              : undefined;
           supportedPaymentSourceRows.push({
+            id: supportedPaymentSourceId,
             registryEntryId,
             chain: paymentSource.chain,
             network: paymentSource.network,
+            sourceIndex: paymentSource.sourceIndex,
             paymentSourceType: paymentSource.paymentSourceType,
             address: paymentSource.address,
             scheme: paymentSource.scheme,
-            pricingType: paymentSource.pricingType,
-            asset: paymentSource.asset,
-            amount:
-              paymentSource.amount != null
-                ? BigInt(paymentSource.amount)
-                : null,
-            decimals: paymentSource.decimals,
+            dynamicAsset: dynamicAsset?.asset ?? null,
+            dynamicDecimals: dynamicAsset?.decimals ?? null,
+            fixedDecimals: fixedPrice?.[0]?.decimals ?? null,
             payTo: paymentSource.payTo,
             resource: paymentSource.resource,
             ...(paymentSource.extra != null
               ? { extra: paymentSource.extra as Prisma.InputJsonValue }
               : {}),
           });
+          addPricingRows({
+            pricingType: paymentSource.pricing.pricingType,
+            amounts: fixedPrice?.map((price) => ({
+              amount: price.amount,
+              unit: price.asset,
+            })),
+            supportedPaymentSourceId,
+          });
         }
       }
-      if (unmatchedPaymentSources > 0) {
-        logger.warn(
-          `Skipped ${unmatchedPaymentSources} payment source(s) with no matching entry in ${source.network} ${source.policyId}`
-        );
-      }
-
       // 3. Insert in FK-dependency order.
-      await createManyChunked(
-        (data) => tx.agentFixedPricing.createMany({ data }),
-        fixedPricingRows
-      );
-      await createManyChunked(
-        (data) => tx.unitValue.createMany({ data }),
-        amountRows
-      );
-      await createManyChunked(
-        (data) => tx.agentPricing.createMany({ data }),
-        agentPricingRows
-      );
       await createManyChunked(
         (data) => tx.registryEntry.createMany({ data }),
         entryRows
@@ -327,6 +348,18 @@ async function importSnapshotForSource(
       await createManyChunked(
         (data) => tx.supportedPaymentSource.createMany({ data }),
         supportedPaymentSourceRows
+      );
+      await createManyChunked(
+        (data) => tx.agentPricing.createMany({ data }),
+        agentPricingRows
+      );
+      await createManyChunked(
+        (data) => tx.agentFixedPricing.createMany({ data }),
+        fixedPricingRows
+      );
+      await createManyChunked(
+        (data) => tx.unitValue.createMany({ data }),
+        amountRows
       );
       if (supportedPaymentSourceRows.length > 0) {
         logger.info(
