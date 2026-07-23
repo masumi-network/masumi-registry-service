@@ -96,7 +96,7 @@ export const queryPaymentInformationSchemaOutput = z
     lastUptimeCheck: ez.dateOut(),
     uptimeCount: z.number(),
     uptimeCheckCount: z.number(),
-    apiBaseUrl: z.string(),
+    apiBaseUrl: z.string().nullable(),
     authorName: z.string().nullable(),
     authorOrganization: z.string().nullable(),
     authorContactEmail: z.string().nullable(),

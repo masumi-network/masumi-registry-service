@@ -41,7 +41,8 @@ export interface SnapshotExampleOutput {
 export interface SnapshotEntry {
   assetIdentifier: string;
   name: string;
-  apiBaseUrl: string;
+  // Null for OpenApi/X402 entries (they advertise a spec/manifest URL instead).
+  apiBaseUrl: string | null;
   description: string | null;
   image: string;
   tags: string[];
