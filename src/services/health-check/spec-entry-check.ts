@@ -63,7 +63,8 @@ const MAX_CACHED_SPEC_BYTES = 256 * 1024;
 
 function isCacheableSpec(spec: unknown): boolean {
   try {
-    return JSON.stringify(spec).length <= MAX_CACHED_SPEC_BYTES;
+    // Byte length (not char count): a multi-byte spec must not slip past the cap.
+    return Buffer.byteLength(JSON.stringify(spec)) <= MAX_CACHED_SPEC_BYTES;
   } catch {
     return false;
   }
