@@ -1,4 +1,10 @@
-import { Network, PaymentType, PricingType, Status } from '@prisma/client';
+import {
+  Network,
+  PaymentType,
+  PricingType,
+  RegistryEntryType,
+  Status,
+} from '@prisma/client';
 import {
   SNAPSHOT_VERSION,
   type PaymentSourcesSnapshot,
@@ -10,7 +16,10 @@ function snapshotEntry(metadataVersion: number) {
   return {
     assetIdentifier: `agent-${metadataVersion}`,
     name: 'Agent',
+    type: RegistryEntryType.Standard,
     apiBaseUrl: 'https://agent.example',
+    openApiSpecUrl: null,
+    x402ResourcesUrl: null,
     description: null,
     image: '',
     tags: [],
