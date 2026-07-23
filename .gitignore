@@ -20,3 +20,9 @@ src/services/.DS_Store
 # Cursor AI
 .cursor/snapshots
 .cursor/logs
+
+# Admin frontend (source tracked; deps/build ignored)
+frontend/node_modules
+frontend/dist
+frontend/.next
+frontend/.env.local
