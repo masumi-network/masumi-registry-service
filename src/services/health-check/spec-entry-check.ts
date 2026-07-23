@@ -1,5 +1,12 @@
+import { Semaphore } from 'async-mutex';
 import { $Enums, Prisma } from '@prisma/client';
 import { validateSpecUrl, type SpecKind } from '@/services/spec-validation';
+
+// A health-check page can hold many OpenApi/X402 entries, each of which fetches
+// its own (untrusted, up-to-5 MiB, up-to-20 s) spec URL. Bound how many run at
+// once so a large page can't open a flood of concurrent outbound fetches.
+const SPEC_FETCH_CONCURRENCY = 4;
+const specFetchSemaphore = new Semaphore(SPEC_FETCH_CONCURRENCY);
 
 /** null for Standard entries (no fetchable spec — use the /availability check). */
 export function specKindForType(
@@ -32,14 +39,33 @@ export async function checkSpecEntry(entry: {
     // A spec-type entry with no URL is malformed metadata; mark Invalid.
     return { status: $Enums.Status.Invalid };
   }
-  const outcome = await validateSpecUrl(kind, url);
+  const outcome = await specFetchSemaphore.runExclusive(() =>
+    validateSpecUrl(kind, url)
+  );
   switch (outcome.outcome) {
     case 'valid':
-      return { status: $Enums.Status.Online, spec: outcome.spec };
+      // Online either way; only cache the snapshot when it is small enough to
+      // sit inline in the row without bloating every RegistryEntry read.
+      return isCacheableSpec(outcome.spec)
+        ? { status: $Enums.Status.Online, spec: outcome.spec }
+        : { status: $Enums.Status.Online };
     case 'invalid':
       return { status: $Enums.Status.Invalid };
     case 'unreachable':
       return { status: $Enums.Status.Offline };
+  }
+}
+
+// A validated spec can be up to MAX_SPEC_BYTES (5 MiB); caching that inline in a
+// JSONB column would bloat the table and every read. Only cache modest specs;
+// larger ones stay valid (Online) but uncached — callers can fetch them live.
+const MAX_CACHED_SPEC_BYTES = 256 * 1024;
+
+function isCacheableSpec(spec: unknown): boolean {
+  try {
+    return JSON.stringify(spec).length <= MAX_CACHED_SPEC_BYTES;
+  } catch {
+    return false;
   }
 }
 
