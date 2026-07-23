@@ -329,7 +329,8 @@
                         "type": "number"
                     },
                     "apiBaseUrl": {
-                        "type": "string"
+                        "type": "string",
+                        "nullable": true
                     },
                     "authorName": {
                         "type": "string",
