@@ -115,6 +115,16 @@ describe('spec-validation', () => {
       );
       expect(result.outcome).toBe('invalid');
     });
+
+    it('accepts a YAML OpenAPI document', async () => {
+      mockFetchOnce({
+        body: 'openapi: 3.1.0\ninfo:\n  title: Test API\n  version: 1.0.0\npaths: {}\n',
+      });
+      const result = await validateOpenApiSpec(
+        'https://agent.example/openapi.yaml'
+      );
+      expect(result.outcome).toBe('valid');
+    });
   });
 
   describe('validateX402Manifest', () => {
@@ -146,6 +156,45 @@ describe('spec-validation', () => {
 
     it('rejects a non-JSON body as invalid', async () => {
       mockFetchOnce({ body: 'not json at all' });
+      const result = await validateX402Manifest(
+        'https://agent.example/.well-known/x402.json'
+      );
+      expect(result.outcome).toBe('invalid');
+    });
+
+    it('accepts a resource with a valid embedded JSON Schema', async () => {
+      mockFetchOnce({
+        body: JSON.stringify({
+          resources: [
+            {
+              resource: 'https://agent.example/x/summarize',
+              inputSchema: {
+                type: 'object',
+                properties: { text: { type: 'string' } },
+                required: ['text'],
+              },
+            },
+          ],
+        }),
+      });
+      const result = await validateX402Manifest(
+        'https://agent.example/.well-known/x402.json'
+      );
+      expect(result.outcome).toBe('valid');
+    });
+
+    it('rejects a resource whose embedded schema violates JSON Schema 2020-12', async () => {
+      mockFetchOnce({
+        body: JSON.stringify({
+          resources: [
+            {
+              resource: 'https://agent.example/x/summarize',
+              // `type` must be a known JSON Schema type, not an arbitrary string.
+              outputSchema: { type: 'definitely-not-a-type' },
+            },
+          ],
+        }),
+      });
       const result = await validateX402Manifest(
         'https://agent.example/.well-known/x402.json'
       );
