@@ -131,6 +131,9 @@ async function fetchSpecBody(url: string): Promise<FetchResult> {
     }
     return { ok: true, body: Buffer.concat(chunks).toString('utf8') };
   } catch (error) {
+    // Abort a still-pending request on the error path only (on success the body
+    // is already fully read, so aborting there would be a confusing no-op).
+    controller?.abort();
     // A blocked (SSRF) URL is a hard config error, not a transient outage, but
     // both map to "unreachable" so the caller marks Offline and the periodic
     // loop keeps re-checking (a DNS record can later resolve to a public IP).
@@ -143,7 +146,6 @@ async function fetchSpecBody(url: string): Promise<FetchResult> {
     return { ok: false, reason, unreachable: true };
   } finally {
     if (timeoutId) clearTimeout(timeoutId);
-    controller?.abort();
   }
 }
 
