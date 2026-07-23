@@ -326,7 +326,11 @@ async function checkVerifyAndUpdateRegistryEntries({
   >();
   const neededLookups = new Set<string>();
   for (const entry of registryEntries) {
-    neededLookups.add(entry.apiBaseUrl);
+    // apiBaseUrl is nullable (OpenApi/X402 entries advertise a spec/manifest URL
+    // instead); skip the availability lookup for entries without a base URL.
+    if (entry.apiBaseUrl != null) {
+      neededLookups.add(entry.apiBaseUrl);
+    }
   }
 
   const completedLookups = await Promise.allSettled(
@@ -361,7 +365,7 @@ async function checkVerifyAndUpdateRegistryEntries({
         logger.error('registrySource is null', entry);
         return entry;
       }
-      if (lookupMap.has(entry.apiBaseUrl)) {
+      if (entry.apiBaseUrl != null && lookupMap.has(entry.apiBaseUrl)) {
         const lookup = lookupMap.get(entry.apiBaseUrl)!;
         if (lookup.agentIdentifier != null) {
           return {
@@ -379,11 +383,18 @@ async function checkVerifyAndUpdateRegistryEntries({
           assetIdentifier: entry.assetIdentifier,
         };
       }
+      if (entry.apiBaseUrl == null) {
+        // No base URL to availability-check (OpenApi/X402 entries); spec-URL
+        // validation lands in a follow-up. Leave as Offline for now.
+        return {
+          id: entry.id,
+          status: $Enums.Status.Offline,
+          assetIdentifier: entry.assetIdentifier,
+        };
+      }
       const status = await checkAndVerifyRegistryEntry({
-        registryEntry: {
-          ...entry,
-        },
-        minHealthCheckDate: minHealthCheckDate,
+        registryEntry: { ...entry, apiBaseUrl: entry.apiBaseUrl },
+        minHealthCheckDate,
       });
       lookupMap.set(entry.apiBaseUrl, {
         status: status,

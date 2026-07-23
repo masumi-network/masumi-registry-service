@@ -13,7 +13,7 @@ import { DEFAULTS } from '@/utils/config';
 import { getBlockfrostInstance } from '@/utils/blockfrost';
 import { isV2Policy } from '@/utils/agent-version';
 import {
-  INBOX_REGISTRY_METADATA_TYPE,
+  INBOX_REGISTRY_METADATA_TYPES,
   hasInboxAgentRegistrationContentChanged,
   nextInboxAgentRegistrationStatus,
   parseInboxAgentRegistrationMetadata,
@@ -32,10 +32,24 @@ const web3CardanoMetadataSchema = z
       .min(1)
       .or(z.array(z.string().min(1))),
     description: z.string().or(z.array(z.string())).optional(),
+    // Access-model discriminator. Absent -> Standard. OpenAPI/x402 entries carry
+    // it (and omit api_base_url), so the .strict() schema must accept these keys.
+    type: z.string().optional(),
     api_base_url: z
       .string()
       .min(1)
-      .or(z.array(z.string().min(1))),
+      .or(z.array(z.string().min(1)))
+      .optional(),
+    openapi_spec_url: z
+      .string()
+      .min(1)
+      .or(z.array(z.string().min(1)))
+      .optional(),
+    x402_resources_url: z
+      .string()
+      .min(1)
+      .or(z.array(z.string().min(1)))
+      .optional(),
     example_output: z
       .array(
         z.object({
@@ -378,6 +392,20 @@ function getRegistryMetadataType(metadata: unknown): string | undefined {
   return parsed.success ? parsed.data.type : undefined;
 }
 
+// On-chain registry `type` string -> RegistryEntryType. Absent/unrecognised ->
+// Standard so legacy/untyped entries (and any newer type an older indexer does
+// not know) degrade to the base standard shape instead of being dropped. Kept in
+// sync with payment-core's registryEntryTypeFromOnChain / the inbox types are
+// handled separately by getRegistryMetadataType before this is reached.
+function registryEntryTypeFromOnChain(
+  onChainType: string | string[] | undefined
+): $Enums.RegistryEntryType {
+  const value = Array.isArray(onChainType) ? onChainType.join('') : onChainType;
+  if (value === 'OpenAPI') return $Enums.RegistryEntryType.OpenApi;
+  if (value === 'x402V1') return $Enums.RegistryEntryType.X402;
+  return $Enums.RegistryEntryType.Standard;
+}
+
 async function getSyncableRegistrySources() {
   return prisma.registrySource.findMany({
     include: {
@@ -413,7 +441,15 @@ async function syncWeb3CardanoRegistryEntry(params: {
       ? $Enums.PaymentType.None
       : $Enums.PaymentType.Web3CardanoV1;
 
-  const endpoint = metadataStringConvert(parsedMetadata.data.api_base_url)!;
+  // Standard entries advertise api_base_url; OpenApi/X402 entries advertise
+  // openapi_spec_url / x402_resources_url instead. Health-check whichever URL the
+  // entry carries (spec/manifest URLs return no agent identifier, so they get a
+  // plain reachability status; only Standard runs identifier verification below).
+  const endpoint = metadataStringConvert(
+    parsedMetadata.data.api_base_url ??
+      parsedMetadata.data.openapi_spec_url ??
+      parsedMetadata.data.x402_resources_url
+  )!;
   const isAvailable = await healthCheckService.checkAndVerifyEndpoint({
     api_url: endpoint,
   });
@@ -433,7 +469,12 @@ async function syncWeb3CardanoRegistryEntry(params: {
     status: status,
     name: metadataStringConvert(parsedMetadata.data.name)!,
     description: metadataStringConvert(parsedMetadata.data.description),
-    apiBaseUrl: metadataStringConvert(parsedMetadata.data.api_base_url)!,
+    type: registryEntryTypeFromOnChain(parsedMetadata.data.type),
+    apiBaseUrl: metadataStringConvert(parsedMetadata.data.api_base_url) ?? null,
+    openApiSpecUrl:
+      metadataStringConvert(parsedMetadata.data.openapi_spec_url) ?? null,
+    x402ResourcesUrl:
+      metadataStringConvert(parsedMetadata.data.x402_resources_url) ?? null,
     authorName: metadataStringConvert(parsedMetadata.data.author?.name),
     authorOrganization: metadataStringConvert(
       parsedMetadata.data.author?.organization
@@ -562,7 +603,13 @@ async function syncWeb3CardanoV2RegistryEntry(params: {
   }
   const metadata = parsedMetadata.data;
 
-  const endpoint = metadataStringConvert(metadata.api_base_url)!;
+  // See the V1 sync: health-check whichever endpoint URL the entry advertises;
+  // OpenApi/X402 entries omit api_base_url in favour of the spec/manifest URL.
+  const endpoint = metadataStringConvert(
+    metadata.api_base_url ??
+      metadata.openapi_spec_url ??
+      metadata.x402_resources_url
+  )!;
   const isAvailable = await healthCheckService.checkAndVerifyEndpoint({
     api_url: endpoint,
   });
@@ -611,7 +658,11 @@ async function syncWeb3CardanoV2RegistryEntry(params: {
     status,
     name: metadataStringConvert(metadata.name)!,
     description: metadataStringConvert(metadata.description),
-    apiBaseUrl: metadataStringConvert(metadata.api_base_url)!,
+    type: registryEntryTypeFromOnChain(metadata.type),
+    apiBaseUrl: metadataStringConvert(metadata.api_base_url) ?? null,
+    openApiSpecUrl: metadataStringConvert(metadata.openapi_spec_url) ?? null,
+    x402ResourcesUrl:
+      metadataStringConvert(metadata.x402_resources_url) ?? null,
     authorName: metadataStringConvert(metadata.author.name),
     authorOrganization: metadataStringConvert(metadata.author.organization),
     authorContactEmail: metadataStringConvert(metadata.author.contact_email),
@@ -742,7 +793,7 @@ async function syncMintedAsset(params: {
 }) {
   const metadataType = getRegistryMetadataType(params.onchainMetadata);
 
-  if (metadataType === INBOX_REGISTRY_METADATA_TYPE) {
+  if (metadataType != null && INBOX_REGISTRY_METADATA_TYPES.includes(metadataType)) {
     await syncInboxAgentRegistration(params);
     return;
   }

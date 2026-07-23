@@ -72,7 +72,12 @@ export const web3CardanoV2MetadataSchema = z
   .object({
     name: metadataString,
     description: metadataString.optional(),
-    api_base_url: metadataString,
+    // Access-model discriminator. Absent -> Standard. OpenAPI/x402 entries carry
+    // it (and omit api_base_url), so the .strict() schema must accept these keys.
+    type: z.string().optional(),
+    api_base_url: metadataString.optional(),
+    openapi_spec_url: metadataString.optional(),
+    x402_resources_url: metadataString.optional(),
     example_output: z
       .array(
         z.object({

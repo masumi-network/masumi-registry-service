@@ -90,7 +90,10 @@ const registryEntrySchemaOutput = z
     lastUptimeCheck: z.date(),
     uptimeCount: z.number(),
     uptimeCheckCount: z.number(),
-    apiBaseUrl: z.string(),
+    type: z.nativeEnum($Enums.RegistryEntryType),
+    apiBaseUrl: z.string().nullable(),
+    openApiSpecUrl: z.string().nullable(),
+    x402ResourcesUrl: z.string().nullable(),
     authorName: z.string().nullable(),
     authorOrganization: z.string().nullable(),
     authorContactEmail: z.string().nullable(),
@@ -241,7 +244,10 @@ export type RegistryEntrySerializable = {
   lastUptimeCheck: Date | string;
   uptimeCount: number;
   uptimeCheckCount: number;
-  apiBaseUrl: string;
+  type: $Enums.RegistryEntryType;
+  apiBaseUrl: string | null;
+  openApiSpecUrl: string | null;
+  x402ResourcesUrl: string | null;
   authorName: string | null;
   authorOrganization: string | null;
   authorContactEmail: string | null;

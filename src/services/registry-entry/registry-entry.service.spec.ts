@@ -1,4 +1,10 @@
-import { Network, PaymentType, PricingType, Status } from '@prisma/client';
+import {
+  Network,
+  PaymentType,
+  PricingType,
+  RegistryEntryType,
+  Status,
+} from '@prisma/client';
 import { searchRegistrySchemaInput } from '@/routes/api/registry-entry/schemas';
 import { DEFAULTS } from '@/utils/config';
 
@@ -145,7 +151,10 @@ describe('registryEntryService.refreshRegistryEntry', () => {
     status: Status.Invalid,
     assetIdentifier: 'asset-1',
     lastUptimeCheck: new Date(0),
+    type: RegistryEntryType.Standard,
     apiBaseUrl: 'https://agent.example.com',
+    openApiSpecUrl: null,
+    x402ResourcesUrl: null,
     RegistrySource: {
       id: 'source-1',
       policyId: 'policy-id',
