@@ -1,3 +1,5 @@
+import Ajv2020 from 'ajv/dist/2020.js';
+import { parse as parseYaml } from 'yaml';
 import { z } from '@/utils/zod-openapi';
 import { logger } from '@/utils/logger';
 import {
@@ -21,15 +23,20 @@ export type SpecValidationOutcome =
   | { outcome: 'invalid'; reason: string }
   | { outcome: 'unreachable'; reason: string };
 
-// Structural validation only, and JSON-only parsing. Two follow-ups (both
-// blocked on adding deps this environment cannot currently install): (1) accept
-// YAML OpenAPI documents (needs `yaml`); (2) deeply validate every embedded
-// JSON Schema against the 2020-12 dialect (needs `ajv` v8 — the resolvable ajv
-// is v6/draft-07). We DO enforce the OpenAPI 3.1 spec's "valid document"
-// requirements: openapi + info(title, version) + at least one of paths /
-// components / webhooks, and the x402 manifest's resource shape. External $refs
-// are never dereferenced, so there is no $ref-based SSRF channel.
+// OpenAPI validation enforces the 3.1 spec's "valid document" requirements
+// structurally (openapi + info{title,version} + at least one of paths /
+// components / webhooks) and accepts JSON or YAML. x402 manifests are validated
+// structurally AND each embedded input/output schema is checked against the JSON
+// Schema 2020-12 dialect (ajv). External $refs are never dereferenced, so there
+// is no $ref-based SSRF channel. (Full OpenAPI conformance — every embedded
+// Operation/Schema object — would need a dedicated 3.1 parser such as
+// @readme/openapi-parser, which is not installed here.)
 const jsonObjectSchema = z.record(z.string(), z.unknown());
+
+// 2020-12 validator, reused across calls. strict:false so an agent schema may
+// carry annotation keywords ajv does not recognise; validateSchema still rejects
+// anything that violates the 2020-12 meta-schema.
+const ajv2020 = new Ajv2020({ strict: false });
 
 const openApiDocumentSchema = z
   .object({
@@ -140,7 +147,16 @@ async function fetchSpecBody(url: string): Promise<FetchResult> {
   }
 }
 
-/** Fetch + structurally validate an OpenAPI 3.0/3.1 document (JSON only). */
+function parseJsonOrYaml(body: string): unknown {
+  try {
+    return JSON.parse(body);
+  } catch {
+    // OpenAPI documents are commonly YAML; fall back before giving up.
+    return parseYaml(body);
+  }
+}
+
+/** Fetch + structurally validate an OpenAPI 3.0/3.1 document (JSON or YAML). */
 export async function validateOpenApiSpec(
   url: string
 ): Promise<SpecValidationOutcome> {
@@ -153,11 +169,11 @@ export async function validateOpenApiSpec(
   }
   let parsed: unknown;
   try {
-    parsed = JSON.parse(fetched.body);
+    parsed = parseJsonOrYaml(fetched.body);
   } catch (error) {
     return {
       outcome: 'invalid',
-      reason: `not JSON (YAML support pending): ${error instanceof Error ? error.message : String(error)}`,
+      reason: `not JSON or YAML: ${error instanceof Error ? error.message : String(error)}`,
     };
   }
   const result = openApiDocumentSchema.safeParse(parsed);
@@ -196,6 +212,18 @@ export async function validateX402Manifest(
       outcome: 'invalid',
       reason: `manifest shape invalid: ${result.error.issues[0]?.message ?? 'unknown'}`,
     };
+  }
+  // Each embedded input/output schema must be a valid JSON Schema 2020-12 doc.
+  for (const [index, resource] of result.data.resources.entries()) {
+    for (const key of ['inputSchema', 'outputSchema'] as const) {
+      const schema = resource[key];
+      if (schema != null && !ajv2020.validateSchema(schema)) {
+        return {
+          outcome: 'invalid',
+          reason: `resources[${index}].${key} is not a valid JSON Schema`,
+        };
+      }
+    }
   }
   return { outcome: 'valid', spec: parsed };
 }
