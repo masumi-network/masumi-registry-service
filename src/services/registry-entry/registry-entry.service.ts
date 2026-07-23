@@ -264,7 +264,7 @@ async function getRegistryDiffEntries(
 }
 
 async function getRegistryEntrySpec(params: {
-  network: Network;
+  network: $Enums.Network;
   agentIdentifier: string;
 }) {
   return registryEntryRepository.getRegistryEntrySpecByIdentifier(params);
