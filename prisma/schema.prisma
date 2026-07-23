@@ -63,6 +63,13 @@ model RegistryEntry {
   // URL of the agent's self-hosted x402 resource manifest. Set only for X402
   // entries; the loose priced resources live in the pointed-to JSON, not here.
   x402ResourcesUrl   String?
+  // Last successfully fetched + validated spec snapshot (OpenApi doc / x402
+  // manifest), cached so GET /registry-entry/{id}/spec serves a known-good copy
+  // decoupled from a transiently-down agent. Null for Standard entries and until
+  // the first successful validation. specValidatedAt is when it was last proven
+  // valid; the periodic health loop refreshes both and reconciles status.
+  spec               Json?
+  specValidatedAt    DateTime?
   description        String?
   authorName         String?
   authorContactEmail String?
