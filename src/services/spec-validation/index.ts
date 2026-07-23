@@ -120,6 +120,7 @@ async function fetchSpecBody(url: string): Promise<FetchResult> {
         total += value.byteLength;
         if (total > MAX_SPEC_BYTES) {
           await reader.cancel();
+          controller.abort(); // also tear down the underlying request, not just the body stream
           return {
             ok: false,
             reason: `spec exceeds ${MAX_SPEC_BYTES} byte limit`,
