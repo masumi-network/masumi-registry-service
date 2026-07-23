@@ -61,6 +61,31 @@ const sampleV2Metadata = {
 };
 
 describe('web3CardanoV2 metadata', () => {
+  it('accepts the type/openapi_spec_url/x402_resources_url keys (strict schema)', () => {
+    // The schema is .strict(); these keys must be allowed or every OpenApi/X402
+    // entry the indexer sees would be rejected as invalid.
+    expect(
+      web3CardanoV2MetadataSchema.safeParse({
+        ...sampleV2Metadata,
+        type: 'OpenAPI',
+        openapi_spec_url: 'https://agent.example/openapi.json',
+        x402_resources_url: 'https://agent.example/.well-known/x402.json',
+      }).success
+    ).toBe(true);
+  });
+
+  it('accepts a V2 entry with no api_base_url (OpenApi/X402 shape)', () => {
+    const withoutBaseUrl: Record<string, unknown> = { ...sampleV2Metadata };
+    delete withoutBaseUrl.api_base_url;
+    expect(
+      web3CardanoV2MetadataSchema.safeParse({
+        ...withoutBaseUrl,
+        type: 'OpenAPI',
+        openapi_spec_url: 'https://agent.example/openapi.json',
+      }).success
+    ).toBe(true);
+  });
+
   it('flattens grouped sources into Cardano + EVM rows', () => {
     const metadata = web3CardanoV2MetadataSchema.parse(sampleV2Metadata);
     const rows = buildV2SupportedPaymentSourceRows(metadata);
