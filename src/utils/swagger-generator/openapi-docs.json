@@ -328,7 +328,23 @@
                     "uptimeCheckCount": {
                         "type": "number"
                     },
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "Standard",
+                            "OpenApi",
+                            "X402"
+                        ]
+                    },
                     "apiBaseUrl": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "openApiSpecUrl": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "x402ResourcesUrl": {
                         "type": "string",
                         "nullable": true
                     },
@@ -421,7 +437,10 @@
                     "lastUptimeCheck",
                     "uptimeCount",
                     "uptimeCheckCount",
+                    "type",
                     "apiBaseUrl",
+                    "openApiSpecUrl",
+                    "x402ResourcesUrl",
                     "authorName",
                     "authorOrganization",
                     "authorContactEmail",
