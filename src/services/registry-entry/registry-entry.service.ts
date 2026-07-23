@@ -263,9 +263,17 @@ async function getRegistryDiffEntries(
   );
 }
 
+async function getRegistryEntrySpec(params: {
+  network: Network;
+  agentIdentifier: string;
+}) {
+  return registryEntryRepository.getRegistryEntrySpecByIdentifier(params);
+}
+
 export const registryEntryService = {
   getRegistryEntries,
   searchRegistryEntries,
   refreshRegistryEntry,
+  getRegistryEntrySpec,
   getRegistryDiffEntries,
 };

@@ -202,10 +202,31 @@ async function getRegistryDiffEntries(
   });
 }
 
+// Lean projection for the spec endpoint: just the cached snapshot + status, not
+// the heavy relation graph getRegistryEntryByIdentifier pulls.
+async function getRegistryEntrySpecByIdentifier(params: {
+  agentIdentifier: string;
+  network: Network;
+}) {
+  return prisma.registryEntry.findFirst({
+    where: {
+      assetIdentifier: params.agentIdentifier,
+      RegistrySource: { network: params.network },
+    },
+    select: {
+      type: true,
+      status: true,
+      spec: true,
+      specValidatedAt: true,
+    },
+  });
+}
+
 export const registryEntryRepository = {
   getRegistryEntry,
   searchRegistryEntries,
   getRegistryEntryByIdentifier,
+  getRegistryEntrySpecByIdentifier,
   findVersionSiblingAssetIdentifiers,
   getRegistryDiffEntries,
 };
