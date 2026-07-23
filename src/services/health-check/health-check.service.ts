@@ -15,29 +15,21 @@ import {
   PublicUrlValidationError,
   validatePublicUrl,
 } from '@/utils/public-url';
+import {
+  checkSpecEntry,
+  specCachePatch,
+  specKindForType,
+} from './spec-entry-check';
+import {
+  extractInboxAgentPublicVerification,
+  getEmptyInboxAgentVerificationData,
+  type InboxAgentVerificationData,
+} from './inbox-verification';
 
 const INBOX_AGENT_PUBLIC_BASE_URLS: Partial<Record<$Enums.Network, string>> = {
   [$Enums.Network.Preprod]:
     'https://agentmessenger-dev-x92rn.ondigitalocean.app/',
   [$Enums.Network.Mainnet]: 'https://app.agentmessenger.io/',
-};
-
-const INBOX_AGENT_IDENTIFIER_KEYS = new Set([
-  'agentIdentifier',
-  'masumiAgentIdentifier',
-]);
-const INBOX_AGENT_LINKED_EMAIL_KEY = 'linkedEmail';
-const INBOX_AGENT_ENCRYPTION_PUBLIC_KEY_KEY = 'encryptionPublicKey';
-const INBOX_AGENT_ENCRYPTION_KEY_VERSION_KEY = 'encryptionKeyVersion';
-const INBOX_AGENT_SIGNING_PUBLIC_KEY_KEY = 'signingPublicKey';
-const INBOX_AGENT_SIGNING_KEY_VERSION_KEY = 'signingKeyVersion';
-
-type InboxAgentVerificationData = {
-  linkedEmail: string | null;
-  encryptionPublicKey: string | null;
-  encryptionKeyVersion: string | null;
-  signingPublicKey: string | null;
-  signingKeyVersion: string | null;
 };
 
 type InboxAgentVerificationDecision = {
@@ -65,132 +57,11 @@ type InboxAgentRegistrationWithSource = InboxAgentRegistration & {
   RegistrySource: RegistrySource;
 };
 
-function getEmptyInboxAgentVerificationData(): InboxAgentVerificationData {
-  return {
-    linkedEmail: null,
-    encryptionPublicKey: null,
-    encryptionKeyVersion: null,
-    signingPublicKey: null,
-    signingKeyVersion: null,
-  };
-}
-
 function isUnsafePublicUrl(error: unknown): boolean {
   return (
     error instanceof PublicUrlValidationError &&
     error.code !== 'unresolvable_hostname'
   );
-}
-
-function collectStringValues(value: unknown, foundValues: Set<string>): void {
-  if (typeof value === 'string') {
-    const trimmedValue = value.trim();
-    if (trimmedValue) {
-      foundValues.add(trimmedValue);
-    }
-    return;
-  }
-
-  if (!Array.isArray(value)) {
-    return;
-  }
-
-  for (const item of value) {
-    collectStringValues(item, foundValues);
-  }
-}
-
-function collectInboxVerificationStrings(
-  value: unknown,
-  bucket: Record<string, Set<string>>,
-  visitedObjects: WeakSet<object>
-): void {
-  if (Array.isArray(value)) {
-    for (const item of value) {
-      collectInboxVerificationStrings(item, bucket, visitedObjects);
-    }
-    return;
-  }
-
-  if (value == null || typeof value !== 'object') {
-    return;
-  }
-
-  if (visitedObjects.has(value)) {
-    return;
-  }
-  visitedObjects.add(value);
-
-  for (const [key, nestedValue] of Object.entries(value)) {
-    if (bucket[key] != null) {
-      collectStringValues(nestedValue, bucket[key]);
-    }
-
-    collectInboxVerificationStrings(nestedValue, bucket, visitedObjects);
-  }
-}
-
-function getFirstCollectedString(
-  bucket: Record<string, Set<string>>,
-  key: string
-): string | null {
-  const values = bucket[key];
-  if (values == null || values.size === 0) {
-    return null;
-  }
-
-  return Array.from(values)[0] ?? null;
-}
-
-function extractInboxAgentPublicVerification(value: unknown): {
-  returnedAgentIdentifiers: string[];
-  verificationData: InboxAgentVerificationData;
-} {
-  const bucket: Record<string, Set<string>> = {
-    agentIdentifier: new Set<string>(),
-    masumiAgentIdentifier: new Set<string>(),
-    [INBOX_AGENT_LINKED_EMAIL_KEY]: new Set<string>(),
-    [INBOX_AGENT_ENCRYPTION_PUBLIC_KEY_KEY]: new Set<string>(),
-    [INBOX_AGENT_ENCRYPTION_KEY_VERSION_KEY]: new Set<string>(),
-    [INBOX_AGENT_SIGNING_PUBLIC_KEY_KEY]: new Set<string>(),
-    [INBOX_AGENT_SIGNING_KEY_VERSION_KEY]: new Set<string>(),
-  };
-
-  collectInboxVerificationStrings(value, bucket, new WeakSet<object>());
-
-  const returnedAgentIdentifiers = Array.from(
-    new Set(
-      Array.from(INBOX_AGENT_IDENTIFIER_KEYS).flatMap((key) =>
-        Array.from(bucket[key] ?? [])
-      )
-    )
-  );
-
-  return {
-    returnedAgentIdentifiers,
-    verificationData: {
-      linkedEmail: getFirstCollectedString(
-        bucket,
-        INBOX_AGENT_LINKED_EMAIL_KEY
-      ),
-      encryptionPublicKey: getFirstCollectedString(
-        bucket,
-        INBOX_AGENT_ENCRYPTION_PUBLIC_KEY_KEY
-      ),
-      encryptionKeyVersion: getFirstCollectedString(
-        bucket,
-        INBOX_AGENT_ENCRYPTION_KEY_VERSION_KEY
-      ),
-      signingPublicKey: getFirstCollectedString(
-        bucket,
-        INBOX_AGENT_SIGNING_PUBLIC_KEY_KEY
-      ),
-      signingKeyVersion: getFirstCollectedString(
-        bucket,
-        INBOX_AGENT_SIGNING_KEY_VERSION_KEY
-      ),
-    },
-  };
 }
 
 async function checkAndVerifyEndpoint({ api_url }: { api_url: string }) {
@@ -326,9 +197,8 @@ async function checkVerifyAndUpdateRegistryEntries({
   >();
   const neededLookups = new Set<string>();
   for (const entry of registryEntries) {
-    // apiBaseUrl is nullable (OpenApi/X402 entries advertise a spec/manifest URL
-    // instead); skip the availability lookup for entries without a base URL.
-    if (entry.apiBaseUrl != null) {
+    // Spec-type entries are validated per-entry below, not via this lookup.
+    if (specKindForType(entry.type) == null && entry.apiBaseUrl != null) {
       neededLookups.add(entry.apiBaseUrl);
     }
   }
@@ -365,6 +235,15 @@ async function checkVerifyAndUpdateRegistryEntries({
         logger.error('registrySource is null', entry);
         return entry;
       }
+      if (specKindForType(entry.type) != null) {
+        const check = await checkSpecEntry(entry);
+        return {
+          id: entry.id,
+          status: check.status,
+          assetIdentifier: entry.assetIdentifier,
+          spec: check.spec,
+        };
+      }
       if (entry.apiBaseUrl != null && lookupMap.has(entry.apiBaseUrl)) {
         const lookup = lookupMap.get(entry.apiBaseUrl)!;
         if (lookup.agentIdentifier != null) {
@@ -383,20 +262,13 @@ async function checkVerifyAndUpdateRegistryEntries({
           assetIdentifier: entry.assetIdentifier,
         };
       }
-      if (entry.apiBaseUrl == null) {
-        // No base URL to availability-check (OpenApi/X402 entries); spec-URL
-        // validation lands in a follow-up. Leave as Offline for now.
-        return {
-          id: entry.id,
-          status: $Enums.Status.Offline,
-          assetIdentifier: entry.assetIdentifier,
-        };
-      }
+      // Reachable only for Standard entries (spec types returned early), which
+      // always carry a non-null apiBaseUrl.
       const status = await checkAndVerifyRegistryEntry({
-        registryEntry: { ...entry, apiBaseUrl: entry.apiBaseUrl },
+        registryEntry: { ...entry, apiBaseUrl: entry.apiBaseUrl! },
         minHealthCheckDate,
       });
-      lookupMap.set(entry.apiBaseUrl, {
+      lookupMap.set(entry.apiBaseUrl!, {
         status: status,
         agentIdentifier: null,
       });
@@ -465,6 +337,7 @@ async function checkVerifyAndUpdateRegistryEntries({
             },
             uptimeCheckCount: { increment: 1 },
             lastUptimeCheck: new Date(),
+            ...specCachePatch(s), // caches a just-validated spec snapshot
           },
         })
       );

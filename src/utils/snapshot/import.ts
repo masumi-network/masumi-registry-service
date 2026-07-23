@@ -1,6 +1,6 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { Prisma } from '@prisma/client';
+import { Prisma, RegistryEntryType } from '@prisma/client';
 import { createId } from '@paralleldrive/cuid2';
 import { prisma } from '@/utils/db';
 import { logger } from '@/utils/logger';
@@ -248,7 +248,11 @@ async function importSnapshotForSource(
           id: entryId,
           assetIdentifier: entry.assetIdentifier,
           name: entry.name,
+          // Older snapshots have no type -> Standard (matches the column default).
+          type: entry.type ?? RegistryEntryType.Standard,
           apiBaseUrl: entry.apiBaseUrl,
+          openApiSpecUrl: entry.openApiSpecUrl ?? null,
+          x402ResourcesUrl: entry.x402ResourcesUrl ?? null,
           description: entry.description,
           image: entry.image,
           tags: entry.tags,
