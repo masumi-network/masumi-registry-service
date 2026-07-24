@@ -1,10 +1,12 @@
 import Head from 'next/head';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
-import { Bot, Database, Key, RefreshCw } from 'lucide-react';
+import { Bot, Database, Key, ChevronRight } from 'lucide-react';
 import { MainLayout } from '@/components/layout/MainLayout';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { AnimatedPage } from '@/components/ui/animated-page';
+import { StatCard } from '@/components/ui/stat-card';
+import { RefreshButton } from '@/components/RefreshButton';
+import { Spinner } from '@/components/ui/spinner';
 import { useAppContext } from '@/lib/contexts/AppContext';
 import {
   getApiKey,
@@ -61,116 +63,133 @@ export default function DashboardPage() {
     },
   });
 
+  const isRefreshing =
+    healthQuery.isFetching ||
+    agentsQuery.isFetching ||
+    sourcesQuery.isFetching ||
+    keysQuery.isFetching;
+
+  const handleRefresh = async () => {
+    await Promise.all([
+      healthQuery.refetch(),
+      agentsQuery.refetch(),
+      sourcesQuery.refetch(),
+      keysQuery.refetch(),
+    ]);
+  };
+
+  const agentsCount = agentsQuery.data?.entries.length ?? 0;
+  const sourcesCount = sourcesQuery.data?.sources.length ?? 0;
+  const keysCount = keysQuery.data?.apiKeys.length ?? 0;
+
   return (
     <MainLayout>
       <Head>
         <title>Dashboard | Registry Admin</title>
       </Head>
-      <div className="space-y-6">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-            <p className="text-muted-foreground mt-1">
-              Registry overview for <span className="text-foreground font-medium">{network}</span>
-            </p>
+      <AnimatedPage>
+        <div className="space-y-6">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
+              <p className="text-sm text-muted-foreground">
+                Overview of registry sources and agents on {network}.
+              </p>
+            </div>
+            <RefreshButton onRefresh={handleRefresh} isRefreshing={isRefreshing} />
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              void healthQuery.refetch();
-              void agentsQuery.refetch();
-              void sourcesQuery.refetch();
-              void keysQuery.refetch();
-            }}
-          >
-            <RefreshCw className="h-4 w-4" />
-            Refresh
-          </Button>
-        </div>
 
-        <div className="grid gap-4 md:grid-cols-3">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Bot className="h-4 w-4" /> Agents
-              </CardTitle>
-              <CardDescription>Entries on {network}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-semibold">
-                {agentsQuery.isLoading ? '…' : (agentsQuery.data?.entries.length ?? 0)}
-                {!agentsQuery.isLoading && (agentsQuery.data?.entries.length ?? 0) >= 5 ? '+' : ''}
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            {agentsQuery.isLoading ? (
+              <div className="border rounded-lg p-6 flex items-center justify-center min-h-[120px]">
+                <Spinner size={18} />
               </div>
-              <Button variant="ghost" className="px-0 mt-2 h-auto" asChild>
-                <Link href="/agents">Browse agents</Link>
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Database className="h-4 w-4" /> Sources
-              </CardTitle>
-              <CardDescription>Registry sources</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-semibold">
-                {sourcesQuery.isLoading ? '…' : (sourcesQuery.data?.sources.length ?? 0)}
-                {!sourcesQuery.isLoading && (sourcesQuery.data?.sources.length ?? 0) >= 5
-                  ? '+'
-                  : ''}
-              </div>
-              <Button variant="ghost" className="px-0 mt-2 h-auto" asChild>
-                <Link href="/sources">Manage sources</Link>
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Key className="h-4 w-4" /> API keys
-              </CardTitle>
-              <CardDescription>Access tokens</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-semibold">
-                {keysQuery.isLoading ? '…' : (keysQuery.data?.apiKeys.length ?? 0)}
-                {!keysQuery.isLoading && (keysQuery.data?.apiKeys.length ?? 0) >= 5 ? '+' : ''}
-              </div>
-              <Button variant="ghost" className="px-0 mt-2 h-auto" asChild>
-                <Link href="/api-keys">Manage keys</Link>
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Service health</CardTitle>
-            <CardDescription>Unauthenticated /health probe</CardDescription>
-          </CardHeader>
-          <CardContent className="text-sm space-y-1">
-            {healthQuery.isLoading && <p>Checking…</p>}
-            {healthQuery.data && (
-              <>
-                <p>
-                  <span className="text-muted-foreground">Type:</span> {healthQuery.data.type}
-                </p>
-                <p>
-                  <span className="text-muted-foreground">Version:</span>{' '}
-                  {healthQuery.data.version}
-                </p>
-              </>
+            ) : (
+              <StatCard
+                label="Agents"
+                index={0}
+                icon={<Bot className="h-4 w-4 text-blue-500" />}
+              >
+                <div className="text-2xl font-semibold">
+                  {agentsCount}
+                  {agentsCount >= 5 ? '+' : ''}
+                </div>
+                <Link
+                  href="/agents"
+                  className="text-sm text-primary hover:underline flex items-center mt-1"
+                >
+                  Browse agents <ChevronRight className="h-4 w-4" />
+                </Link>
+              </StatCard>
             )}
-            {healthQuery.isError && (
-              <p className="text-destructive">Health check failed</p>
+
+            {sourcesQuery.isLoading ? (
+              <div className="border rounded-lg p-6 flex items-center justify-center min-h-[120px]">
+                <Spinner size={18} />
+              </div>
+            ) : (
+              <StatCard
+                label="Sources"
+                index={1}
+                icon={<Database className="h-4 w-4 text-green-500" />}
+              >
+                <div className="text-2xl font-semibold">
+                  {sourcesCount}
+                  {sourcesCount >= 5 ? '+' : ''}
+                </div>
+                <Link
+                  href="/sources"
+                  className="text-sm text-primary hover:underline flex items-center mt-1"
+                >
+                  Manage sources <ChevronRight className="h-4 w-4" />
+                </Link>
+              </StatCard>
             )}
-          </CardContent>
-        </Card>
-      </div>
+
+            {keysQuery.isLoading ? (
+              <div className="border rounded-lg p-6 flex items-center justify-center min-h-[120px]">
+                <Spinner size={18} />
+              </div>
+            ) : (
+              <StatCard
+                label="API keys"
+                index={2}
+                icon={<Key className="h-4 w-4 text-orange-500" />}
+              >
+                <div className="text-2xl font-semibold">
+                  {keysCount}
+                  {keysCount >= 5 ? '+' : ''}
+                </div>
+                <Link
+                  href="/api-keys"
+                  className="text-sm text-primary hover:underline flex items-center mt-1"
+                >
+                  Manage keys <ChevronRight className="h-4 w-4" />
+                </Link>
+              </StatCard>
+            )}
+
+            {healthQuery.isLoading ? (
+              <div className="border rounded-lg p-6 flex items-center justify-center min-h-[120px]">
+                <Spinner size={18} />
+              </div>
+            ) : (
+              <StatCard label="Service health" index={3}>
+                {healthQuery.isError ? (
+                  <div className="text-sm text-destructive">Health check failed</div>
+                ) : (
+                  <div className="space-y-1">
+                    <div className="text-2xl font-semibold">{healthQuery.data?.type ?? '—'}</div>
+                    <div className="text-xs text-muted-foreground">
+                      v{healthQuery.data?.version ?? '—'}
+                    </div>
+                  </div>
+                )}
+              </StatCard>
+            )}
+          </div>
+        </div>
+      </AnimatedPage>
     </MainLayout>
   );
 }

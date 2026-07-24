@@ -4,6 +4,14 @@
 
 @custom-variant dark (&:is(.dark *));
 
+@font-face {
+  font-family: 'Inter';
+  src: url('/admin/fonts/inter/InterVariable.ttf') format('truetype');
+  font-weight: 100 900;
+  font-display: swap;
+  font-style: normal;
+}
+
 @theme {
   --color-background: hsl(var(--background));
   --color-foreground: hsl(var(--foreground));
@@ -33,6 +41,12 @@
   --color-input: hsl(var(--input));
   --color-ring: hsl(var(--ring));
 
+  --color-chart-1: hsl(var(--chart-1));
+  --color-chart-2: hsl(var(--chart-2));
+  --color-chart-3: hsl(var(--chart-3));
+  --color-chart-4: hsl(var(--chart-4));
+  --color-chart-5: hsl(var(--chart-5));
+
   --color-brand: hsl(var(--accent-brand));
 
   --radius-lg: var(--radius);
@@ -40,6 +54,14 @@
   --radius-sm: calc(var(--radius) - 4px);
 }
 
+/*
+  The default border color has changed to `currentcolor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
+
+  If we ever want to remove these styles, we need to add an explicit border
+  color utility to any element that depends on these defaults.
+*/
 @layer base {
   *,
   ::after,
@@ -108,14 +130,104 @@
   body {
     @apply bg-background text-foreground;
     font-family:
-      Inter,
+      'Inter',
       system-ui,
       -apple-system,
       sans-serif;
   }
+
+  [role='dialog'],
+  [data-radix-dialog-content] {
+    overflow-x: hidden;
+  }
 }
 
-@keyframes fade-in-up {
+/* Custom styles for light mode inputs */
+.light input {
+  background-color: #ffffff;
+  border: 1px solid #e5e7eb;
+  color: #171717;
+}
+
+#transakRoot {
+  background-color: #000a !important;
+}
+
+#main-content {
+  overflow-y: scroll !important;
+}
+
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type='number'] {
+  -moz-appearance: textfield;
+}
+
+@keyframes slideUpFromBottom {
+  0% {
+    transform: translateY(100px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-up-from-bottom {
+  animation: slideUpFromBottom 0.3s ease forwards;
+}
+
+#__next {
+  overflow-y: scroll !important;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes rotateIn {
+  0% {
+    transform: rotate(-360deg);
+    opacity: 0;
+  }
+  100% {
+    transform: rotate(0deg);
+    opacity: 1;
+  }
+}
+
+/* Highlight animation for searched elements */
+@keyframes highlight {
+  0% {
+    box-shadow: 0 0 0 2px hsl(var(--ring));
+  }
+  100% {
+    box-shadow: 0 0 0 4px hsl(var(--ring) / 0.3);
+  }
+}
+
+.highlight-element {
+  animation: highlight 0.7s ease-in-out infinite alternate;
+  border-radius: var(--radius);
+  transition: all 0.2s ease;
+}
+
+/* Testing dialog micro-animations */
+@keyframes fadeInUp {
   from {
     opacity: 0;
     transform: translateY(8px);
@@ -126,10 +238,508 @@
   }
 }
 
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fadeInToMuted {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 0.4;
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: scaleY(0);
+    transform-origin: top;
+  }
+  to {
+    opacity: 1;
+    transform: scaleY(1);
+    transform-origin: top;
+  }
+}
+
+@keyframes pulseSuccess {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
 .animate-fade-in-up {
-  animation: fade-in-up 0.35s ease forwards;
+  animation: fadeInUp 0.3s ease-out forwards;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.2s ease-out forwards;
+}
+
+.animate-fade-in-to-muted {
+  animation: fadeInToMuted 0.2s ease-out forwards;
+}
+
+.animate-slide-down {
+  animation: slideDown 0.25s ease-out forwards;
+  overflow: hidden;
+}
+
+.animate-pulse-success {
+  animation: pulseSuccess 0.4s ease-out forwards;
+}
+
+.animate-stagger-1 {
+  animation-delay: 50ms;
+}
+.animate-stagger-2 {
+  animation-delay: 100ms;
+}
+.animate-stagger-3 {
+  animation-delay: 150ms;
+}
+.animate-stagger-4 {
+  animation-delay: 200ms;
+}
+
+/* Ensure toast notifications appear above dialog overlays */
+/* Dialog overlay uses z-[999], dialog content uses z-[1000], so toasts need higher */
+.Toastify {
+  position: fixed;
+  z-index: 10000 !important;
+}
+
+.Toastify__toast-container {
+  z-index: 10000 !important;
+}
+
+.Toastify__toast {
+  z-index: 10000 !important;
+}
+
+/* Setup wizard micro-animations */
+@keyframes slideInFromBottom {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInFromLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes scaleInBounce {
+  0% {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes popIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes checkmark {
+  0% {
+    stroke-dashoffset: 50;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+.animate-slide-in-bottom {
+  animation: slideInFromBottom 0.3s ease-out forwards;
+}
+
+.animate-slide-in-left {
+  animation: slideInFromLeft 0.3s ease-out forwards;
+}
+
+.animate-scale-in-bounce {
+  animation: scaleInBounce 0.3s ease-out forwards;
+}
+
+.animate-pop-in {
+  animation: popIn 0.25s ease-out forwards;
+}
+
+/* Staggered animation delays for setup wizard */
+.animate-delay-50 {
+  animation-delay: 50ms;
+}
+.animate-delay-75 {
+  animation-delay: 75ms;
+}
+.animate-delay-100 {
+  animation-delay: 100ms;
+}
+.animate-delay-125 {
+  animation-delay: 125ms;
+}
+.animate-delay-150 {
+  animation-delay: 150ms;
+}
+.animate-delay-175 {
+  animation-delay: 175ms;
+}
+.animate-delay-225 {
+  animation-delay: 225ms;
+}
+.animate-delay-275 {
+  animation-delay: 275ms;
+}
+
+/* Skeleton-to-content crossfade */
+@keyframes contentReveal {
+  from {
+    opacity: 0;
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0px);
+  }
+}
+
+/* Stat number entrance */
+@keyframes numberReveal {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Infinite subtle pulse for pending/active states */
+@keyframes subtlePulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+/* Page entrance — wraps entire page content */
+@keyframes pageEnter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-content-reveal {
+  animation: contentReveal 0.3s ease-out forwards;
+}
+
+.animate-number-reveal {
+  animation: numberReveal 0.3s ease-out forwards;
+}
+
+.animate-subtle-pulse {
+  animation: subtlePulse 2s ease-in-out infinite;
+}
+
+.animate-page-enter {
+  animation: pageEnter 0.3s ease-out forwards;
 }
 
 .animate-content-fade-in {
-  animation: fade-in-up 0.25s ease;
+  animation: contentFadeIn 0.35s ease-out both;
+}
+
+@keyframes contentFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Extended stagger delays */
+.animate-stagger-5 {
+  animation-delay: 250ms;
+}
+.animate-stagger-6 {
+  animation-delay: 300ms;
+}
+.animate-stagger-7 {
+  animation-delay: 350ms;
+}
+.animate-stagger-8 {
+  animation-delay: 400ms;
+}
+
+/* Card hover lift (for div-based cards only, NOT <tr>) */
+.card-interactive {
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
+}
+.card-interactive:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+.dark .card-interactive:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* Accessibility: respect reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Button hover micro-interactions */
+.btn-hover-lift {
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
+}
+.btn-hover-lift:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+.btn-hover-lift:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+/* Icon bounce on interaction */
+.icon-bounce {
+  transition: transform 0.2s ease;
+}
+.icon-bounce:hover {
+  transform: scale(1.1);
+}
+.icon-bounce:active {
+  transform: scale(0.95);
+}
+
+/* ─── Collapsible height animation (Radix CSS custom property) ─── */
+@keyframes collapsibleOpen {
+  from {
+    height: 0;
+    opacity: 0;
+  }
+  to {
+    height: var(--radix-collapsible-content-height);
+    opacity: 1;
+  }
+}
+@keyframes collapsibleClose {
+  from {
+    height: var(--radix-collapsible-content-height);
+    opacity: 1;
+  }
+  to {
+    height: 0;
+    opacity: 0;
+  }
+}
+.animate-collapsible-open {
+  animation: collapsibleOpen 0.25s ease-out forwards;
+}
+.animate-collapsible-close {
+  animation: collapsibleClose 0.2s ease-in forwards;
+}
+
+/* ─── Shake — invalid input feedback ─── */
+@keyframes shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-4px);
+  }
+  40% {
+    transform: translateX(4px);
+  }
+  60% {
+    transform: translateX(-3px);
+  }
+  80% {
+    transform: translateX(3px);
+  }
+}
+.animate-shake {
+  animation: shake 0.35s ease-out;
+}
+
+/* ─── Step transition — slide in from right ─── */
+@keyframes slideInFromRight {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+.animate-slide-in-right {
+  animation: slideInFromRight 0.25s ease-out forwards;
+}
+
+/* ─── Sidebar active nav indicator (left bar) ─── */
+.sidebar-active-indicator {
+  position: relative;
+}
+.sidebar-active-indicator::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%) scaleY(0);
+  width: 3px;
+  height: 60%;
+  border-radius: 0 2px 2px 0;
+  background-color: hsl(var(--primary));
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.sidebar-active-indicator.is-active::before {
+  transform: translateY(-50%) scaleY(1);
+}
+
+/* ─── Dialog stack system ─── */
+:root {
+  --dialog-spring: cubic-bezier(0.32, 0.72, 0, 1);
+  --dialog-duration: 280ms;
+}
+
+/* Default enter/exit — uses `transform` so it composes with Tailwind's
+   individual `translate` centering without overriding it. */
+@keyframes dialogEnter {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@keyframes dialogExit {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+
+/* Child dialog slide from right — also uses `transform` to preserve centering */
+@keyframes dialogSlideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+@keyframes dialogSlideOutRight {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(30px);
+  }
+}
+
+/* Variant classes — toggled via data-state from Radix */
+[data-state='open'].dialog-default-variant {
+  animation: dialogEnter var(--dialog-duration) var(--dialog-spring) forwards;
+}
+[data-state='closed'].dialog-default-variant {
+  animation: dialogExit var(--dialog-duration) var(--dialog-spring) forwards;
+}
+[data-state='open'].dialog-slide-variant {
+  animation: dialogSlideInRight var(--dialog-duration) var(--dialog-spring) forwards;
+}
+[data-state='closed'].dialog-slide-variant {
+  animation: dialogSlideOutRight var(--dialog-duration) var(--dialog-spring) forwards;
+}
+
+/* Pushed-back parent: CSS transition on individual scale + opacity + filter */
+.dialog-content-stackable {
+  scale: 1;
+  opacity: 1;
+  filter: brightness(1);
+  transition:
+    scale var(--dialog-duration) var(--dialog-spring),
+    opacity var(--dialog-duration) var(--dialog-spring),
+    filter var(--dialog-duration) var(--dialog-spring);
+}
+.dialog-content-stackable.is-pushed-back {
+  scale: 0.96;
+  opacity: 0.4;
+  filter: brightness(0.7);
+  pointer-events: none;
+}
+
+/* Transparent overlay for child dialogs (no double blur) */
+.dialog-overlay-hidden {
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }

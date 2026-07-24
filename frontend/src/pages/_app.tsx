@@ -1,10 +1,13 @@
 import type { AppProps } from 'next/app';
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ToastContainer } from 'react-toastify';
+import Link from 'next/link';
+import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import '@/styles/globals.css';
+import '@/styles/styles.scss';
 import { ThemeProvider, useTheme } from '@/lib/contexts/ThemeContext';
+import { SidebarProvider } from '@/lib/contexts/SidebarContext';
 import { QueryProvider } from '@/lib/contexts/QueryProvider';
 import {
   AppProvider,
@@ -13,21 +16,24 @@ import {
 } from '@/lib/contexts/AppContext';
 import { ApiKeyDialog } from '@/components/api-keys/ApiKeyDialog';
 import { Button } from '@/components/ui/button';
+import { Spinner } from '@/components/ui/spinner';
+import { Header } from '@/components/Header';
+import { Footer } from '@/components/Footer';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import { getApiKeyStatus, getHealth } from '@/lib/api/generated';
 
 function ToastWrapper() {
   const { theme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => {
-    queueMicrotask(() => setMounted(true));
-  }, []);
-  if (!mounted) return null;
   return createPortal(
     <ToastContainer
       position="top-right"
       autoClose={3000}
+      hideProgressBar={false}
       newestOnTop
       closeOnClick
+      rtl={false}
+      pauseOnFocusLoss
+      draggable
       pauseOnHover
       theme={theme === 'dark' ? 'dark' : 'light'}
     />,
@@ -37,9 +43,14 @@ function ToastWrapper() {
 
 function ThemedApp({ Component, pageProps }: AppProps) {
   const [isHealthy, setIsHealthy] = useState<boolean | null>(null);
-  const [bootstrapped, setBootstrapped] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const { apiClient, updateApiKey, authorized, setAuthorized, signOut } = useAppContext();
+  const [mounted, setMounted] = useState(false);
+  const { apiClient, updateApiKey, authorized, setAuthorized, signOut, apiKey } =
+    useAppContext();
+
+  useEffect(() => {
+    queueMicrotask(() => setMounted(true));
+  }, []);
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 1024);
@@ -71,12 +82,16 @@ function ThemedApp({ Component, pageProps }: AppProps) {
 
         apiClient.setConfig({ headers: { token: stored } });
         const statusResponse = await getApiKeyStatus({ client: apiClient });
-        if (cancelled) return;
+        if (cancelled || loadStoredApiKey() !== stored) return;
 
         const status = statusResponse.data?.data;
         if (status?.status === 'Active' && status.permission === 'Admin') {
           updateApiKey(stored);
+          setAuthorized(true);
         } else {
+          if (status && status.permission !== 'Admin') {
+            toast.error('Unauthorized access');
+          }
           localStorage.removeItem('registry_api_key');
           setAuthorized(false);
         }
@@ -85,8 +100,6 @@ function ThemedApp({ Component, pageProps }: AppProps) {
           setIsHealthy(false);
           setAuthorized(false);
         }
-      } finally {
-        if (!cancelled) setBootstrapped(true);
       }
     };
     void init();
@@ -95,50 +108,77 @@ function ThemedApp({ Component, pageProps }: AppProps) {
     };
   }, [apiClient, setAuthorized, updateApiKey]);
 
-  if (!bootstrapped || isHealthy === null) {
+  if (isHealthy === null) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-muted-foreground">
-        Connecting to registry…
+      <div className="flex items-center justify-center bg-background text-foreground fixed top-0 left-0 w-full h-full z-50">
+        <div className="text-center space-y-4">
+          <Spinner size={20} addContainer />
+        </div>
       </div>
     );
   }
 
-  if (!isHealthy) {
+  if (!authorized && apiKey) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4 p-6 text-center">
-        <h1 className="text-2xl font-semibold">Registry API unavailable</h1>
-        <p className="text-muted-foreground max-w-md">
-          Could not reach {process.env.NEXT_PUBLIC_REGISTRY_API_BASE_URL}. Start the registry
-          service and refresh.
-        </p>
-        <Button onClick={() => window.location.reload()}>Retry</Button>
+      <div className="flex items-center justify-center bg-background text-foreground fixed top-0 left-0 w-full h-full z-50">
+        <div className="text-center space-y-4">
+          <div className="text-lg text-destructive">Unauthorized</div>
+          <div className="text-sm text-muted-foreground">
+            Your API key is invalid or does not have admin permissions. Please sign out and sign in
+            with an admin API key.
+          </div>
+          <Button
+            variant="destructive"
+            className="text-sm"
+            onClick={() => {
+              signOut();
+            }}
+          >
+            Sign out
+          </Button>
+        </div>
       </div>
     );
   }
 
-  if (!authorized) {
-    return <ApiKeyDialog />;
+  if (isHealthy === false) {
+    return (
+      <div className="flex items-center justify-center bg-background text-foreground fixed top-0 left-0 w-full h-full z-50">
+        <div className="text-center space-y-4">
+          <div className="text-lg text-destructive">System Unavailable</div>
+          <div className="text-sm text-muted-foreground">
+            Unable to connect to required services. Please try again later.
+          </div>
+        </div>
+      </div>
+    );
   }
 
   if (isMobile) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4 p-6 text-center">
-        <h1 className="text-2xl font-semibold">Desktop recommended</h1>
-        <p className="text-muted-foreground max-w-md">
-          This admin interface is optimized for desktop. You can continue on a larger screen or
-          sign out.
-        </p>
-        <Button variant="outline" onClick={signOut}>
-          Sign out
-        </Button>
+      <div className="min-h-screen flex flex-col">
+        <Header />
+        <div className="flex-1 flex items-center justify-center bg-background text-foreground">
+          <div className="text-center space-y-4 p-4">
+            <div className="text-lg text-muted-foreground">
+              Please use a desktop device to <br /> access the Masumi Admin Interface
+            </div>
+            <Button variant="muted">
+              <Link href="https://docs.masumi.io" target="_blank" rel="noopener noreferrer">
+                Learn more
+              </Link>
+            </Button>
+          </div>
+        </div>
+        <Footer />
       </div>
     );
   }
 
   return (
     <>
-      <Component {...pageProps} />
-      <ToastWrapper />
+      {apiKey ? <Component {...pageProps} /> : <ApiKeyDialog />}
+      {mounted && <ToastWrapper />}
     </>
   );
 }
@@ -148,7 +188,11 @@ export default function App(props: AppProps) {
     <ThemeProvider>
       <QueryProvider>
         <AppProvider>
-          <ThemedApp {...props} />
+          <SidebarProvider>
+            <TooltipProvider delayDuration={200}>
+              <ThemedApp {...props} />
+            </TooltipProvider>
+          </SidebarProvider>
         </AppProvider>
       </QueryProvider>
     </ThemeProvider>

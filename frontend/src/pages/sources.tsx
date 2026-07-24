@@ -4,10 +4,14 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
 import { MainLayout } from '@/components/layout/MainLayout';
+import { AnimatedPage } from '@/components/ui/animated-page';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { EmptyState } from '@/components/ui/empty-state';
+import { RefreshButton } from '@/components/RefreshButton';
+import { Spinner } from '@/components/ui/spinner';
 import {
   Dialog,
   DialogContent,
@@ -165,82 +169,103 @@ export default function SourcesPage() {
       <Head>
         <title>Sources | Registry Admin</title>
       </Head>
-      <div className="space-y-6">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Sources</h1>
-            <p className="text-muted-foreground mt-1">
-              Manage Cardano registry sources (policy IDs + Blockfrost keys)
-            </p>
+      <AnimatedPage>
+        <div className="space-y-6">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-semibold tracking-tight">Sources</h1>
+              <p className="text-sm text-muted-foreground">
+                Manage Cardano registry sources (policy IDs + Blockfrost keys)
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <RefreshButton
+                onRefresh={async () => {
+                  await sourcesQuery.refetch();
+                }}
+                isRefreshing={sourcesQuery.isFetching}
+              />
+              <Button onClick={openCreate}>
+                <Plus className="h-4 w-4" />
+                Add source
+              </Button>
+            </div>
           </div>
-          <Button onClick={openCreate}>
-            <Plus className="h-4 w-4" />
-            Add source
-          </Button>
-        </div>
 
-        <div className="rounded-xl border overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Network</TableHead>
-                <TableHead>Policy ID</TableHead>
-                <TableHead>Note</TableHead>
-                <TableHead>Latest page</TableHead>
-                <TableHead>RPC key</TableHead>
-                <TableHead className="w-[120px]" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {sourcesQuery.isLoading && (
+          <div className="border rounded-lg overflow-hidden">
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground py-10">
-                    Loading sources…
-                  </TableCell>
+                  <TableHead>Network</TableHead>
+                  <TableHead>Policy ID</TableHead>
+                  <TableHead>Note</TableHead>
+                  <TableHead>Latest page</TableHead>
+                  <TableHead>RPC key</TableHead>
+                  <TableHead className="w-[120px]" />
                 </TableRow>
-              )}
-              {!sourcesQuery.isLoading && sources.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground py-10">
-                    No registry sources yet. Add one to start indexing agents.
-                  </TableCell>
-                </TableRow>
-              )}
-              {sources.map((source) => (
-                <TableRow key={source.id}>
-                  <TableCell>
-                    <Badge variant="secondary">{source.network ?? '—'}</Badge>
-                  </TableCell>
-                  <TableCell className="font-mono text-xs">
-                    {shortenId(source.policyId ?? '', 10)}
-                  </TableCell>
-                  <TableCell className="max-w-[220px] truncate">{source.note || '—'}</TableCell>
-                  <TableCell>{source.latestPage ?? '—'}</TableCell>
-                  <TableCell className="font-mono text-xs">
-                    {source.rpcProviderApiKey
-                      ? shortenId(source.rpcProviderApiKey, 4)
-                      : '—'}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex gap-1">
-                      <Button size="icon" variant="ghost" onClick={() => openEdit(source)}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => setDeleteTarget(source)}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {sourcesQuery.isLoading && (
+                  <TableRow>
+                    <TableCell colSpan={6} className="py-16">
+                      <div className="flex justify-center">
+                        <Spinner size={20} addContainer />
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )}
+                {!sourcesQuery.isLoading && sources.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={6}>
+                      <EmptyState
+                        title="No registry sources yet"
+                        description="Add a source to start indexing agents on Cardano."
+                        action={
+                          <Button onClick={openCreate}>
+                            <Plus className="h-4 w-4" />
+                            Add source
+                          </Button>
+                        }
+                      />
+                    </TableCell>
+                  </TableRow>
+                )}
+                {sources.map((source) => (
+                  <TableRow key={source.id} className="hover:bg-muted/40">
+                    <TableCell>
+                      <Badge variant="secondary">{source.network ?? '—'}</Badge>
+                    </TableCell>
+                    <TableCell className="font-mono text-xs">
+                      {shortenId(source.policyId ?? '', 10)}
+                    </TableCell>
+                    <TableCell className="max-w-[220px] truncate">{source.note || '—'}</TableCell>
+                    <TableCell>{source.latestPage ?? '—'}</TableCell>
+                    <TableCell className="font-mono text-xs">
+                      {source.rpcProviderApiKey
+                        ? shortenId(source.rpcProviderApiKey, 4)
+                        : '—'}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-1">
+                        <Button size="icon" variant="ghost" onClick={() => openEdit(source)}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => setDeleteTarget(source)}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         </div>
-      </div>
+      </AnimatedPage>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>

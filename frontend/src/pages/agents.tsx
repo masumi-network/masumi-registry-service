@@ -2,11 +2,15 @@ import Head from 'next/head';
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
-import { RefreshCw, Search } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { MainLayout } from '@/components/layout/MainLayout';
+import { AnimatedPage } from '@/components/ui/animated-page';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { EmptyState } from '@/components/ui/empty-state';
+import { RefreshButton } from '@/components/RefreshButton';
+import { Spinner } from '@/components/ui/spinner';
 import {
   Table,
   TableBody,
@@ -108,135 +112,150 @@ export default function AgentsPage() {
       <Head>
         <title>Agents | Registry Admin</title>
       </Head>
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Agents</h1>
-          <p className="text-muted-foreground mt-1">
-            Browse and search registry entries on {network}
-          </p>
-        </div>
-
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              className="pl-9"
-              placeholder="Search name, tags, identifier…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') runSearch();
+      <AnimatedPage>
+        <div className="space-y-6">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-semibold tracking-tight">Agents</h1>
+              <p className="text-sm text-muted-foreground">
+                Browse and search registry entries on {network}
+              </p>
+            </div>
+            <RefreshButton
+              onRefresh={async () => {
+                await agentsQuery.refetch();
               }}
+              isRefreshing={agentsQuery.isFetching}
             />
           </div>
-          <Button onClick={runSearch}>Search</Button>
-          <Button
-            variant="outline"
-            onClick={() => {
-              setSearch('');
-              setSubmittedQuery('');
-              setCursorStack([]);
-            }}
-          >
-            Clear
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => void agentsQuery.refetch()}
-            disabled={agentsQuery.isFetching}
-          >
-            <RefreshCw className="h-4 w-4" />
-            Refresh list
-          </Button>
-        </div>
 
-        <div className="rounded-xl border overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Identifier</TableHead>
-                <TableHead>Capability</TableHead>
-                <TableHead>Uptime</TableHead>
-                <TableHead>Last check</TableHead>
-                <TableHead className="w-[100px]" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {agentsQuery.isLoading && (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-muted-foreground py-10 text-center">
-                    Loading agents…
-                  </TableCell>
-                </TableRow>
-              )}
-              {!agentsQuery.isLoading && entries.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-muted-foreground py-10 text-center">
-                    No agents found for this network
-                    {submittedQuery ? ` matching “${submittedQuery}”` : ''}.
-                  </TableCell>
-                </TableRow>
-              )}
-              {entries.map((entry) => (
-                <TableRow key={entry.id}>
-                  <TableCell>
-                    <div className="font-medium">{entry.name}</div>
-                    <div className="text-xs text-muted-foreground line-clamp-1">
-                      {entry.description || entry.apiBaseUrl}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={statusVariant(entry.status)}>{entry.status}</Badge>
-                  </TableCell>
-                  <TableCell className="font-mono text-xs">
-                    {shortenId(entry.agentIdentifier, 8)}
-                  </TableCell>
-                  <TableCell className="text-xs">
-                    {entry.Capability?.name
-                      ? `${entry.Capability.name}${entry.Capability.version ? `@${entry.Capability.version}` : ''}`
-                      : '—'}
-                  </TableCell>
-                  <TableCell className="text-xs">
-                    {entry.uptimeCount}/{entry.uptimeCheckCount}
-                  </TableCell>
-                  <TableCell className="text-xs">{formatDate(entry.lastUptimeCheck)}</TableCell>
-                  <TableCell>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={refreshMutation.isPending}
-                      onClick={() => refreshMutation.mutate(entry.agentIdentifier)}
-                    >
-                      Refresh
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                className="pl-9"
+                placeholder="Search name, tags, identifier…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') runSearch();
+                }}
+              />
+            </div>
+            <Button onClick={runSearch}>Search</Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setSearch('');
+                setSubmittedQuery('');
+                setCursorStack([]);
+              }}
+            >
+              Clear
+            </Button>
+          </div>
 
-        <div className="flex items-center justify-between">
-          <Button
-            variant="outline"
-            disabled={cursorStack.length === 0}
-            onClick={() => setCursorStack((stack) => stack.slice(0, -1))}
-          >
-            Previous
-          </Button>
-          <Button
-            variant="outline"
-            disabled={!hasMore || !lastId}
-            onClick={() => {
-              if (lastId) setCursorStack((stack) => [...stack, lastId]);
-            }}
-          >
-            Next
-          </Button>
+          <div className="border rounded-lg overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Identifier</TableHead>
+                  <TableHead>Capability</TableHead>
+                  <TableHead>Uptime</TableHead>
+                  <TableHead>Last check</TableHead>
+                  <TableHead className="w-[100px]" />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {agentsQuery.isLoading && (
+                  <TableRow>
+                    <TableCell colSpan={7} className="py-16">
+                      <div className="flex justify-center">
+                        <Spinner size={20} addContainer />
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )}
+                {!agentsQuery.isLoading && entries.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={7}>
+                      <EmptyState
+                        icon={submittedQuery ? 'search' : 'inbox'}
+                        title={
+                          submittedQuery
+                            ? `No agents matching “${submittedQuery}”`
+                            : 'No agents found'
+                        }
+                        description={
+                          submittedQuery
+                            ? 'Try a different search query or clear filters.'
+                            : `No registry entries on ${network} yet.`
+                        }
+                      />
+                    </TableCell>
+                  </TableRow>
+                )}
+                {entries.map((entry) => (
+                  <TableRow key={entry.id} className="hover:bg-muted/40">
+                    <TableCell>
+                      <div className="font-medium">{entry.name}</div>
+                      <div className="text-xs text-muted-foreground line-clamp-1">
+                        {entry.description || entry.apiBaseUrl}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={statusVariant(entry.status)}>{entry.status}</Badge>
+                    </TableCell>
+                    <TableCell className="font-mono text-xs">
+                      {shortenId(entry.agentIdentifier, 8)}
+                    </TableCell>
+                    <TableCell className="text-xs">
+                      {entry.Capability?.name
+                        ? `${entry.Capability.name}${entry.Capability.version ? `@${entry.Capability.version}` : ''}`
+                        : '—'}
+                    </TableCell>
+                    <TableCell className="text-xs">
+                      {entry.uptimeCount}/{entry.uptimeCheckCount}
+                    </TableCell>
+                    <TableCell className="text-xs">{formatDate(entry.lastUptimeCheck)}</TableCell>
+                    <TableCell>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={refreshMutation.isPending}
+                        onClick={() => refreshMutation.mutate(entry.agentIdentifier)}
+                      >
+                        Refresh
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <Button
+              variant="outline"
+              disabled={cursorStack.length === 0}
+              onClick={() => setCursorStack((stack) => stack.slice(0, -1))}
+            >
+              Previous
+            </Button>
+            <Button
+              variant="outline"
+              disabled={!hasMore || !lastId}
+              onClick={() => {
+                if (lastId) setCursorStack((stack) => [...stack, lastId]);
+              }}
+            >
+              Next
+            </Button>
+          </div>
         </div>
-      </div>
+      </AnimatedPage>
     </MainLayout>
   );
 }

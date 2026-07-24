@@ -2,13 +2,18 @@ import Head from 'next/head';
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
-import { Copy, Plus, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Pencil, Trash2 } from 'lucide-react';
 import { MainLayout } from '@/components/layout/MainLayout';
+import { AnimatedPage } from '@/components/ui/animated-page';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
+import { EmptyState } from '@/components/ui/empty-state';
+import { RefreshButton } from '@/components/RefreshButton';
+import { Spinner } from '@/components/ui/spinner';
+import { CopyButton } from '@/components/ui/copy-button';
 import {
   Dialog,
   DialogContent,
@@ -144,105 +149,126 @@ export default function ApiKeysPage() {
       <Head>
         <title>API Keys | Registry Admin</title>
       </Head>
-      <div className="space-y-6">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">API keys</h1>
-            <p className="text-muted-foreground mt-1">
-              Tokens are shown once on create. Update/delete require the plaintext token.
-            </p>
+      <AnimatedPage>
+        <div className="space-y-6">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-semibold tracking-tight">API keys</h1>
+              <p className="text-sm text-muted-foreground">
+                Tokens are shown once on create. Update/delete require the plaintext token.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <RefreshButton
+                onRefresh={async () => {
+                  await keysQuery.refetch();
+                }}
+                isRefreshing={keysQuery.isFetching}
+              />
+              <Button
+                onClick={() => {
+                  setCreatedToken(null);
+                  setPermission('User');
+                  setUsageLimited(false);
+                  setMaxUsageCredits(0);
+                  setCreateOpen(true);
+                }}
+              >
+                <Plus className="h-4 w-4" />
+                Create key
+              </Button>
+            </div>
           </div>
-          <Button
-            onClick={() => {
-              setCreatedToken(null);
-              setPermission('User');
-              setUsageLimited(false);
-              setMaxUsageCredits(0);
-              setCreateOpen(true);
-            }}
-          >
-            <Plus className="h-4 w-4" />
-            Create key
-          </Button>
-        </div>
 
-        <div className="rounded-xl border overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>ID</TableHead>
-                <TableHead>Permission</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Usage</TableHead>
-                <TableHead className="w-[120px]" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {keysQuery.isLoading && (
+          <div className="border rounded-lg overflow-hidden">
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground py-10">
-                    Loading API keys…
-                  </TableCell>
+                  <TableHead>ID</TableHead>
+                  <TableHead>Permission</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Usage</TableHead>
+                  <TableHead className="w-[120px]" />
                 </TableRow>
-              )}
-              {!keysQuery.isLoading && keys.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground py-10">
-                    No API keys yet.
-                  </TableCell>
-                </TableRow>
-              )}
-              {keys.map((key) => (
-                <TableRow key={key.id}>
-                  <TableCell className="font-mono text-xs">{shortenId(key.id, 8)}</TableCell>
-                  <TableCell>
-                    <Badge variant={key.permission === 'Admin' ? 'default' : 'secondary'}>
-                      {key.permission}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={key.status === 'Active' ? 'success' : 'destructive'}>
-                      {key.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-xs">
-                    {key.usageLimited
-                      ? `${key.accumulatedUsageCredits ?? 0} / ${key.maxUsageCredits ?? 0}`
-                      : `${key.accumulatedUsageCredits ?? 0} (unlimited)`}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex gap-1">
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => {
-                          setEditKey(key);
-                          setEditToken('');
-                          setEditUsageLimited(key.usageLimited);
-                          setEditMaxCredits(key.maxUsageCredits ?? 0);
-                          setEditStatus(key.status);
-                        }}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => {
-                          setDeleteKey(key);
-                          setDeleteToken('');
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {keysQuery.isLoading && (
+                  <TableRow>
+                    <TableCell colSpan={5} className="py-16">
+                      <div className="flex justify-center">
+                        <Spinner size={20} addContainer />
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )}
+                {!keysQuery.isLoading && keys.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={5}>
+                      <EmptyState
+                        title="No API keys yet"
+                        description="Create a key to grant access to the registry API."
+                        action={
+                          <Button onClick={() => setCreateOpen(true)}>
+                            <Plus className="h-4 w-4" />
+                            Create key
+                          </Button>
+                        }
+                      />
+                    </TableCell>
+                  </TableRow>
+                )}
+                {keys.map((key) => (
+                  <TableRow key={key.id} className="hover:bg-muted/40">
+                    <TableCell className="font-mono text-xs">{shortenId(key.id, 8)}</TableCell>
+                    <TableCell>
+                      <Badge variant={key.permission === 'Admin' ? 'default' : 'secondary'}>
+                        {key.permission}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={key.status === 'Active' ? 'success' : 'destructive'}>
+                        {key.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-xs">
+                      {key.usageLimited
+                        ? `${key.accumulatedUsageCredits ?? 0} / ${key.maxUsageCredits ?? 0}`
+                        : `${key.accumulatedUsageCredits ?? 0} (unlimited)`}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-1">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => {
+                            setEditKey(key);
+                            setEditToken('');
+                            setEditUsageLimited(key.usageLimited);
+                            setEditMaxCredits(key.maxUsageCredits ?? 0);
+                            setEditStatus(key.status);
+                          }}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => {
+                            setDeleteKey(key);
+                            setDeleteToken('');
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         </div>
-      </div>
+      </AnimatedPage>
 
       <Dialog
         open={createOpen}
@@ -262,19 +288,12 @@ export default function ApiKeysPage() {
           </DialogHeader>
           {createdToken ? (
             <div className="space-y-3">
-              <div className="rounded-md border bg-muted/40 p-3 font-mono text-xs break-all">
+              <div className="rounded-md border bg-muted/40 p-3 font-mono text-xs break-all relative pr-12">
                 {createdToken}
+                <div className="absolute right-2 top-2">
+                  <CopyButton value={createdToken} />
+                </div>
               </div>
-              <Button
-                variant="outline"
-                onClick={async () => {
-                  await navigator.clipboard.writeText(createdToken);
-                  toast.success('Copied');
-                }}
-              >
-                <Copy className="h-4 w-4" />
-                Copy token
-              </Button>
             </div>
           ) : (
             <div className="space-y-4 py-2">
