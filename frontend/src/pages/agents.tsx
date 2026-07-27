@@ -1,5 +1,6 @@
 import Head from 'next/head';
 import { useMemo, useState } from 'react';
+import { useRouter } from 'next/router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
 import { Search } from 'lucide-react';
@@ -43,12 +44,22 @@ function statusVariant(status: RegistryEntry['status']) {
 }
 
 export default function AgentsPage() {
+  const router = useRouter();
   const { apiClient, network } = useAppContext();
   const queryClient = useQueryClient();
-  const [search, setSearch] = useState('');
-  const [submittedQuery, setSubmittedQuery] = useState('');
+  const routerQuery = typeof router.query.q === 'string' ? router.query.q : '';
+  const [search, setSearch] = useState(routerQuery);
+  const [submittedQuery, setSubmittedQuery] = useState(routerQuery);
+  const [prevRouterQuery, setPrevRouterQuery] = useState(routerQuery);
   const [cursorStack, setCursorStack] = useState<string[]>([]);
   const cursorId = cursorStack[cursorStack.length - 1];
+
+  if (router.isReady && routerQuery !== prevRouterQuery) {
+    setPrevRouterQuery(routerQuery);
+    setSearch(routerQuery);
+    setSubmittedQuery(routerQuery);
+    setCursorStack([]);
+  }
 
   const agentsQuery = useQuery({
     queryKey: ['agents', network, submittedQuery, cursorId ?? 'start'],
@@ -104,7 +115,13 @@ export default function AgentsPage() {
 
   const runSearch = () => {
     setCursorStack([]);
-    setSubmittedQuery(search.trim());
+    const next = search.trim();
+    setSubmittedQuery(next);
+    void router.replace(
+      next ? { pathname: '/agents', query: { q: next } } : { pathname: '/agents' },
+      undefined,
+      { shallow: true },
+    );
   };
 
   return (
@@ -149,6 +166,7 @@ export default function AgentsPage() {
                 setSearch('');
                 setSubmittedQuery('');
                 setCursorStack([]);
+                void router.replace({ pathname: '/agents' }, undefined, { shallow: true });
               }}
             >
               Clear
@@ -198,7 +216,11 @@ export default function AgentsPage() {
                   </TableRow>
                 )}
                 {entries.map((entry) => (
-                  <TableRow key={entry.id} className="hover:bg-muted/40">
+                  <TableRow
+                    key={entry.id}
+                    id={`agent-${entry.id}`}
+                    className="hover:bg-muted/40"
+                  >
                     <TableCell>
                       <div className="font-medium">{entry.name}</div>
                       <div className="text-xs text-muted-foreground line-clamp-1">

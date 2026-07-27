@@ -166,6 +166,7 @@ export default function ApiKeysPage() {
                 isRefreshing={keysQuery.isFetching}
               />
               <Button
+                id="add-api-key-button"
                 onClick={() => {
                   setCreatedToken(null);
                   setPermission('User');
@@ -218,7 +219,11 @@ export default function ApiKeysPage() {
                   </TableRow>
                 )}
                 {keys.map((key) => (
-                  <TableRow key={key.id} className="hover:bg-muted/40">
+                  <TableRow
+                    key={key.id}
+                    id={`api-key-${key.id}`}
+                    className="hover:bg-muted/40"
+                  >
                     <TableCell className="font-mono text-xs">{shortenId(key.id, 8)}</TableCell>
                     <TableCell>
                       <Badge variant={key.permission === 'Admin' ? 'default' : 'secondary'}>

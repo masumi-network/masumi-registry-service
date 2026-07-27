@@ -185,7 +185,7 @@ export default function SourcesPage() {
                 }}
                 isRefreshing={sourcesQuery.isFetching}
               />
-              <Button onClick={openCreate}>
+              <Button id="add-source-button" onClick={openCreate}>
                 <Plus className="h-4 w-4" />
                 Add source
               </Button>
@@ -231,7 +231,11 @@ export default function SourcesPage() {
                   </TableRow>
                 )}
                 {sources.map((source) => (
-                  <TableRow key={source.id} className="hover:bg-muted/40">
+                  <TableRow
+                    key={source.id}
+                    id={`source-${source.id}`}
+                    className="hover:bg-muted/40"
+                  >
                     <TableCell>
                       <Badge variant="secondary">{source.network ?? '—'}</Badge>
                     </TableCell>

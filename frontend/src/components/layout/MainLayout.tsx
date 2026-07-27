@@ -22,6 +22,7 @@ import { useAppContext } from '@/lib/contexts/AppContext';
 import MasumiLogo from '@/components/MasumiLogo';
 import MasumiIconFlat from '@/components/MasumiIconFlat';
 import { NetworkSwitcher } from '@/components/layout/NetworkSwitcher';
+import { SearchDialog } from '@/components/search/SearchDialog';
 import type { NetworkType } from '@/lib/api/types';
 
 interface MainLayoutProps {
@@ -77,6 +78,7 @@ export function MainLayout({ children }: MainLayoutProps) {
   const sideBarWidth = 280;
   const sideBarWidthCollapsed = 96;
   const [isMac, setIsMac] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const { network, setNetwork, isChangingNetwork } = useAppContext();
   const isFirstNavMount = !hasAnimatedNav;
 
@@ -92,6 +94,17 @@ export function MainLayout({ children }: MainLayoutProps) {
       return () => clearTimeout(timer);
     }
   }, [hasAnimatedNav, markNavAnimated]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setIsSearchOpen(true);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const applyBlurTransition = useCallback((isActive: boolean) => {
     if (!isActive) return;
@@ -350,12 +363,12 @@ export function MainLayout({ children }: MainLayoutProps) {
           <div className="max-w-[1400px] mx-auto w-full">
             <div className="h-14 px-4 flex items-center justify-between gap-4">
               <div
-                className="flex flex-1 max-w-[190px] justify-start gap-1 relative rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background items-center text-muted-foreground"
-                title="Global search is not available in registry admin yet"
+                className="flex flex-1 max-w-[190px] justify-start gap-1 relative rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background cursor-pointer items-center"
+                onClick={() => setIsSearchOpen(true)}
               >
                 <Search className="h-4 w-4 text-muted-foreground" />
                 <div className="pl-2">{`Search... `}</div>
-                <div className="pl-4 opacity-60">{`(${isMac ? '⌘' : 'Ctrl'} + K)`}</div>
+                <div className="pl-4">{`(${isMac ? '⌘' : 'Ctrl'} + K)`}</div>
               </div>
 
               <div className="flex items-center gap-4">
@@ -390,6 +403,8 @@ export function MainLayout({ children }: MainLayoutProps) {
           <div className="max-w-[1400px] mx-auto w-full p-8 px-4">{children}</div>
         </main>
       </div>
+
+      <SearchDialog open={isSearchOpen} onOpenChange={setIsSearchOpen} />
     </div>
   );
 }
