@@ -1,4 +1,10 @@
-import { Network, PaymentType, PricingType, Status } from '@prisma/client';
+import {
+  Network,
+  PaymentType,
+  PricingType,
+  RegistryEntryType,
+  Status,
+} from '@prisma/client';
 import {
   serializeRegistryEntries,
   type RegistryEntrySerializable,
@@ -18,7 +24,10 @@ function entry(
     lastUptimeCheck: new Date('2026-01-01T00:00:00.000Z'),
     uptimeCount: 1,
     uptimeCheckCount: 1,
+    type: RegistryEntryType.Standard,
     apiBaseUrl: 'https://agent.example',
+    openApiSpecUrl: null,
+    x402ResourcesUrl: null,
     authorName: null,
     authorOrganization: null,
     authorContactEmail: null,

@@ -1,5 +1,11 @@
 import { z } from '@/utils/zod-openapi';
-import { Network, PaymentType, PricingType, Status } from '@prisma/client';
+import {
+  Network,
+  PaymentType,
+  PricingType,
+  RegistryEntryType,
+  Status,
+} from '@prisma/client';
 import { SNAPSHOT_VERSION } from './types';
 
 const snapshotAmountSchema = z.object({
@@ -84,7 +90,12 @@ const snapshotSupportedPaymentSourceSchema = z.object({
 const snapshotEntrySchema = z.object({
   assetIdentifier: z.string().min(1),
   name: z.string(),
-  apiBaseUrl: z.string(),
+  // Optional/nullable so snapshots taken before the agent-type feature still
+  // import (they default to Standard with a plain apiBaseUrl).
+  type: z.nativeEnum(RegistryEntryType).optional(),
+  apiBaseUrl: z.string().nullable(),
+  openApiSpecUrl: z.string().nullable().optional(),
+  x402ResourcesUrl: z.string().nullable().optional(),
   description: z.string().nullable(),
   image: z.string(),
   tags: z.array(z.string()),

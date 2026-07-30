@@ -1,4 +1,10 @@
-import { Network, PaymentType, PricingType, Status } from '@prisma/client';
+import {
+  Network,
+  PaymentType,
+  PricingType,
+  RegistryEntryType,
+  Status,
+} from '@prisma/client';
 
 export const SNAPSHOT_VERSION = '2.0.0' as const;
 
@@ -41,7 +47,11 @@ export interface SnapshotExampleOutput {
 export interface SnapshotEntry {
   assetIdentifier: string;
   name: string;
-  apiBaseUrl: string;
+  type: RegistryEntryType;
+  // Null for OpenApi/X402 entries (they advertise a spec/manifest URL instead).
+  apiBaseUrl: string | null;
+  openApiSpecUrl: string | null;
+  x402ResourcesUrl: string | null;
   description: string | null;
   image: string;
   tags: string[];

@@ -328,8 +328,25 @@
                     "uptimeCheckCount": {
                         "type": "number"
                     },
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "Standard",
+                            "OpenApi",
+                            "X402"
+                        ]
+                    },
                     "apiBaseUrl": {
-                        "type": "string"
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "openApiSpecUrl": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "x402ResourcesUrl": {
+                        "type": "string",
+                        "nullable": true
                     },
                     "authorName": {
                         "type": "string",
@@ -420,7 +437,10 @@
                     "lastUptimeCheck",
                     "uptimeCount",
                     "uptimeCheckCount",
+                    "type",
                     "apiBaseUrl",
+                    "openApiSpecUrl",
+                    "x402ResourcesUrl",
                     "authorName",
                     "authorOrganization",
                     "authorContactEmail",
@@ -475,8 +495,25 @@
                     "uptimeCheckCount": {
                         "type": "number"
                     },
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "Standard",
+                            "OpenApi",
+                            "X402"
+                        ]
+                    },
                     "apiBaseUrl": {
-                        "type": "string"
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "openApiSpecUrl": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "x402ResourcesUrl": {
+                        "type": "string",
+                        "nullable": true
                     },
                     "authorName": {
                         "type": "string",
@@ -893,7 +930,10 @@
                     "lastUptimeCheck",
                     "uptimeCount",
                     "uptimeCheckCount",
+                    "type",
                     "apiBaseUrl",
+                    "openApiSpecUrl",
+                    "x402ResourcesUrl",
                     "authorName",
                     "authorOrganization",
                     "authorContactEmail",

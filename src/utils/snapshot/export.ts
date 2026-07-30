@@ -59,7 +59,10 @@ function mapEntryToSnapshot(
   return {
     assetIdentifier: entry.assetIdentifier,
     name: entry.name,
+    type: entry.type,
     apiBaseUrl: entry.apiBaseUrl,
+    openApiSpecUrl: entry.openApiSpecUrl,
+    x402ResourcesUrl: entry.x402ResourcesUrl,
     description: entry.description,
     image: entry.image,
     tags: entry.tags,

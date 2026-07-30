@@ -52,7 +52,24 @@ model RegistryEntry {
   updatedAt DateTime @updatedAt
 
   name               String
-  apiBaseUrl         String
+  // Agent access model. Standard for legacy/untyped entries; OpenApi/X402 carry
+  // an alternative endpoint descriptor (openApiSpecUrl / x402ResourcesUrl).
+  type               RegistryEntryType @default(Standard)
+  // Required for Standard entries; null for OpenApi/X402 which describe their
+  // endpoints via openApiSpecUrl / x402ResourcesUrl.
+  apiBaseUrl         String?
+  // URL of the agent's OpenAPI 3.1.x spec document. Set only for OpenApi entries.
+  openApiSpecUrl     String?
+  // URL of the agent's self-hosted x402 resource manifest. Set only for X402
+  // entries; the loose priced resources live in the pointed-to JSON, not here.
+  x402ResourcesUrl   String?
+  // Last successfully fetched + validated spec snapshot (OpenApi doc / x402
+  // manifest), cached so GET /registry-entry/{id}/spec serves a known-good copy
+  // decoupled from a transiently-down agent. Null for Standard entries and until
+  // the first successful validation. specValidatedAt is when it was last proven
+  // valid; the periodic health loop refreshes both and reconciles status.
+  spec               Json?
+  specValidatedAt    DateTime?
   description        String?
   authorName         String?
   authorContactEmail String?
@@ -236,6 +253,16 @@ enum PaymentType {
   Web3CardanoV1
   Web3CardanoV2
   None
+}
+
+// Agent access model advertised in the registry metadata `type` field. Absent
+// on-chain `type` (and legacy rows) map to Standard. On-chain string values:
+// Standard = absent, OpenApi = "OpenAPI", X402 = "x402V1". Kept in sync with the
+// payment-service RegistryEntryType. See docs (payment-service ADR 0010).
+enum RegistryEntryType {
+  Standard
+  OpenApi
+  X402
 }
 
 enum Status {
