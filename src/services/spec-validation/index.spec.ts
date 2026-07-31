@@ -1,5 +1,10 @@
 import { lookup } from 'node:dns/promises';
-import { validateOpenApiSpec, validateX402Manifest } from './index';
+import {
+  validateAgentCard,
+  validateOpenApiSpec,
+  validateSpecUrl,
+  validateX402Manifest,
+} from './index';
 
 jest.mock('node:dns/promises', () => ({
   lookup: jest.fn(),
@@ -199,6 +204,196 @@ describe('spec-validation', () => {
         'https://agent.example/.well-known/x402.json'
       );
       expect(result.outcome).toBe('invalid');
+    });
+  });
+
+  describe('validateAgentCard', () => {
+    const CARD_URL = 'https://agent.example/.well-known/agent-card.json';
+
+    function agentCard(overrides: Record<string, unknown> = {}) {
+      return JSON.stringify({
+        protocolVersions: ['1.0'],
+        name: 'Test A2A Agent',
+        description: 'Does A2A things',
+        version: '1.2.3',
+        supportedInterfaces: [
+          {
+            url: 'https://agent.example/a2a',
+            protocolBinding: 'JSONRPC',
+            protocolVersion: '1.0',
+          },
+        ],
+        capabilities: { streaming: true },
+        defaultInputModes: ['text/plain'],
+        defaultOutputModes: ['text/plain'],
+        skills: [
+          {
+            id: 'summarize',
+            name: 'Summarize',
+            description: 'Summarizes text',
+            tags: ['nlp'],
+            inputModes: ['text/plain'],
+            outputModes: ['text/plain'],
+          },
+        ],
+        ...overrides,
+      });
+    }
+
+    it('accepts a valid agent card', async () => {
+      mockFetchOnce({ body: agentCard() });
+      const result = await validateAgentCard(CARD_URL, ['1.0']);
+      expect(result.outcome).toBe('valid');
+      if (result.outcome === 'valid') {
+        expect((result.spec as { name: string }).name).toBe('Test A2A Agent');
+      }
+    });
+
+    it('accepts unknown/newer card fields (passthrough forward-compat)', async () => {
+      mockFetchOnce({ body: agentCard({ someFutureField: { a: 1 } }) });
+      const result = await validateAgentCard(CARD_URL, ['1.0']);
+      expect(result.outcome).toBe('valid');
+    });
+
+    it('rejects an interface protocolVersion absent from protocolVersions', async () => {
+      mockFetchOnce({
+        body: agentCard({
+          protocolVersions: ['1.0'],
+          supportedInterfaces: [
+            {
+              url: 'https://agent.example/a2a',
+              protocolBinding: 'JSONRPC',
+              protocolVersion: '2.0',
+            },
+          ],
+        }),
+      });
+      const result = await validateAgentCard(CARD_URL, ['1.0']);
+      expect(result.outcome).toBe('invalid');
+    });
+
+    it('rejects a declared on-chain version the card does not publish', async () => {
+      // The on-chain <-> card integrity check: the entry claims 9.9, the card
+      // only backs 1.0, so the on-chain claim is false.
+      mockFetchOnce({ body: agentCard({ protocolVersions: ['1.0'] }) });
+      const result = await validateAgentCard(CARD_URL, ['1.0', '9.9']);
+      expect(result.outcome).toBe('invalid');
+      if (result.outcome === 'invalid') {
+        expect(result.reason).toContain('9.9');
+      }
+    });
+
+    it('accepts when every declared version is published by the card', async () => {
+      mockFetchOnce({ body: agentCard({ protocolVersions: ['1.0', '1.1'] }) });
+      const result = await validateAgentCard(CARD_URL, ['1.0', '1.1']);
+      expect(result.outcome).toBe('valid');
+    });
+
+    it('rejects a non-https card url before fetching (MIP-002 requires https)', async () => {
+      const result = await validateAgentCard(
+        'http://agent.example/.well-known/agent-card.json',
+        ['1.0']
+      );
+      expect(result.outcome).toBe('invalid');
+      expect(global.fetch).not.toHaveBeenCalled();
+    });
+
+    it('rejects a card with no skills as invalid', async () => {
+      mockFetchOnce({ body: agentCard({ skills: [] }) });
+      const result = await validateAgentCard(CARD_URL, ['1.0']);
+      expect(result.outcome).toBe('invalid');
+    });
+
+    it('rejects an http supportedInterfaces url as invalid', async () => {
+      mockFetchOnce({
+        body: agentCard({
+          supportedInterfaces: [
+            {
+              url: 'http://agent.example/a2a',
+              protocolBinding: 'JSONRPC',
+              protocolVersion: '1.0',
+            },
+          ],
+        }),
+      });
+      const result = await validateAgentCard(CARD_URL, ['1.0']);
+      expect(result.outcome).toBe('invalid');
+    });
+
+    it('rejects an unknown protocolBinding as invalid', async () => {
+      mockFetchOnce({
+        body: agentCard({
+          supportedInterfaces: [
+            {
+              url: 'https://agent.example/a2a',
+              protocolBinding: 'SOAP',
+              protocolVersion: '1.0',
+            },
+          ],
+        }),
+      });
+      const result = await validateAgentCard(CARD_URL, ['1.0']);
+      expect(result.outcome).toBe('invalid');
+    });
+
+    it('rejects a non-JSON body as invalid', async () => {
+      mockFetchOnce({ body: 'not json at all' });
+      const result = await validateAgentCard(CARD_URL, ['1.0']);
+      expect(result.outcome).toBe('invalid');
+    });
+
+    it('reports a private/SSRF target as unreachable without fetching', async () => {
+      (lookup as jest.Mock).mockResolvedValue([
+        { address: '169.254.169.254', family: 4 },
+      ]);
+      const result = await validateAgentCard(
+        'https://metadata.internal/.well-known/agent-card.json',
+        ['1.0']
+      );
+      expect(result.outcome).toBe('unreachable');
+      expect(global.fetch).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('validateSpecUrl dispatch', () => {
+    it('routes a2a to the agent-card validator, not the x402 one', async () => {
+      // Regression guard: the dispatcher was a two-way ternary, so a third kind
+      // would silently be validated against the x402 manifest schema.
+      mockFetchOnce({
+        body: JSON.stringify({
+          protocolVersions: ['1.0'],
+          name: 'A',
+          description: 'd',
+          version: '1',
+          supportedInterfaces: [
+            {
+              url: 'https://agent.example/a2a',
+              protocolBinding: 'GRPC',
+              protocolVersion: '1.0',
+            },
+          ],
+          capabilities: {},
+          defaultInputModes: [],
+          defaultOutputModes: [],
+          skills: [
+            {
+              id: 's',
+              name: 'S',
+              description: 'd',
+              tags: [],
+              inputModes: [],
+              outputModes: [],
+            },
+          ],
+        }),
+      });
+      const result = await validateSpecUrl(
+        'a2a',
+        'https://agent.example/.well-known/agent-card.json',
+        { declaredProtocolVersions: ['1.0'] }
+      );
+      // An x402 validator would have rejected this body (no `resources`).
+      expect(result.outcome).toBe('valid');
     });
   });
 });

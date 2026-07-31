@@ -20,3 +20,4 @@ src/services/.DS_Store
 # Cursor AI
 .cursor/snapshots
 .cursor/logs
+.claude*

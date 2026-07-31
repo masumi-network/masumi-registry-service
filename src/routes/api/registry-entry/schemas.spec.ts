@@ -28,6 +28,7 @@ function entry(
     apiBaseUrl: 'https://agent.example',
     openApiSpecUrl: null,
     x402ResourcesUrl: null,
+    A2A: null,
     authorName: null,
     authorOrganization: null,
     authorContactEmail: null,
@@ -137,6 +138,31 @@ describe('serializeRegistryEntries', () => {
       pricingType: PricingType.Free,
     });
     expect(serialized.SupportedPaymentSources).toEqual([]);
+  });
+
+  it('exposes the A2A descriptor without leaking its internal ids', () => {
+    const [serialized] = serializeRegistryEntries(
+      [
+        entry({
+          type: RegistryEntryType.A2A,
+          A2A: {
+            agentCardUrl: 'https://agent.example/.well-known/agent-card.json',
+            protocolVersions: ['1.0'],
+          },
+        }),
+      ],
+      10
+    );
+
+    expect(serialized.A2A).toEqual({
+      agentCardUrl: 'https://agent.example/.well-known/agent-card.json',
+      protocolVersions: ['1.0'],
+    });
+  });
+
+  it('serializes A2A as null for a non-A2A entry', () => {
+    const [serialized] = serializeRegistryEntries([entry()], 10);
+    expect(serialized.A2A).toBeNull();
   });
 
   it('fails clearly instead of dropping a persisted source without pricing', () => {

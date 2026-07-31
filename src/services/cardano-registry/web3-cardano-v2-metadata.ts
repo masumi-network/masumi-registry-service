@@ -78,6 +78,10 @@ export const web3CardanoV2MetadataSchema = z
     api_base_url: metadataString.optional(),
     openapi_spec_url: metadataString.optional(),
     x402_resources_url: metadataString.optional(),
+
+    agent_card_url: metadataString.optional(),
+
+    a2a_protocol_versions: z.array(z.string()).optional(),
     example_output: z
       .array(
         z.object({
