@@ -33,6 +33,7 @@ function mapEntryToSnapshot(
       } | null;
     } | null;
     ExampleOutput: { name: string; mimeType: string; url: string }[];
+    A2A: { agentCardUrl: string; protocolVersions: string[] } | null;
   }
 ): SnapshotEntry {
   // Build pricing object
@@ -63,6 +64,13 @@ function mapEntryToSnapshot(
     apiBaseUrl: entry.apiBaseUrl,
     openApiSpecUrl: entry.openApiSpecUrl,
     x402ResourcesUrl: entry.x402ResourcesUrl,
+    a2a:
+      entry.A2A == null
+        ? null
+        : {
+            agentCardUrl: entry.A2A.agentCardUrl,
+            protocolVersions: entry.A2A.protocolVersions,
+          },
     description: entry.description,
     image: entry.image,
     tags: entry.tags,
@@ -116,6 +124,8 @@ async function exportSnapshotForSource(sourceId: string): Promise<{
         },
       },
       ExampleOutput: true,
+
+      A2A: true,
       SupportedPaymentSources: {
         include: {
           Pricing: {

@@ -14,6 +14,7 @@ export function specKindForType(
 ): SpecKind | null {
   if (type === $Enums.RegistryEntryType.OpenApi) return 'openapi';
   if (type === $Enums.RegistryEntryType.X402) return 'x402';
+  if (type === $Enums.RegistryEntryType.A2A) return 'a2a';
   return null;
 }
 
@@ -31,16 +32,42 @@ export async function checkSpecEntry(entry: {
   type: $Enums.RegistryEntryType;
   openApiSpecUrl: string | null;
   x402ResourcesUrl: string | null;
+
+  A2A: { agentCardUrl: string; protocolVersions: string[] } | null;
 }): Promise<SpecEntryCheck> {
   const kind = specKindForType(entry.type);
-  const url =
-    kind === 'openapi' ? entry.openApiSpecUrl : entry.x402ResourcesUrl;
-  if (kind == null || url == null) {
+  if (kind == null) {
+    // Not a spec-type entry; nothing fetchable to validate.
+    return { status: $Enums.Status.Invalid };
+  }
+
+  let url: string | null;
+  switch (kind) {
+    case 'openapi':
+      url = entry.openApiSpecUrl;
+      break;
+    case 'x402':
+      url = entry.x402ResourcesUrl;
+      break;
+    case 'a2a':
+      url = entry.A2A?.agentCardUrl ?? null;
+      break;
+    default: {
+      const exhaustiveKind: never = kind;
+      throw new Error(`unhandled spec kind: ${String(exhaustiveKind)}`);
+    }
+  }
+  if (url == null) {
     // A spec-type entry with no URL is malformed metadata; mark Invalid.
     return { status: $Enums.Status.Invalid };
   }
+
+  const declaredProtocolVersions = entry.A2A?.protocolVersions ?? [];
+  if (kind === 'a2a' && declaredProtocolVersions.length === 0) {
+    return { status: $Enums.Status.Invalid };
+  }
   const outcome = await specFetchSemaphore.runExclusive(() =>
-    validateSpecUrl(kind, url)
+    validateSpecUrl(kind, url, { declaredProtocolVersions })
   );
   switch (outcome.outcome) {
     case 'valid':

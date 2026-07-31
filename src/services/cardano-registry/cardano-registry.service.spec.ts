@@ -3,11 +3,14 @@ import { prisma } from '@/utils/db';
 import { getBlockfrostInstance } from '@/utils/blockfrost';
 import { healthCheckService } from '@/services/health-check';
 import { DEFAULTS } from '@/utils/config';
-import { updateLatestCardanoRegistryEntries } from './cardano-registry.service';
+import {
+  registryEntryTypeFromOnChain,
+  updateLatestCardanoRegistryEntries,
+} from './cardano-registry.service';
 import { INBOX_REGISTRY_METADATA_TYPE } from './inbox-agent-registration';
 
-jest.mock('@/utils/db', () => ({
-  prisma: {
+jest.mock('@/utils/db', () => {
+  const prismaMock = {
     registrySource: {
       findMany: jest.fn(),
       update: jest.fn(),
@@ -21,11 +24,20 @@ jest.mock('@/utils/db', () => ({
       upsert: jest.fn(),
       updateMany: jest.fn(),
     },
-    $transaction: jest.fn((operations: Promise<unknown>[]) =>
-      Promise.all(operations)
-    ),
-  },
-}));
+    a2ARegistryEntry: {
+      upsert: jest.fn(),
+      deleteMany: jest.fn(),
+    },
+
+    $transaction: jest.fn(),
+  };
+
+  prismaMock.$transaction.mockImplementation(
+    (arg: Promise<unknown>[] | ((tx: unknown) => Promise<unknown>)) =>
+      typeof arg === 'function' ? arg(prismaMock) : Promise.all(arg)
+  );
+  return { prisma: prismaMock };
+});
 
 jest.mock('@/utils/blockfrost', () => ({
   getBlockfrostInstance: jest.fn(),
@@ -46,6 +58,36 @@ jest.mock('@/utils/logger', () => ({
     warn: jest.fn(),
   },
 }));
+
+describe('registryEntryTypeFromOnChain', () => {
+  it('maps each known on-chain type string', () => {
+    expect(registryEntryTypeFromOnChain('OpenAPI')).toBe(
+      $Enums.RegistryEntryType.OpenApi
+    );
+    expect(registryEntryTypeFromOnChain('x402V1')).toBe(
+      $Enums.RegistryEntryType.X402
+    );
+    expect(registryEntryTypeFromOnChain('a2aV1')).toBe(
+      $Enums.RegistryEntryType.A2A
+    );
+  });
+
+  it('degrades absent or unknown types to Standard', () => {
+    expect(registryEntryTypeFromOnChain(undefined)).toBe(
+      $Enums.RegistryEntryType.Standard
+    );
+
+    expect(registryEntryTypeFromOnChain('a2aV2')).toBe(
+      $Enums.RegistryEntryType.Standard
+    );
+  });
+
+  it('joins a CIP-25 chunked (array) type value', () => {
+    expect(registryEntryTypeFromOnChain(['a2a', 'V1'])).toBe(
+      $Enums.RegistryEntryType.A2A
+    );
+  });
+});
 
 describe('updateLatestCardanoRegistryEntries', () => {
   const source = {
@@ -147,6 +189,146 @@ describe('updateLatestCardanoRegistryEntries', () => {
     expect(
       healthCheckService.checkVerifyAndUpdateInboxAgentRegistrations
     ).not.toHaveBeenCalled();
+  });
+
+  it('probes an A2A entry via its agent card url, not api_base_url', async () => {
+    const v2Source = {
+      ...source,
+      policyId: DEFAULTS.REGISTRY_POLICY_ID_PREPROD_V2,
+    };
+    const a2aAsset = `${v2Source.policyId}a2a`;
+    const cardUrl = 'https://agent.example/.well-known/agent-card.json';
+
+    (prisma.registrySource.findMany as jest.Mock).mockResolvedValue([v2Source]);
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve([{ tx_hash: 'tx-a2a', purpose: 'mint' }]),
+      })
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve([]) });
+
+    (getBlockfrostInstance as jest.Mock).mockReturnValue({
+      txsUtxos: jest.fn(() => ({
+        inputs: [],
+        outputs: [{ amount: [{ unit: a2aAsset, quantity: '1' }] }],
+      })),
+      assetsById: jest.fn(() => ({
+        onchain_metadata: {
+          name: 'A2A Agent',
+          type: 'a2aV1',
+          api_base_url: 'https://agent.example/mip',
+          agent_card_url: cardUrl,
+          a2a_protocol_versions: ['1.0'],
+          author: { name: 'Author' },
+          tags: ['ai'],
+          image: 'https://agent.example/logo.png',
+          metadata_version: 2,
+          supported_payment_sources: [
+            {
+              chain: 'Cardano',
+              network: 'Preprod',
+              settlement: {
+                paymentSourceType: 'Web3CardanoV2',
+                address: 'addr_test1example',
+              },
+              pricing: { pricingType: 'Free' },
+            },
+          ],
+        },
+      })),
+    });
+    (healthCheckService.checkAndVerifyEndpoint as jest.Mock).mockResolvedValue({
+      returnedAgentIdentifier: null,
+      status: $Enums.Status.Online,
+    });
+    (prisma.registryEntry.upsert as jest.Mock).mockResolvedValue({
+      id: 'entry-a2a',
+    });
+
+    await updateLatestCardanoRegistryEntries();
+
+    expect(healthCheckService.checkAndVerifyEndpoint).toHaveBeenCalledWith({
+      api_url: cardUrl,
+    });
+    expect(prisma.registryEntry.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { assetIdentifier: a2aAsset },
+        create: expect.objectContaining({
+          type: $Enums.RegistryEntryType.A2A,
+          // Coexistence: apiBaseUrl is still indexed for an A2A entry.
+          apiBaseUrl: 'https://agent.example/mip',
+        }),
+      })
+    );
+    // Descriptor written to its own table, not onto RegistryEntry.
+    expect(prisma.a2ARegistryEntry.upsert).toHaveBeenCalledWith({
+      where: { registryEntryId: 'entry-a2a' },
+      create: {
+        registryEntryId: 'entry-a2a',
+        agentCardUrl: cardUrl,
+        protocolVersions: ['1.0'],
+      },
+      update: { agentCardUrl: cardUrl, protocolVersions: ['1.0'] },
+    });
+    expect(prisma.a2ARegistryEntry.deleteMany).not.toHaveBeenCalled();
+  });
+
+  it('removes a stale A2A descriptor when an entry is no longer A2A', async () => {
+    const v2Source = {
+      ...source,
+      policyId: DEFAULTS.REGISTRY_POLICY_ID_PREPROD_V2,
+    };
+    const asset = `${v2Source.policyId}standard`;
+
+    (prisma.registrySource.findMany as jest.Mock).mockResolvedValue([v2Source]);
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve([{ tx_hash: 'tx-std', purpose: 'mint' }]),
+      })
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve([]) });
+
+    (getBlockfrostInstance as jest.Mock).mockReturnValue({
+      txsUtxos: jest.fn(() => ({
+        inputs: [],
+        outputs: [{ amount: [{ unit: asset, quantity: '1' }] }],
+      })),
+      assetsById: jest.fn(() => ({
+        onchain_metadata: {
+          name: 'Standard Agent',
+          api_base_url: 'https://agent.example/mip',
+          author: { name: 'Author' },
+          tags: ['ai'],
+          image: 'https://agent.example/logo.png',
+          metadata_version: 2,
+          supported_payment_sources: [
+            {
+              chain: 'Cardano',
+              network: 'Preprod',
+              settlement: {
+                paymentSourceType: 'Web3CardanoV2',
+                address: 'addr_test1example',
+              },
+              pricing: { pricingType: 'Free' },
+            },
+          ],
+        },
+      })),
+    });
+    (healthCheckService.checkAndVerifyEndpoint as jest.Mock).mockResolvedValue({
+      returnedAgentIdentifier: null,
+      status: $Enums.Status.Online,
+    });
+    (prisma.registryEntry.upsert as jest.Mock).mockResolvedValue({
+      id: 'entry-std',
+    });
+
+    await updateLatestCardanoRegistryEntries();
+
+    expect(prisma.a2ARegistryEntry.deleteMany).toHaveBeenCalledWith({
+      where: { registryEntryId: 'entry-std' },
+    });
+    expect(prisma.a2ARegistryEntry.upsert).not.toHaveBeenCalled();
   });
 
   it('advances past semantically invalid V2 metadata and syncs later mints', async () => {
