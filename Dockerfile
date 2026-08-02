@@ -29,6 +29,7 @@ COPY frontend/package.json ./
 COPY frontend/openapi-ts.config.ts ./openapi-ts.config.ts
 COPY frontend/openapi-docs.json ./openapi-docs.json
 COPY frontend/src ./src
+COPY frontend/public ./public
 COPY frontend/next.config.ts ./
 COPY frontend/postcss.config.mjs ./
 COPY frontend/tsconfig.json ./

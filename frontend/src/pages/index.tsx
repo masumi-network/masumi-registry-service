@@ -8,12 +8,94 @@ import { StatCard } from '@/components/ui/stat-card';
 import { RefreshButton } from '@/components/RefreshButton';
 import { Spinner } from '@/components/ui/spinner';
 import { useAppContext } from '@/lib/contexts/AppContext';
+import type { Client } from '@/lib/api/generated/client';
 import {
   getApiKey,
   getHealth,
   getRegistrySource,
   postRegistryEntry,
 } from '@/lib/api/generated';
+
+const PAGE_SIZE = 50;
+/** Safety cap so a huge registry can't hang the dashboard forever. */
+const MAX_PAGES = 100;
+
+type CountResult = {
+  count: number;
+  hasMore: boolean;
+};
+
+async function countInclusiveCursorPages(options: {
+  fetchPage: (cursorId: string | undefined) => Promise<Array<{ id: string }>>;
+}): Promise<CountResult> {
+  const seen = new Set<string>();
+  let cursorId: string | undefined;
+  let pages = 0;
+
+  while (pages < MAX_PAGES) {
+    const page = await options.fetchPage(cursorId);
+    pages += 1;
+
+    for (const item of page) {
+      if (!seen.has(item.id)) seen.add(item.id);
+    }
+
+    if (page.length < PAGE_SIZE) {
+      return { count: seen.size, hasMore: false };
+    }
+
+    const lastId = page[page.length - 1]?.id;
+    if (!lastId || lastId === cursorId) {
+      return { count: seen.size, hasMore: false };
+    }
+    cursorId = lastId;
+  }
+
+  return { count: seen.size, hasMore: true };
+}
+
+function formatCount({ count, hasMore }: CountResult) {
+  return `${count}${hasMore ? '+' : ''}`;
+}
+
+async function countAgents(apiClient: Client, network: 'Preprod' | 'Mainnet') {
+  return countInclusiveCursorPages({
+    fetchPage: async (cursorId) => {
+      const response = await postRegistryEntry({
+        client: apiClient,
+        body: { network, limit: PAGE_SIZE, cursorId },
+      });
+      if (response.error) throw response.error;
+      return response.data?.data?.entries ?? [];
+    },
+  });
+}
+
+async function countSources(apiClient: Client) {
+  return countInclusiveCursorPages({
+    fetchPage: async (cursorId) => {
+      const response = await getRegistrySource({
+        client: apiClient,
+        query: { limit: PAGE_SIZE, cursorId },
+      });
+      if (response.error) throw response.error;
+      return response.data?.data?.sources ?? [];
+    },
+  });
+}
+
+async function countApiKeys(apiClient: Client) {
+  return countInclusiveCursorPages({
+    fetchPage: async (cursorId) => {
+      const response = await getApiKey({
+        client: apiClient,
+        query: { limit: PAGE_SIZE, cursorId },
+      });
+      if (response.error) throw response.error;
+      return response.data?.data?.apiKeys ?? [];
+    },
+  });
+}
 
 export default function DashboardPage() {
   const { apiClient, network } = useAppContext();
@@ -27,60 +109,35 @@ export default function DashboardPage() {
     },
   });
 
-  const agentsQuery = useQuery({
-    queryKey: ['agents-preview', network],
-    queryFn: async () => {
-      const response = await postRegistryEntry({
-        client: apiClient,
-        body: { network, limit: 5 },
-      });
-      if (response.error) throw response.error;
-      return response.data?.data;
-    },
+  const agentsCountQuery = useQuery({
+    queryKey: ['agents-count', network],
+    queryFn: () => countAgents(apiClient, network),
   });
 
-  const sourcesQuery = useQuery({
-    queryKey: ['sources-preview'],
-    queryFn: async () => {
-      const response = await getRegistrySource({
-        client: apiClient,
-        query: { limit: 5 },
-      });
-      if (response.error) throw response.error;
-      return response.data?.data;
-    },
+  const sourcesCountQuery = useQuery({
+    queryKey: ['sources-count'],
+    queryFn: () => countSources(apiClient),
   });
 
-  const keysQuery = useQuery({
-    queryKey: ['api-keys-preview'],
-    queryFn: async () => {
-      const response = await getApiKey({
-        client: apiClient,
-        query: { limit: 5 },
-      });
-      if (response.error) throw response.error;
-      return response.data?.data;
-    },
+  const keysCountQuery = useQuery({
+    queryKey: ['api-keys-count'],
+    queryFn: () => countApiKeys(apiClient),
   });
 
   const isRefreshing =
     healthQuery.isFetching ||
-    agentsQuery.isFetching ||
-    sourcesQuery.isFetching ||
-    keysQuery.isFetching;
+    agentsCountQuery.isFetching ||
+    sourcesCountQuery.isFetching ||
+    keysCountQuery.isFetching;
 
   const handleRefresh = async () => {
     await Promise.all([
       healthQuery.refetch(),
-      agentsQuery.refetch(),
-      sourcesQuery.refetch(),
-      keysQuery.refetch(),
+      agentsCountQuery.refetch(),
+      sourcesCountQuery.refetch(),
+      keysCountQuery.refetch(),
     ]);
   };
-
-  const agentsCount = agentsQuery.data?.entries.length ?? 0;
-  const sourcesCount = sourcesQuery.data?.sources.length ?? 0;
-  const keysCount = keysQuery.data?.apiKeys.length ?? 0;
 
   return (
     <MainLayout>
@@ -100,7 +157,7 @@ export default function DashboardPage() {
           </div>
 
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            {agentsQuery.isLoading ? (
+            {agentsCountQuery.isLoading ? (
               <div className="border rounded-lg p-6 flex items-center justify-center min-h-[120px]">
                 <Spinner size={18} />
               </div>
@@ -111,8 +168,9 @@ export default function DashboardPage() {
                 icon={<Bot className="h-4 w-4 text-blue-500" />}
               >
                 <div className="text-2xl font-semibold">
-                  {agentsCount}
-                  {agentsCount >= 5 ? '+' : ''}
+                  {agentsCountQuery.isError
+                    ? '—'
+                    : formatCount(agentsCountQuery.data ?? { count: 0, hasMore: false })}
                 </div>
                 <Link
                   href="/agents"
@@ -123,7 +181,7 @@ export default function DashboardPage() {
               </StatCard>
             )}
 
-            {sourcesQuery.isLoading ? (
+            {sourcesCountQuery.isLoading ? (
               <div className="border rounded-lg p-6 flex items-center justify-center min-h-[120px]">
                 <Spinner size={18} />
               </div>
@@ -134,8 +192,9 @@ export default function DashboardPage() {
                 icon={<Database className="h-4 w-4 text-green-500" />}
               >
                 <div className="text-2xl font-semibold">
-                  {sourcesCount}
-                  {sourcesCount >= 5 ? '+' : ''}
+                  {sourcesCountQuery.isError
+                    ? '—'
+                    : formatCount(sourcesCountQuery.data ?? { count: 0, hasMore: false })}
                 </div>
                 <Link
                   href="/sources"
@@ -146,7 +205,7 @@ export default function DashboardPage() {
               </StatCard>
             )}
 
-            {keysQuery.isLoading ? (
+            {keysCountQuery.isLoading ? (
               <div className="border rounded-lg p-6 flex items-center justify-center min-h-[120px]">
                 <Spinner size={18} />
               </div>
@@ -157,8 +216,9 @@ export default function DashboardPage() {
                 icon={<Key className="h-4 w-4 text-orange-500" />}
               >
                 <div className="text-2xl font-semibold">
-                  {keysCount}
-                  {keysCount >= 5 ? '+' : ''}
+                  {keysCountQuery.isError
+                    ? '—'
+                    : formatCount(keysCountQuery.data ?? { count: 0, hasMore: false })}
                 </div>
                 <Link
                   href="/api-keys"

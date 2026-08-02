@@ -74,16 +74,18 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent aria-describedby={undefined}>
+      <DialogContent
+        aria-describedby={undefined}
+        className="overflow-hidden p-0 gap-0 shadow-lg"
+      >
         <DialogTitle className="sr-only">Search</DialogTitle>
-        <Command className="py-2" shouldFilter={false}>
+        <Command className="rounded-lg border-0" shouldFilter={false}>
           <CommandInput
             placeholder="Type to search..."
             value={searchQuery}
             onValueChange={(value) => {
               setSearchQuery(value);
             }}
-            className="p-1 px-2 mb-2"
           />
           <CommandList>
             {searchResults.length > 0 ? (
