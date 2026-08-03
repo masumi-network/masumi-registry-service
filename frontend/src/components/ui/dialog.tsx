@@ -1,0 +1,206 @@
+import * as React from 'react';
+import * as DialogPrimitive from '@radix-ui/react-dialog';
+import { X, ArrowLeft } from 'lucide-react';
+
+import { cn } from '@/lib/utils';
+
+const Dialog = DialogPrimitive.Root;
+
+const DialogTrigger = DialogPrimitive.Trigger;
+
+const DialogPortal = DialogPrimitive.Portal;
+
+const DialogClose = DialogPrimitive.Close;
+
+const DialogOverlay = React.forwardRef<
+  React.ElementRef<typeof DialogPrimitive.Overlay>,
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Overlay> & {
+    hideOverlay?: boolean;
+  }
+>(({ className, hideOverlay, ...props }, ref) => (
+  <DialogPrimitive.Overlay
+    ref={ref}
+    className={cn(
+      'fixed inset-0 z-999 bg-black/80 backdrop-blur-lg data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
+      hideOverlay && 'dialog-overlay-hidden',
+      className,
+    )}
+    {...props}
+  />
+));
+DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
+
+const DialogContent = React.forwardRef<
+  React.ElementRef<typeof DialogPrimitive.Content>,
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & {
+    hideClose?: boolean;
+    variant?: 'default' | 'slide-from-right';
+    isPushedBack?: boolean;
+    hideOverlay?: boolean;
+    onBack?: () => void;
+    /**
+     * Standard modal width scale. Prefer this over ad-hoc `max-w-[...]` classes
+     * so dialogs stay visually consistent: sm=480 (compact forms/confirms),
+     * md=600 (detail views), lg=700 (large forms), xl=800 (wide/multi-column).
+     */
+    size?: 'sm' | 'md' | 'lg' | 'xl';
+    /** Stack above default modals (e.g. agent details over transaction modal). */
+    elevatedStack?: boolean;
+    /** Stack above an elevated parent (e.g. verify/wallet over elevated agent dialog). */
+    elevatedChildStack?: boolean;
+    /** Stack above elevated-child layer (e.g. confirm/swap inside elevated wallet). */
+    elevatedGrandchildStack?: boolean;
+  }
+>(
+  (
+    {
+      className,
+      children,
+      hideClose,
+      variant,
+      isPushedBack,
+      hideOverlay,
+      onBack,
+      size,
+      elevatedStack,
+      elevatedChildStack,
+      elevatedGrandchildStack,
+      ...props
+    },
+    ref,
+  ) => {
+    const sizeClass = size
+      ? {
+          sm: 'sm:max-w-[480px]',
+          md: 'sm:max-w-[600px]',
+          lg: 'sm:max-w-[700px]',
+          xl: 'sm:max-w-[800px]',
+        }[size]
+      : undefined;
+    const useCustomAnimation = variant !== undefined || isPushedBack !== undefined;
+
+    const variantClass =
+      variant === 'slide-from-right'
+        ? 'dialog-slide-variant'
+        : useCustomAnimation
+          ? 'dialog-default-variant'
+          : undefined;
+
+    const defaultAnimationClasses = useCustomAnimation
+      ? ''
+      : 'duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%]';
+
+    const stackOverlayClass = elevatedGrandchildStack
+      ? '!z-[1104]'
+      : elevatedChildStack
+        ? '!z-[1102]'
+        : elevatedStack
+          ? '!z-[1100]'
+          : undefined;
+    const stackContentClass = elevatedGrandchildStack
+      ? '!z-[1105]'
+      : elevatedChildStack
+        ? '!z-[1103]'
+        : elevatedStack
+          ? '!z-[1101]'
+          : undefined;
+
+    return (
+      <DialogPortal>
+        <DialogOverlay hideOverlay={hideOverlay} className={stackOverlayClass} />
+        <DialogPrimitive.Content
+          ref={ref}
+          className={cn(
+            'fixed left-[50%] top-[50%] z-1000 grid w-full max-w-lg max-h-[80vh] overflow-y-auto translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background px-6 pb-6 pt-10 shadow-lg sm:rounded-lg',
+            stackContentClass,
+            defaultAnimationClasses,
+            variantClass,
+            isPushedBack !== undefined && 'dialog-content-stackable',
+            isPushedBack && 'is-pushed-back',
+            onBack && 'pt-12',
+            sizeClass,
+            className,
+          )}
+          {...props}
+        >
+          {children}
+          {onBack && (
+            <button
+              onClick={onBack}
+              className="absolute left-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              <span className="sr-only">Back</span>
+            </button>
+          )}
+          {!hideClose && !onBack && (
+            <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
+              <X className="h-4 w-4" />
+              <span className="sr-only">Close</span>
+            </DialogPrimitive.Close>
+          )}
+        </DialogPrimitive.Content>
+      </DialogPortal>
+    );
+  },
+);
+DialogContent.displayName = DialogPrimitive.Content.displayName;
+
+const DialogHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
+  <div
+    className={cn(
+      'flex flex-col space-y-1.5 text-center sm:text-left animate-fade-in-up opacity-0 animate-stagger-1',
+      className,
+    )}
+    {...props}
+  />
+);
+DialogHeader.displayName = 'DialogHeader';
+
+const DialogFooter = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
+  <div
+    className={cn(
+      'flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 animate-fade-in-up opacity-0 animate-stagger-2',
+      className,
+    )}
+    {...props}
+  />
+);
+DialogFooter.displayName = 'DialogFooter';
+
+const DialogTitle = React.forwardRef<
+  React.ElementRef<typeof DialogPrimitive.Title>,
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Title>
+>(({ className, ...props }, ref) => (
+  <DialogPrimitive.Title
+    ref={ref}
+    className={cn('text-lg font-semibold leading-none tracking-tight', className)}
+    {...props}
+  />
+));
+DialogTitle.displayName = DialogPrimitive.Title.displayName;
+
+const DialogDescription = React.forwardRef<
+  React.ElementRef<typeof DialogPrimitive.Description>,
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Description>
+>(({ className, ...props }, ref) => (
+  <DialogPrimitive.Description
+    ref={ref}
+    className={cn('text-sm text-muted-foreground', className)}
+    {...props}
+  />
+));
+DialogDescription.displayName = DialogPrimitive.Description.displayName;
+
+export {
+  Dialog,
+  DialogPortal,
+  DialogOverlay,
+  DialogTrigger,
+  DialogClose,
+  DialogContent,
+  DialogHeader,
+  DialogFooter,
+  DialogTitle,
+  DialogDescription,
+};

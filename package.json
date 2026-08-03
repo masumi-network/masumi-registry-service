@@ -25,6 +25,9 @@
     "dev": "tsx watch ./src/index.ts",
     "build": "prisma generate && tsc --noEmit && pkgroll && mkdir -p dist/public && cp -r public/* dist/public/",
     "start": "NODE_ENV=production && node ./dist/index.js",
+    "frontend:dev": "pnpm -C frontend run dev",
+    "frontend:build": "pnpm -C frontend run build",
+    "frontend:lint": "pnpm -C frontend run lint",
     "swagger-json": "export DATABASE_URL=postgresql://mock-user:mock-pass@localhost:5432/mock-testdb && tsx ./src/utils/swagger-generator/cli.ts",
     "knip": "knip",
     "snapshot:export": "tsx ./src/scripts/snapshot-export.ts",
@@ -78,11 +81,5 @@
     "tsx": "4.21.0",
     "typescript": "6.0.3",
     "typescript-eslint": "8.59.3"
-  },
-  "lint-staged": {
-    "*.{js,ts}": [
-      "pnpm run lint",
-      "pnpm run format"
-    ]
   }
 }

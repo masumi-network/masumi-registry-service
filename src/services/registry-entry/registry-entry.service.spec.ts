@@ -75,6 +75,7 @@ describe('registryEntryService.searchRegistryEntries', () => {
       limit: 20,
       network: Network.Preprod,
       searchQuery: 'example agent',
+      sort: 'createdAt-desc',
     });
     expect(checkVerifyAndUpdateRegistryEntries).toHaveBeenCalledWith({
       registryEntries: [{ id: 'entry-1' }],
@@ -116,6 +117,7 @@ describe('registryEntryService.searchRegistryEntries', () => {
       limit: 10,
       network: Network.Mainnet,
       searchQuery: 'api 1',
+      sort: 'createdAt-desc',
     });
     expect(checkVerifyAndUpdateRegistryEntries).toHaveBeenCalledWith({
       registryEntries: [{ id: 'entry-1' }],
@@ -141,6 +143,7 @@ describe('registryEntryService.searchRegistryEntries', () => {
       limit: 20,
       network: Network.Preprod,
       searchQuery: '100\\% \\_agent\\\\name',
+      sort: 'createdAt-desc',
     });
   });
 });

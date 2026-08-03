@@ -8,8 +8,8 @@ import ui, { JsonObject } from 'swagger-ui-express';
 import express from 'express';
 import { generateOpenAPI } from '@/utils/swagger-generator';
 import { cleanupDB, initDB } from '@/utils/db';
-import { readFileSync } from 'fs';
-import { join } from 'path';
+import { existsSync, readFileSync } from 'fs';
+import { join, relative, resolve, isAbsolute } from 'path';
 import {
   applySecurityHeaders,
   buildSwaggerUiOptions,
@@ -81,6 +81,40 @@ initialize()
         );
         app.get('/api-docs', (_, res) => {
           res.json(JSON.parse(docsString));
+        });
+
+        // Serve static admin UI (Next.js export under frontend/dist)
+        const adminDistDir = resolve(process.cwd(), 'frontend/dist');
+        app.use('/admin', express.static(adminDistDir));
+        app.use('/_next', express.static(join(adminDistDir, '_next')));
+        app.get('/admin/*name', (req, res, next) => {
+          // Skip static files (files with extensions)
+          if (req.path.match(/\.[a-zA-Z0-9]+$/)) {
+            return next();
+          }
+
+          const routeName = req.path.replace('/admin/', '').replace(/\/$/, '');
+          const htmlFile =
+            routeName === '' ? 'index.html' : `${routeName}.html`;
+          const requestedPath = resolve(adminDistDir, htmlFile);
+
+          // Ensure resolved path stays inside frontend/dist (prevents path traversal)
+          const relativeToBase = relative(adminDistDir, requestedPath);
+          const isOutsideBase =
+            relativeToBase.startsWith('..') || isAbsolute(relativeToBase);
+
+          if (isOutsideBase || !existsSync(requestedPath)) {
+            const notFound = join(adminDistDir, '404.html');
+            if (existsSync(notFound)) {
+              res.sendFile(notFound);
+              return;
+            }
+            res
+              .status(404)
+              .send('Admin UI not built. Run: pnpm run frontend:build');
+            return;
+          }
+          res.sendFile(requestedPath);
         });
       },
       http: {
