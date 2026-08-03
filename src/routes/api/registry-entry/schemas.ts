@@ -27,12 +27,30 @@ const registryEntryFilterSchema = z.object({
     ),
 });
 
+export const registryEntrySortValues = [
+  'createdAt-desc',
+  'createdAt-asc',
+  'name-asc',
+  'name-desc',
+  'lastUptimeCheck-desc',
+  'lastUptimeCheck-asc',
+] as const;
+
+export const registryEntrySortSchema = z
+  .enum(registryEntrySortValues)
+  .describe(
+    'Sort order for paginated results. Defaults to createdAt-desc. Cursor pagination stays stable via id tie-breakers.'
+  );
+
+export type RegistryEntrySort = (typeof registryEntrySortValues)[number];
+
 export const queryRegistrySchemaInput = z.object({
   network: z.nativeEnum(Network),
   limit: z.coerce.number().int().min(1).max(50).default(10),
   //optional data
   cursorId: z.string().min(1).max(50).optional(),
   filter: registryEntryFilterSchema.optional(),
+  sort: registryEntrySortSchema.optional(),
   minHealthCheckDate: ez.dateIn().optional(),
 });
 
@@ -49,6 +67,7 @@ export const searchRegistrySchemaInput = z.object({
       'Case-insensitive fuzzy match against registry entry core metadata, capability, asset identifier, api base URL, and tags.'
     ),
   filter: registryEntryFilterSchema.optional(),
+  sort: registryEntrySortSchema.optional(),
   minHealthCheckDate: ez.dateIn().optional(),
 });
 

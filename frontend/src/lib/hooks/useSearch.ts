@@ -145,7 +145,7 @@ export function useSearch(enabled = true) {
           agent.agentIdentifier,
           agent.id,
           ...(agent.tags ?? []),
-          agent.apiBaseUrl,
+          agent.apiBaseUrl ?? '',
           agent.description ?? '',
         ],
       });

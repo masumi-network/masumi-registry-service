@@ -163,6 +163,7 @@ async function getHealthCheckedRegistryEntries(
   }
 
   while (healthCheckedEntries.length < input.limit) {
+    const sort = input.sort ?? 'createdAt-desc';
     const registryEntries = searchQuery
       ? await registryEntryRepository.searchRegistryEntries({
           capability,
@@ -175,6 +176,7 @@ async function getHealthCheckedRegistryEntries(
           limit: input.limit * 2,
           network: input.network,
           searchQuery,
+          sort,
         })
       : await registryEntryRepository.getRegistryEntry({
           capability,
@@ -186,6 +188,7 @@ async function getHealthCheckedRegistryEntries(
           cursorId: currentCursorId,
           limit: input.limit * 2,
           network: input.network,
+          sort,
         });
 
     const result = await healthCheckService.checkVerifyAndUpdateRegistryEntries(

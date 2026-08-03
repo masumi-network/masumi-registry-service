@@ -308,8 +308,25 @@ export const PaymentInformationSchema = {
         uptimeCheckCount: {
             type: 'number'
         },
+        type: {
+            type: 'string',
+            enum: [
+                'Standard',
+                'OpenApi',
+                'X402'
+            ]
+        },
         apiBaseUrl: {
-            type: 'string'
+            type: 'string',
+            nullable: true
+        },
+        openApiSpecUrl: {
+            type: 'string',
+            nullable: true
+        },
+        x402ResourcesUrl: {
+            type: 'string',
+            nullable: true
         },
         authorName: {
             type: 'string',
@@ -400,7 +417,10 @@ export const PaymentInformationSchema = {
         'lastUptimeCheck',
         'uptimeCount',
         'uptimeCheckCount',
+        'type',
         'apiBaseUrl',
+        'openApiSpecUrl',
+        'x402ResourcesUrl',
         'authorName',
         'authorOrganization',
         'authorContactEmail',
@@ -456,8 +476,25 @@ export const RegistryEntrySchema = {
         uptimeCheckCount: {
             type: 'number'
         },
+        type: {
+            type: 'string',
+            enum: [
+                'Standard',
+                'OpenApi',
+                'X402'
+            ]
+        },
         apiBaseUrl: {
-            type: 'string'
+            type: 'string',
+            nullable: true
+        },
+        openApiSpecUrl: {
+            type: 'string',
+            nullable: true
+        },
+        x402ResourcesUrl: {
+            type: 'string',
+            nullable: true
         },
         authorName: {
             type: 'string',
@@ -874,7 +911,10 @@ export const RegistryEntrySchema = {
         'lastUptimeCheck',
         'uptimeCount',
         'uptimeCheckCount',
+        'type',
         'apiBaseUrl',
+        'openApiSpecUrl',
+        'x402ResourcesUrl',
         'authorName',
         'authorOrganization',
         'authorContactEmail',

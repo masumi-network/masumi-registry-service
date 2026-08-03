@@ -18,6 +18,11 @@ import {
   toRegistryEntryFilter,
   type AgentFilterState,
 } from '@/components/agents/AgentFilters';
+import {
+  AgentSort,
+  DEFAULT_AGENT_SORT,
+  type AgentSortKey,
+} from '@/components/agents/AgentSort';
 import { AgentDetailsDialog } from '@/components/agents/AgentDetailsDialog';
 import { CopyButton } from '@/components/ui/copy-button';
 import {
@@ -37,7 +42,14 @@ import {
   postRegistryEntrySearch,
   type RegistryEntry,
 } from '@/lib/api/generated';
-import { cn, extractErrorMessage, formatAssetAmount, formatDateTime, shortenId } from '@/lib/utils';
+import {
+  cn,
+  extractErrorMessage,
+  formatAssetAmount,
+  formatDate,
+  formatDateTime,
+  shortenId,
+} from '@/lib/utils';
 
 const PAGE_SIZE = 20;
 
@@ -106,6 +118,7 @@ export default function AgentsPage() {
   const [searchQuery, setSearchQuery] = useState(routerQuery);
   const [prevRouterQuery, setPrevRouterQuery] = useState(routerQuery);
   const [filters, setFilters] = useState<AgentFilterState>(EMPTY_AGENT_FILTERS);
+  const [sort, setSort] = useState<AgentSortKey>(DEFAULT_AGENT_SORT);
   const [selectedAgent, setSelectedAgent] = useState<RegistryEntry | null>(null);
   const debouncedSearchQuery = useDebouncedValue(searchQuery);
   const entryFilter = useMemo(() => toRegistryEntryFilter(filters), [filters]);
@@ -131,7 +144,7 @@ export default function AgentsPage() {
   }, [debouncedSearchQuery, router]);
 
   const agentsQuery = useInfiniteQuery({
-    queryKey: ['agents', network, debouncedSearchQuery, entryFilter],
+    queryKey: ['agents', network, debouncedSearchQuery, entryFilter, sort],
     placeholderData: keepPreviousData,
     initialPageParam: undefined as string | undefined,
     queryFn: async ({ pageParam }) => {
@@ -146,6 +159,7 @@ export default function AgentsPage() {
             limit: PAGE_SIZE,
             cursorId,
             filter: entryFilter,
+            sort,
           },
         });
         if (response.error) throw response.error;
@@ -163,6 +177,7 @@ export default function AgentsPage() {
           limit: PAGE_SIZE,
           cursorId,
           filter: entryFilter,
+          sort,
         },
       });
       if (response.error) throw response.error;
@@ -190,7 +205,8 @@ export default function AgentsPage() {
     searchQuery !== debouncedSearchQuery ||
     (agentsQuery.isFetching && agentsQuery.isPlaceholderData);
 
-  // Client-side filter for instant feedback while server results catch up.
+  // Client-side filter for instant feedback while debounce/server results catch up.
+  // Sort is applied server-side so Load More stays globally ordered.
   const displayEntries = useMemo(() => {
     let rows = entries;
     if (filters.status) {
@@ -202,12 +218,12 @@ export default function AgentsPage() {
 
     const query = searchQuery.toLowerCase().trim();
     if (
-      !query ||
-      (query === debouncedSearchQuery.toLowerCase().trim() && !agentsQuery.isPlaceholderData)
+      query &&
+      (query !== debouncedSearchQuery.toLowerCase().trim() || agentsQuery.isPlaceholderData)
     ) {
-      return rows;
+      return rows.filter((entry) => matchesLocalSearch(entry, query));
     }
-    return rows.filter((entry) => matchesLocalSearch(entry, query));
+    return rows;
   }, [
     entries,
     filters.paymentType,
@@ -255,6 +271,7 @@ export default function AgentsPage() {
                 isLoading={isSearchPending && !!searchQuery}
               />
             </div>
+            <AgentSort sort={sort} onChange={setSort} />
             <AgentFilters filters={filters} onChange={setFilters} />
             <RefreshButton
               onRefresh={async () => {
@@ -267,13 +284,14 @@ export default function AgentsPage() {
           <div className="rounded-lg border overflow-x-auto">
             <Table
               className={cn(
-                'min-w-[960px] transition-opacity duration-150',
+                'min-w-[1080px] transition-opacity duration-150',
                 isSearchPending && 'opacity-70',
               )}
             >
               <TableHeader>
                 <TableRow>
                   <TableHead className="pl-6">Name</TableHead>
+                  <TableHead>Created</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Identifier</TableHead>
                   <TableHead>Pricing</TableHead>
@@ -285,7 +303,7 @@ export default function AgentsPage() {
               <TableBody>
                 {showInitialLoading ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="py-16">
+                    <TableCell colSpan={8} className="py-16">
                       <div className="flex justify-center">
                         <Spinner size={20} addContainer />
                       </div>
@@ -293,7 +311,7 @@ export default function AgentsPage() {
                   </TableRow>
                 ) : showFetchError ? (
                   <TableRow>
-                    <TableCell colSpan={7}>
+                    <TableCell colSpan={8}>
                       <EmptyState
                         icon="inbox"
                         title="Failed to load agents"
@@ -317,7 +335,7 @@ export default function AgentsPage() {
                   </TableRow>
                 ) : displayEntries.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7}>
+                    <TableCell colSpan={8}>
                       <EmptyState
                         icon={searchQuery || activeFilterCount > 0 ? 'search' : 'inbox'}
                         title={
@@ -360,6 +378,14 @@ export default function AgentsPage() {
                           >
                             {entry.description || entry.apiBaseUrl}
                           </div>
+                        </TableCell>
+                        <TableCell
+                          className="text-sm whitespace-nowrap"
+                          title={
+                            entry.createdAt ? new Date(entry.createdAt).toLocaleString() : undefined
+                          }
+                        >
+                          {formatDate(entry.createdAt)}
                         </TableCell>
                         <TableCell className="whitespace-nowrap">
                           <Badge variant={statusVariant(entry.status)}>{entry.status}</Badge>

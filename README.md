@@ -29,6 +29,12 @@ A static Next.js admin interface is available at `/admin` (same pattern as the p
 
 ### Develop the admin UI
 
+Allow the Next origin in the registry `.env` (required for browser calls from `:3001`):
+
+```sh
+CORS_ALLOWED_ORIGINS=http://localhost:3001
+```
+
 ```sh
 # Terminal 1 — registry API (default PORT 3000)
 pnpm run dev
@@ -37,7 +43,7 @@ pnpm run dev
 pnpm run frontend:dev
 ```
 
-`frontend:dev` points at `http://localhost:3000/api/v1` via `frontend/.env.local` (see `.env.example`).
+`frontend:dev` points at `http://localhost:3000/api/v1` via `frontend/.env.local` (see `frontend/.env.example`).
 
 ### Build and serve via the registry process
 

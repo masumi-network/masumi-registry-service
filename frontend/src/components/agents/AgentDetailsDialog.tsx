@@ -255,18 +255,22 @@ export function AgentDetailsDialog({ agent, onClose, onAgentUpdated }: AgentDeta
                   <CardTitle className="text-sm font-medium">API</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex items-center justify-between gap-2 rounded-lg border bg-muted/40 p-2">
-                    <a
-                      href={agent.apiBaseUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm text-primary hover:underline truncate flex items-center gap-1 min-w-0"
-                    >
-                      <span className="truncate">{agent.apiBaseUrl}</span>
-                      <ExternalLink className="h-3 w-3 shrink-0" />
-                    </a>
-                    <CopyButton value={agent.apiBaseUrl} className="h-7 w-7 shrink-0" />
-                  </div>
+                  {agent.apiBaseUrl ? (
+                    <div className="flex items-center justify-between gap-2 rounded-lg border bg-muted/40 p-2">
+                      <a
+                        href={agent.apiBaseUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-primary hover:underline truncate flex items-center gap-1 min-w-0"
+                      >
+                        <span className="truncate">{agent.apiBaseUrl}</span>
+                        <ExternalLink className="h-3 w-3 shrink-0" />
+                      </a>
+                      <CopyButton value={agent.apiBaseUrl} className="h-7 w-7 shrink-0" />
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No API base URL</p>
+                  )}
                 </CardContent>
               </Card>
 

@@ -13,6 +13,8 @@ COPY ./prisma ./prisma
 COPY tsconfig.json .
 COPY public ./public
 RUN pnpm run build
+# Generate OpenAPI from this image's backend so the admin client matches the API.
+RUN pnpm run swagger-json
 RUN pnpm prune --prod
 
 FROM node:20-slim AS frontend-builder
@@ -27,7 +29,7 @@ ARG NEXT_PUBLIC_REGISTRY_API_BASE_URL=/api/v1
 ENV NEXT_PUBLIC_REGISTRY_API_BASE_URL=${NEXT_PUBLIC_REGISTRY_API_BASE_URL}
 COPY frontend/package.json ./
 COPY frontend/openapi-ts.config.ts ./openapi-ts.config.ts
-COPY frontend/openapi-docs.json ./openapi-docs.json
+COPY --from=builder /usr/src/app/src/utils/swagger-generator/openapi-docs.json ./openapi-docs.json
 COPY frontend/src ./src
 COPY frontend/public ./public
 COPY frontend/next.config.ts ./

@@ -66,7 +66,10 @@ export type PaymentInformation = {
     lastUptimeCheck: Date;
     uptimeCount: number;
     uptimeCheckCount: number;
-    apiBaseUrl: string;
+    type: 'Standard' | 'OpenApi' | 'X402';
+    apiBaseUrl: string | null;
+    openApiSpecUrl: string | null;
+    x402ResourcesUrl: string | null;
     authorName: string | null;
     authorOrganization: string | null;
     authorContactEmail: string | null;
@@ -95,7 +98,10 @@ export type RegistryEntry = {
     lastUptimeCheck: Date;
     uptimeCount: number;
     uptimeCheckCount: number;
-    apiBaseUrl: string;
+    type: 'Standard' | 'OpenApi' | 'X402';
+    apiBaseUrl: string | null;
+    openApiSpecUrl: string | null;
+    x402ResourcesUrl: string | null;
     authorName: string | null;
     authorOrganization: string | null;
     authorContactEmail: string | null;
@@ -326,6 +332,10 @@ export type PostRegistryEntryData = {
              */
             resolveToLatestVersion?: boolean;
         };
+        /**
+         * Sort order for paginated results. Defaults to createdAt-desc. Cursor pagination stays stable via id tie-breakers.
+         */
+        sort?: 'createdAt-desc' | 'createdAt-asc' | 'name-asc' | 'name-desc' | 'lastUptimeCheck-desc' | 'lastUptimeCheck-asc';
         minHealthCheckDate?: Date | Date;
     };
     path?: never;
@@ -386,6 +396,10 @@ export type PostRegistryEntrySearchData = {
              */
             resolveToLatestVersion?: boolean;
         };
+        /**
+         * Sort order for paginated results. Defaults to createdAt-desc. Cursor pagination stays stable via id tie-breakers.
+         */
+        sort?: 'createdAt-desc' | 'createdAt-asc' | 'name-asc' | 'name-desc' | 'lastUptimeCheck-desc' | 'lastUptimeCheck-asc';
         minHealthCheckDate?: Date | Date;
     };
     path?: never;

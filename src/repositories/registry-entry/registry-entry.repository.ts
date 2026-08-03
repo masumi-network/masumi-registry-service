@@ -1,5 +1,6 @@
 import { prisma } from '@/utils/db';
-import { Network, PaymentType, Status } from '@prisma/client';
+import { Network, PaymentType, Prisma, Status } from '@prisma/client';
+import type { RegistryEntrySort } from '@/routes/api/registry-entry/schemas';
 
 type RegistryEntryQueryParams = {
   capability:
@@ -14,7 +15,27 @@ type RegistryEntryQueryParams = {
   limit: number;
   network: Network;
   searchQuery?: string;
+  sort: RegistryEntrySort;
 };
+
+function buildRegistryEntryOrderBy(
+  sort: RegistryEntrySort
+): Prisma.RegistryEntryOrderByWithRelationInput[] {
+  switch (sort) {
+    case 'createdAt-asc':
+      return [{ createdAt: 'asc' }, { id: 'asc' }];
+    case 'createdAt-desc':
+      return [{ createdAt: 'desc' }, { id: 'desc' }];
+    case 'name-asc':
+      return [{ name: 'asc' }, { id: 'asc' }];
+    case 'name-desc':
+      return [{ name: 'desc' }, { id: 'desc' }];
+    case 'lastUptimeCheck-asc':
+      return [{ lastUptimeCheck: 'asc' }, { id: 'asc' }];
+    case 'lastUptimeCheck-desc':
+      return [{ lastUptimeCheck: 'desc' }, { id: 'desc' }];
+  }
+}
 
 function buildRegistryEntryWhere(params: RegistryEntryQueryParams) {
   return {
@@ -64,11 +85,7 @@ async function findRegistryEntries(params: RegistryEntryQueryParams) {
       },
       Verifications: true,
     },
-    orderBy: [
-      {
-        id: 'desc',
-      },
-    ],
+    orderBy: buildRegistryEntryOrderBy(params.sort),
     cursor: params.cursorId ? { id: params.cursorId } : undefined,
     //over-fetching to account for health check failures
     take: params.limit,

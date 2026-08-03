@@ -328,8 +328,25 @@
                     "uptimeCheckCount": {
                         "type": "number"
                     },
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "Standard",
+                            "OpenApi",
+                            "X402"
+                        ]
+                    },
                     "apiBaseUrl": {
-                        "type": "string"
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "openApiSpecUrl": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "x402ResourcesUrl": {
+                        "type": "string",
+                        "nullable": true
                     },
                     "authorName": {
                         "type": "string",
@@ -420,7 +437,10 @@
                     "lastUptimeCheck",
                     "uptimeCount",
                     "uptimeCheckCount",
+                    "type",
                     "apiBaseUrl",
+                    "openApiSpecUrl",
+                    "x402ResourcesUrl",
                     "authorName",
                     "authorOrganization",
                     "authorContactEmail",
@@ -475,8 +495,25 @@
                     "uptimeCheckCount": {
                         "type": "number"
                     },
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "Standard",
+                            "OpenApi",
+                            "X402"
+                        ]
+                    },
                     "apiBaseUrl": {
-                        "type": "string"
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "openApiSpecUrl": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "x402ResourcesUrl": {
+                        "type": "string",
+                        "nullable": true
                     },
                     "authorName": {
                         "type": "string",
@@ -893,7 +930,10 @@
                     "lastUptimeCheck",
                     "uptimeCount",
                     "uptimeCheckCount",
+                    "type",
                     "apiBaseUrl",
+                    "openApiSpecUrl",
+                    "x402ResourcesUrl",
                     "authorName",
                     "authorOrganization",
                     "authorContactEmail",
@@ -1481,6 +1521,18 @@
                                             }
                                         }
                                     },
+                                    "sort": {
+                                        "type": "string",
+                                        "enum": [
+                                            "createdAt-desc",
+                                            "createdAt-asc",
+                                            "name-asc",
+                                            "name-desc",
+                                            "lastUptimeCheck-desc",
+                                            "lastUptimeCheck-asc"
+                                        ],
+                                        "description": "Sort order for paginated results. Defaults to createdAt-desc. Cursor pagination stays stable via id tie-breakers."
+                                    },
                                     "minHealthCheckDate": {
                                         "anyOf": [
                                             {
@@ -1746,6 +1798,18 @@
                                                 "description": "When true and an assetIdentifier filter is provided, the assetIdentifier is first resolved to the latest version of the same V2 agent (same root, highest version) before matching — so passing any older version returns the current one. No effect on V1 assets or when no assetIdentifier is given. The plain assetIdentifier filter always stays an exact match."
                                             }
                                         }
+                                    },
+                                    "sort": {
+                                        "type": "string",
+                                        "enum": [
+                                            "createdAt-desc",
+                                            "createdAt-asc",
+                                            "name-asc",
+                                            "name-desc",
+                                            "lastUptimeCheck-desc",
+                                            "lastUptimeCheck-asc"
+                                        ],
+                                        "description": "Sort order for paginated results. Defaults to createdAt-desc. Cursor pagination stays stable via id tie-breakers."
                                     },
                                     "minHealthCheckDate": {
                                         "anyOf": [
