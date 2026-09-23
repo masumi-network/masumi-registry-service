@@ -23,7 +23,7 @@ A Registry Lookup service for MASUMI AI Nodes on the Cardano blockchain. Provide
 
 ## Tech Stack
 
-- **Runtime**: Node.js v20+, TypeScript 5.x, ES Modules (`"type": "module"`)
+- **Runtime**: Node.js v22.19+, TypeScript 5.x, ES Modules (`"type": "module"`)
 - **Framework**: Express 5 + express-zod-api (type-safe endpoints with auto OpenAPI)
 - **Database**: PostgreSQL 15 + Prisma ORM 6.x
 - **Validation**: Zod 3.x with @asteasolutions/zod-to-openapi
