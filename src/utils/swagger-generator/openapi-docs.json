@@ -957,6 +957,191 @@
                     "updatedAt"
                 ]
             },
+            "RegistryEntryFilter": {
+                "type": "object",
+                "properties": {
+                    "paymentTypes": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "Web3CardanoV1",
+                                "Web3CardanoV2",
+                                "None"
+                            ]
+                        },
+                        "maxItems": 5
+                    },
+                    "status": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "Online",
+                                "Offline",
+                                "Deregistered",
+                                "Invalid"
+                            ]
+                        },
+                        "maxItems": 5
+                    },
+                    "excludeStatus": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "Online",
+                                "Offline",
+                                "Deregistered",
+                                "Invalid"
+                            ]
+                        },
+                        "maxItems": 5,
+                        "description": "Statuses to exclude. Without `status`, all other statuses are included."
+                    },
+                    "pricing": {
+                        "$ref": "#/components/schemas/RegistryEntryPricingFilter"
+                    },
+                    "health": {
+                        "$ref": "#/components/schemas/RegistryEntryHealthFilter"
+                    },
+                    "registeredAfter": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "date"
+                            },
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            }
+                        ],
+                        "description": "Only entries first seen by the registry at or after this date."
+                    },
+                    "registeredBefore": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "date"
+                            },
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            }
+                        ],
+                        "description": "Only entries first seen by the registry at or before this date."
+                    },
+                    "policyId": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 250
+                    },
+                    "assetIdentifier": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 250
+                    },
+                    "tags": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 150
+                        }
+                    },
+                    "capability": {
+                        "type": "object",
+                        "properties": {
+                            "name": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 150
+                            },
+                            "version": {
+                                "type": "string",
+                                "maxLength": 150
+                            }
+                        },
+                        "required": [
+                            "name"
+                        ]
+                    },
+                    "resolveToLatestVersion": {
+                        "type": "boolean",
+                        "description": "When true and an assetIdentifier filter is provided, the assetIdentifier is first resolved to the latest version of the same V2 agent (same root, highest version) before matching — so passing any older version returns the current one. No effect on V1 assets or when no assetIdentifier is given. The plain assetIdentifier filter always stays an exact match."
+                    }
+                }
+            },
+            "RegistryEntryPricingFilter": {
+                "type": "object",
+                "properties": {
+                    "pricingType": {
+                        "type": "string",
+                        "enum": [
+                            "Fixed",
+                            "Free",
+                            "Dynamic"
+                        ],
+                        "description": "Pricing model of the agent or of any of its payment sources."
+                    },
+                    "unit": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 250,
+                        "description": "Only agents with a fixed price in this unit."
+                    },
+                    "minAmount": {
+                        "type": "string",
+                        "pattern": "^\\d{1,19}$",
+                        "description": "Minimum fixed price in `unit`, in base units. Needs `unit`."
+                    },
+                    "maxAmount": {
+                        "type": "string",
+                        "pattern": "^\\d{1,19}$",
+                        "description": "Maximum fixed price in `unit`, in base units. Needs `unit`."
+                    }
+                }
+            },
+            "RegistryEntryHealthFilter": {
+                "type": "object",
+                "properties": {
+                    "minUptimePercent": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 100,
+                        "description": "Minimum uptimeCount / uptimeCheckCount in percent. Entries that were never checked are excluded."
+                    },
+                    "lastCheckedAfter": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "date"
+                            },
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            }
+                        ],
+                        "description": "Entries last health-checked before this date are re-checked live before being returned. Replaces minHealthCheckDate."
+                    },
+                    "onlyOnline": {
+                        "type": "boolean",
+                        "description": "Only return entries whose status is Online."
+                    }
+                }
+            },
             "InboxAgentRegistration": {
                 "type": "object",
                 "properties": {
@@ -1453,73 +1638,7 @@
                                         "maxLength": 50
                                     },
                                     "filter": {
-                                        "type": "object",
-                                        "properties": {
-                                            "paymentTypes": {
-                                                "type": "array",
-                                                "items": {
-                                                    "type": "string",
-                                                    "enum": [
-                                                        "Web3CardanoV1",
-                                                        "Web3CardanoV2",
-                                                        "None"
-                                                    ]
-                                                },
-                                                "maxItems": 5
-                                            },
-                                            "status": {
-                                                "type": "array",
-                                                "items": {
-                                                    "type": "string",
-                                                    "enum": [
-                                                        "Online",
-                                                        "Offline",
-                                                        "Deregistered",
-                                                        "Invalid"
-                                                    ]
-                                                },
-                                                "maxItems": 5
-                                            },
-                                            "policyId": {
-                                                "type": "string",
-                                                "minLength": 1,
-                                                "maxLength": 250
-                                            },
-                                            "assetIdentifier": {
-                                                "type": "string",
-                                                "minLength": 1,
-                                                "maxLength": 250
-                                            },
-                                            "tags": {
-                                                "type": "array",
-                                                "items": {
-                                                    "type": "string",
-                                                    "minLength": 1,
-                                                    "maxLength": 150
-                                                }
-                                            },
-                                            "capability": {
-                                                "type": "object",
-                                                "properties": {
-                                                    "name": {
-                                                        "type": "string",
-                                                        "minLength": 1,
-                                                        "maxLength": 150
-                                                    },
-                                                    "version": {
-                                                        "type": "string",
-                                                        "maxLength": 150
-                                                    }
-                                                },
-                                                "required": [
-                                                    "name"
-                                                ]
-                                            },
-                                            "resolveToLatestVersion": {
-                                                "type": "boolean",
-                                                "description": "When true and an assetIdentifier filter is provided, the assetIdentifier is first resolved to the latest version of the same V2 agent (same root, highest version) before matching — so passing any older version returns the current one. No effect on V1 assets or when no assetIdentifier is given. The plain assetIdentifier filter always stays an exact match."
-                                            }
-                                        }
+                                        "$ref": "#/components/schemas/RegistryEntryFilter"
                                     },
                                     "minHealthCheckDate": {
                                         "anyOf": [
@@ -1535,7 +1654,9 @@
                                                 "type": "string",
                                                 "format": "date-time"
                                             }
-                                        ]
+                                        ],
+                                        "deprecated": true,
+                                        "description": "Deprecated: use filter.health.lastCheckedAfter."
                                     }
                                 },
                                 "required": [
@@ -1719,73 +1840,7 @@
                                         "description": "Case-insensitive fuzzy match against registry entry core metadata, capability, asset identifier, api base URL, and tags."
                                     },
                                     "filter": {
-                                        "type": "object",
-                                        "properties": {
-                                            "paymentTypes": {
-                                                "type": "array",
-                                                "items": {
-                                                    "type": "string",
-                                                    "enum": [
-                                                        "Web3CardanoV1",
-                                                        "Web3CardanoV2",
-                                                        "None"
-                                                    ]
-                                                },
-                                                "maxItems": 5
-                                            },
-                                            "status": {
-                                                "type": "array",
-                                                "items": {
-                                                    "type": "string",
-                                                    "enum": [
-                                                        "Online",
-                                                        "Offline",
-                                                        "Deregistered",
-                                                        "Invalid"
-                                                    ]
-                                                },
-                                                "maxItems": 5
-                                            },
-                                            "policyId": {
-                                                "type": "string",
-                                                "minLength": 1,
-                                                "maxLength": 250
-                                            },
-                                            "assetIdentifier": {
-                                                "type": "string",
-                                                "minLength": 1,
-                                                "maxLength": 250
-                                            },
-                                            "tags": {
-                                                "type": "array",
-                                                "items": {
-                                                    "type": "string",
-                                                    "minLength": 1,
-                                                    "maxLength": 150
-                                                }
-                                            },
-                                            "capability": {
-                                                "type": "object",
-                                                "properties": {
-                                                    "name": {
-                                                        "type": "string",
-                                                        "minLength": 1,
-                                                        "maxLength": 150
-                                                    },
-                                                    "version": {
-                                                        "type": "string",
-                                                        "maxLength": 150
-                                                    }
-                                                },
-                                                "required": [
-                                                    "name"
-                                                ]
-                                            },
-                                            "resolveToLatestVersion": {
-                                                "type": "boolean",
-                                                "description": "When true and an assetIdentifier filter is provided, the assetIdentifier is first resolved to the latest version of the same V2 agent (same root, highest version) before matching — so passing any older version returns the current one. No effect on V1 assets or when no assetIdentifier is given. The plain assetIdentifier filter always stays an exact match."
-                                            }
-                                        }
+                                        "$ref": "#/components/schemas/RegistryEntryFilter"
                                     },
                                     "minHealthCheckDate": {
                                         "anyOf": [
@@ -1801,7 +1856,9 @@
                                                 "type": "string",
                                                 "format": "date-time"
                                             }
-                                        ]
+                                        ],
+                                        "deprecated": true,
+                                        "description": "Deprecated: use filter.health.lastCheckedAfter."
                                     }
                                 },
                                 "required": [

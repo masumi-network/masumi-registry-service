@@ -2,29 +2,134 @@ import { z } from '@/utils/zod-openapi';
 import { ez } from 'express-zod-api';
 import { $Enums, Network } from '@prisma/client';
 
-const registryEntryFilterSchema = z.object({
-  paymentTypes: z.array(z.nativeEnum($Enums.PaymentType)).max(5).optional(),
-  status: z.array(z.nativeEnum($Enums.Status)).max(5).optional(),
-  policyId: z.string().min(1).max(250).optional(),
-  assetIdentifier: z.string().min(1).max(250).optional(),
-  tags: z.array(z.string().min(1).max(150)).optional(),
-  capability: z
-    .object({
-      name: z.string().min(1).max(150),
-      version: z.string().max(150).optional(),
-    })
-    .optional(),
-  resolveToLatestVersion: z
-    .boolean()
-    .optional()
-    .describe(
-      'When true and an assetIdentifier filter is provided, the assetIdentifier ' +
-        'is first resolved to the latest version of the same V2 agent (same ' +
-        'root, highest version) before matching — so passing any older version ' +
-        'returns the current one. No effect on V1 assets or when no ' +
-        'assetIdentifier is given. The plain assetIdentifier filter always stays ' +
-        'an exact match.'
-    ),
+// Base units (lovelace, token base units) as a digit string, like the output.
+// Capped at the Postgres BIGINT max so an oversized value is a 400, not a 500.
+const MAX_BIGINT = BigInt('9223372036854775807');
+const pricingAmountSchema = z
+  .string()
+  .regex(/^\d{1,19}$/)
+  .refine((value) => BigInt(value) <= MAX_BIGINT, {
+    message: 'Amount exceeds the maximum supported value',
+  });
+
+const registryEntryPricingFilterSchema = z
+  .object({
+    pricingType: z
+      .nativeEnum($Enums.PricingType)
+      .optional()
+      .describe('Pricing model of the agent or of any of its payment sources.'),
+    unit: z
+      .string()
+      .min(1)
+      .max(250)
+      .optional()
+      .describe('Only agents with a fixed price in this unit.'),
+    minAmount: pricingAmountSchema
+      .optional()
+      .describe('Minimum fixed price in `unit`, in base units. Needs `unit`.'),
+    maxAmount: pricingAmountSchema
+      .optional()
+      .describe('Maximum fixed price in `unit`, in base units. Needs `unit`.'),
+  })
+  .refine(
+    (pricing) =>
+      pricing.unit != null ||
+      (pricing.minAmount == null && pricing.maxAmount == null),
+    { message: 'minAmount/maxAmount require unit', path: ['unit'] }
+  )
+  .refine(
+    (pricing) =>
+      pricing.unit == null ||
+      pricing.pricingType == null ||
+      pricing.pricingType === $Enums.PricingType.Fixed,
+    {
+      message: 'unit/minAmount/maxAmount only apply to Fixed pricing',
+      path: ['pricingType'],
+    }
+  )
+  .refine(
+    (pricing) =>
+      pricing.minAmount == null ||
+      pricing.maxAmount == null ||
+      BigInt(pricing.minAmount) <= BigInt(pricing.maxAmount),
+    { message: 'minAmount must not exceed maxAmount', path: ['minAmount'] }
+  )
+  .openapi('RegistryEntryPricingFilter');
+
+const registryEntryHealthFilterSchema = z
+  .object({
+    minUptimePercent: z
+      .number()
+      .min(0)
+      .max(100)
+      .optional()
+      .describe(
+        'Minimum uptimeCount / uptimeCheckCount in percent. Entries that were never checked are excluded.'
+      ),
+    lastCheckedAfter: ez
+      .dateIn()
+      .optional()
+      .describe(
+        'Entries last health-checked before this date are re-checked live before being returned. Replaces minHealthCheckDate.'
+      ),
+    onlyOnline: z
+      .boolean()
+      .optional()
+      .describe('Only return entries whose status is Online.'),
+  })
+  .openapi('RegistryEntryHealthFilter');
+
+const registryEntryFilterSchema = z
+  .object({
+    paymentTypes: z.array(z.nativeEnum($Enums.PaymentType)).max(5).optional(),
+    status: z.array(z.nativeEnum($Enums.Status)).max(5).optional(),
+    excludeStatus: z
+      .array(z.nativeEnum($Enums.Status))
+      .max(5)
+      .optional()
+      .describe(
+        'Statuses to exclude. Without `status`, all other statuses are included.'
+      ),
+    pricing: registryEntryPricingFilterSchema.optional(),
+    health: registryEntryHealthFilterSchema.optional(),
+    registeredAfter: ez
+      .dateIn()
+      .optional()
+      .describe(
+        'Only entries first seen by the registry at or after this date.'
+      ),
+    registeredBefore: ez
+      .dateIn()
+      .optional()
+      .describe(
+        'Only entries first seen by the registry at or before this date.'
+      ),
+    policyId: z.string().min(1).max(250).optional(),
+    assetIdentifier: z.string().min(1).max(250).optional(),
+    tags: z.array(z.string().min(1).max(150)).optional(),
+    capability: z
+      .object({
+        name: z.string().min(1).max(150),
+        version: z.string().max(150).optional(),
+      })
+      .optional(),
+    resolveToLatestVersion: z
+      .boolean()
+      .optional()
+      .describe(
+        'When true and an assetIdentifier filter is provided, the assetIdentifier ' +
+          'is first resolved to the latest version of the same V2 agent (same ' +
+          'root, highest version) before matching — so passing any older version ' +
+          'returns the current one. No effect on V1 assets or when no ' +
+          'assetIdentifier is given. The plain assetIdentifier filter always stays ' +
+          'an exact match.'
+      ),
+  })
+  .openapi('RegistryEntryFilter');
+
+const deprecatedMinHealthCheckDateSchema = ez.dateIn().optional().openapi({
+  deprecated: true,
+  description: 'Deprecated: use filter.health.lastCheckedAfter.',
 });
 
 export const queryRegistrySchemaInput = z.object({
@@ -33,7 +138,7 @@ export const queryRegistrySchemaInput = z.object({
   //optional data
   cursorId: z.string().min(1).max(50).optional(),
   filter: registryEntryFilterSchema.optional(),
-  minHealthCheckDate: ez.dateIn().optional(),
+  minHealthCheckDate: deprecatedMinHealthCheckDateSchema,
 });
 
 export const searchRegistrySchemaInput = z.object({
@@ -49,7 +154,7 @@ export const searchRegistrySchemaInput = z.object({
       'Case-insensitive fuzzy match against registry entry core metadata, capability, asset identifier, api base URL, and tags.'
     ),
   filter: registryEntryFilterSchema.optional(),
-  minHealthCheckDate: ez.dateIn().optional(),
+  minHealthCheckDate: deprecatedMinHealthCheckDateSchema,
 });
 
 export const refreshRegistryEntrySchemaInput = z.object({

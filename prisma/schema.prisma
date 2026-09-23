@@ -108,6 +108,7 @@ model RegistryEntry {
 
   @@index([statusUpdatedAt])
   @@index([statusUpdatedAt, id])
+  @@index([createdAt])
 }
 
 // Payment sources advertised in a V2 registry entry's metadata
@@ -247,6 +248,8 @@ model UnitValue {
   unit                String
   AgentFixedPricing   AgentFixedPricing @relation(fields: [agentFixedPricingId], references: [id], onDelete: Cascade)
   agentFixedPricingId String
+
+  @@index([agentFixedPricingId, unit])
 }
 
 enum PaymentType {

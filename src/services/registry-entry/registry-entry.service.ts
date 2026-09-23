@@ -16,6 +16,10 @@ import {
   getPolicyId,
   isV2Policy,
 } from '@/utils/agent-version';
+import {
+  buildRegistryEntryWhere,
+  meetsMinUptimePercent,
+} from './registry-filter';
 
 type VersionedEntry = {
   assetIdentifier: string;
@@ -115,26 +119,6 @@ async function attachVersionLinks<T extends VersionedEntry>(
   });
 }
 
-function getFilterParams(
-  filter: z.infer<typeof queryRegistrySchemaInput>['filter']
-) {
-  const allowedPaymentTypes: $Enums.PaymentType[] | undefined =
-    filter && filter.paymentTypes && filter.paymentTypes.length > 0
-      ? filter.paymentTypes
-      : undefined;
-
-  const allowedStatuses: $Enums.Status[] =
-    filter && filter.status && filter.status.length > 0
-      ? filter.status
-      : [Status.Online];
-
-  const capability = filter?.capability
-    ? { name: filter.capability.name, version: filter.capability.version }
-    : undefined;
-
-  return { allowedPaymentTypes, allowedStatuses, capability };
-}
-
 async function getHealthCheckedRegistryEntries(
   input:
     | z.infer<typeof queryRegistrySchemaInput>
@@ -147,9 +131,9 @@ async function getHealthCheckedRegistryEntries(
     ReturnType<typeof healthCheckService.checkVerifyAndUpdateRegistryEntries>
   > = [];
   let currentCursorId = input.cursorId;
-  const { allowedPaymentTypes, allowedStatuses, capability } = getFilterParams(
-    input.filter
-  );
+  const minUptimePercent = input.filter?.health?.minUptimePercent;
+  const minHealthCheckDate =
+    input.filter?.health?.lastCheckedAfter ?? input.minHealthCheckDate;
 
   // Opt-in: resolve the exact-match assetIdentifier filter to the latest version
   // of the same V2 agent before querying, so an old identifier returns the
@@ -162,36 +146,31 @@ async function getHealthCheckedRegistryEntries(
     );
   }
 
-  while (healthCheckedEntries.length < input.limit) {
-    const registryEntries = searchQuery
-      ? await registryEntryRepository.searchRegistryEntries({
-          capability,
-          allowedPaymentTypes,
-          allowedStatuses,
-          policyId: input.filter?.policyId,
-          assetIdentifier,
-          tags: input.filter?.tags,
-          cursorId: currentCursorId,
-          limit: input.limit * 2,
-          network: input.network,
-          searchQuery,
-        })
-      : await registryEntryRepository.getRegistryEntry({
-          capability,
-          allowedPaymentTypes,
-          allowedStatuses,
-          policyId: input.filter?.policyId,
-          assetIdentifier,
-          tags: input.filter?.tags,
-          cursorId: currentCursorId,
-          limit: input.limit * 2,
-          network: input.network,
-        });
+  const where = buildRegistryEntryWhere({
+    filter: input.filter,
+    network: input.network,
+    assetIdentifier,
+    searchQuery,
+  });
 
+  while (healthCheckedEntries.length < input.limit) {
+    const queryParams = {
+      where,
+      cursorId: currentCursorId,
+      limit: input.limit * 2,
+      network: input.network,
+    };
+    const registryEntries = searchQuery
+      ? await registryEntryRepository.searchRegistryEntries(queryParams)
+      : await registryEntryRepository.getRegistryEntry(queryParams);
+
+    // Filter before the live health check so excluded entries cost no requests.
     const result = await healthCheckService.checkVerifyAndUpdateRegistryEntries(
       {
-        registryEntries,
-        minHealthCheckDate: input.minHealthCheckDate,
+        registryEntries: registryEntries.filter((entry) =>
+          meetsMinUptimePercent(entry, minUptimePercent)
+        ),
+        minHealthCheckDate,
       }
     );
 

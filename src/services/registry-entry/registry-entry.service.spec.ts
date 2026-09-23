@@ -65,16 +65,14 @@ describe('registryEntryService.searchRegistryEntries', () => {
 
     expect(updateLatestCardanoRegistryEntries).toHaveBeenCalled();
     expect(searchRegistryEntries).toHaveBeenCalledWith({
-      capability: undefined,
-      allowedPaymentTypes: undefined,
-      allowedStatuses: [Status.Online],
-      policyId: undefined,
-      assetIdentifier: undefined,
-      tags: undefined,
+      where: expect.objectContaining({
+        status: { in: [Status.Online] },
+        RegistrySource: { policyId: undefined, network: Network.Preprod },
+        searchText: { contains: 'example agent' },
+      }),
       cursorId: undefined,
       limit: 20,
       network: Network.Preprod,
-      searchQuery: 'example agent',
     });
     expect(checkVerifyAndUpdateRegistryEntries).toHaveBeenCalledWith({
       registryEntries: [{ id: 'entry-1' }],
@@ -106,16 +104,18 @@ describe('registryEntryService.searchRegistryEntries', () => {
     await registryEntryService.searchRegistryEntries(input);
 
     expect(searchRegistryEntries).toHaveBeenCalledWith({
-      capability: { name: 'Chat', version: '1.0' },
-      allowedPaymentTypes: [PaymentType.None],
-      allowedStatuses: [Status.Offline],
-      policyId: 'policy-id',
-      assetIdentifier: 'asset-id',
-      tags: ['text-generation'],
+      where: expect.objectContaining({
+        Capability: { name: 'Chat', version: '1.0' },
+        paymentType: { in: [PaymentType.None] },
+        status: { in: [Status.Offline] },
+        assetIdentifier: 'asset-id',
+        RegistrySource: { policyId: 'policy-id', network: Network.Mainnet },
+        tags: { hasSome: ['text-generation'] },
+        searchText: { contains: 'api 1' },
+      }),
       cursorId: 'cursor-1',
       limit: 10,
       network: Network.Mainnet,
-      searchQuery: 'api 1',
     });
     expect(checkVerifyAndUpdateRegistryEntries).toHaveBeenCalledWith({
       registryEntries: [{ id: 'entry-1' }],
@@ -130,18 +130,48 @@ describe('registryEntryService.searchRegistryEntries', () => {
       query: ' 100% _agent\\name ',
     });
 
-    expect(searchRegistryEntries).toHaveBeenCalledWith({
-      capability: undefined,
-      allowedPaymentTypes: undefined,
-      allowedStatuses: [Status.Online],
-      policyId: undefined,
-      assetIdentifier: undefined,
-      tags: undefined,
-      cursorId: undefined,
-      limit: 20,
+    expect(searchRegistryEntries).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          searchText: { contains: '100\\% \\_agent\\\\name' },
+        }),
+      })
+    );
+  });
+
+  it('drops entries below minUptimePercent before the live health check', async () => {
+    const reliable = { id: 'reliable', uptimeCount: 9, uptimeCheckCount: 10 };
+    const flaky = { id: 'flaky', uptimeCount: 5, uptimeCheckCount: 10 };
+    const neverChecked = { id: 'new', uptimeCount: 0, uptimeCheckCount: 0 };
+    searchRegistryEntries.mockResolvedValue([reliable, flaky, neverChecked]);
+
+    await registryEntryService.searchRegistryEntries({
       network: Network.Preprod,
-      searchQuery: '100\\% \\_agent\\\\name',
+      limit: 10,
+      query: 'agent',
+      filter: { health: { minUptimePercent: 90 } },
     });
+
+    expect(checkVerifyAndUpdateRegistryEntries).toHaveBeenCalledWith({
+      registryEntries: [reliable],
+      minHealthCheckDate: undefined,
+    });
+  });
+
+  it('prefers health.lastCheckedAfter over the deprecated minHealthCheckDate', async () => {
+    const lastCheckedAfter = new Date('2026-09-01T00:00:00.000Z');
+
+    await registryEntryService.searchRegistryEntries({
+      network: Network.Preprod,
+      limit: 10,
+      query: 'agent',
+      minHealthCheckDate: new Date('2026-01-01T00:00:00.000Z'),
+      filter: { health: { lastCheckedAfter } },
+    });
+
+    expect(checkVerifyAndUpdateRegistryEntries).toHaveBeenCalledWith(
+      expect.objectContaining({ minHealthCheckDate: lastCheckedAfter })
+    );
   });
 });
 
@@ -276,7 +306,9 @@ describe('registryEntryService.getRegistryEntries version handling', () => {
 
     // Exact match preserved: the queried assetIdentifier is passed through as-is.
     expect(getRegistryEntry).toHaveBeenCalledWith(
-      expect.objectContaining({ assetIdentifier: V3 })
+      expect.objectContaining({
+        where: expect.objectContaining({ assetIdentifier: V3 }),
+      })
     );
     expect(entry.supersedesAgentIdentifier).toBe(V2);
     expect(entry.supersededByAgentIdentifier).toBeNull();
@@ -293,7 +325,9 @@ describe('registryEntryService.getRegistryEntries version handling', () => {
     });
 
     expect(getRegistryEntry).toHaveBeenCalledWith(
-      expect.objectContaining({ assetIdentifier: V3 })
+      expect.objectContaining({
+        where: expect.objectContaining({ assetIdentifier: V3 }),
+      })
     );
   });
 
@@ -315,7 +349,9 @@ describe('registryEntryService.getRegistryEntries version handling', () => {
 
     expect(findVersionSiblingAssetIdentifiers).not.toHaveBeenCalled();
     expect(getRegistryEntry).toHaveBeenCalledWith(
-      expect.objectContaining({ assetIdentifier: v1PolicyAsset })
+      expect.objectContaining({
+        where: expect.objectContaining({ assetIdentifier: v1PolicyAsset }),
+      })
     );
     expect(entry.supersedesAgentIdentifier).toBeNull();
     expect(entry.supersededByAgentIdentifier).toBeNull();

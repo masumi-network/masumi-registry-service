@@ -1,39 +1,12 @@
 import { prisma } from '@/utils/db';
-import { Network, PaymentType, Status } from '@prisma/client';
+import { Network, Prisma } from '@prisma/client';
 
 type RegistryEntryQueryParams = {
-  capability:
-    | { name: string | undefined; version: string | undefined }
-    | undefined;
-  allowedPaymentTypes: PaymentType[] | undefined;
-  allowedStatuses: Status[];
-  policyId: string | undefined;
-  assetIdentifier: string | undefined;
-  tags: string[] | undefined;
+  where: Prisma.RegistryEntryWhereInput;
   cursorId: string | undefined;
   limit: number;
   network: Network;
-  searchQuery?: string;
 };
-
-function buildRegistryEntryWhere(params: RegistryEntryQueryParams) {
-  return {
-    Capability: params.capability,
-    paymentType: params.allowedPaymentTypes
-      ? { in: params.allowedPaymentTypes }
-      : undefined,
-    status: { in: params.allowedStatuses },
-    assetIdentifier: params.assetIdentifier,
-    RegistrySource: {
-      policyId: params.policyId,
-      network: params.network,
-    },
-    tags: params.tags ? { hasSome: params.tags } : undefined,
-    searchText: params.searchQuery
-      ? { contains: params.searchQuery }
-      : undefined,
-  };
-}
 
 async function findRegistryEntries(params: RegistryEntryQueryParams) {
   const networkExists = await prisma.registrySource.findFirst({
@@ -46,7 +19,7 @@ async function findRegistryEntries(params: RegistryEntryQueryParams) {
   }
 
   return await prisma.registryEntry.findMany({
-    where: buildRegistryEntryWhere(params),
+    where: params.where,
     include: {
       Capability: true,
       RegistrySource: true,
