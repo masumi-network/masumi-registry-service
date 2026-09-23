@@ -24,6 +24,13 @@ import {
   resolveV2PaymentType,
   web3CardanoV2MetadataSchema,
 } from './web3-cardano-v2-metadata';
+import {
+  getPolicyAssetQuantityChanges,
+  getScriptsRedeemers,
+  ScriptRedeemersResponse,
+} from './registry-sync-blockfrost';
+
+export { updateHealthCheck } from './registry-health-check-job';
 
 const web3CardanoMetadataSchema = z
   .object({
@@ -134,8 +141,6 @@ type SyncableRegistrySource = {
   };
 };
 
-const healthMutex = new Mutex();
-
 async function markRegistryMetadataInvalid(params: {
   sourceId: string;
   assetIdentifier: string;
@@ -150,237 +155,6 @@ async function markRegistryMetadataInvalid(params: {
       statusUpdatedAt: new Date(),
     },
   });
-}
-
-export async function updateHealthCheck(onlyEntriesAfter?: Date | undefined) {
-  logger.info('Updating cardano registry entries health check: ', {
-    onlyEntriesAfter: onlyEntriesAfter,
-  });
-  if (onlyEntriesAfter == undefined) {
-    onlyEntriesAfter = new Date();
-  }
-
-  //we do not need any isolation level here as worst case we have a few duplicate checks in the next run but no data loss. Advantage we do not need to lock the table
-  const sourcesCount = await prisma.registrySource.aggregate({
-    _count: true,
-  });
-
-  if (sourcesCount._count == 0) return;
-
-  let release: MutexInterface.Releaser | null;
-  try {
-    release = await tryAcquire(healthMutex).acquire();
-  } catch (e) {
-    logger.info('Mutex timeout when locking', { error: e });
-    return;
-  }
-  //if we are already performing an update, we wait for it to finish and return
-
-  const sources = await prisma.registrySource.findMany({
-    include: {
-      RegistrySourceConfig: true,
-    },
-  });
-  if (sources.length == 0) {
-    logger.info('No registry sources found, skipping health check');
-    release();
-    return;
-  }
-
-  try {
-    logger.info('updating entries from sources', { count: sources.length });
-    await Promise.allSettled(
-      sources.map(async (source) => {
-        const entries = await prisma.registryEntry.findMany({
-          where: {
-            registrySourceId: source.id,
-            status: {
-              in: [$Enums.Status.Online, $Enums.Status.Offline],
-            },
-            lastUptimeCheck: {
-              lte: onlyEntriesAfter,
-            },
-          },
-          orderBy: { lastUptimeCheck: 'asc' },
-          take: 50,
-          include: {
-            RegistrySource: true,
-            Capability: true,
-            AgentPricing: {
-              include: {
-                FixedPricing: {
-                  include: { Amounts: true },
-                },
-              },
-            },
-            ExampleOutput: true,
-            SupportedPaymentSources: {
-              include: {
-                Pricing: {
-                  include: {
-                    FixedPricing: { include: { Amounts: true } },
-                  },
-                },
-              },
-              orderBy: { sourceIndex: 'asc' },
-            },
-            Verifications: true,
-          },
-        });
-        logger.info(
-          `Found ${entries.length} registry entries in status online or offline`
-        );
-        const invalidEntries = await prisma.registryEntry.findMany({
-          where: {
-            registrySourceId: source.id,
-            status: {
-              in: [$Enums.Status.Invalid],
-            },
-            lastUptimeCheck: {
-              lte: onlyEntriesAfter,
-            },
-            uptimeCheckCount: {
-              lte: 20,
-            },
-          },
-          orderBy: { updatedAt: 'asc' },
-          take: 50,
-          include: {
-            RegistrySource: true,
-            Capability: true,
-            AgentPricing: {
-              include: {
-                FixedPricing: {
-                  include: { Amounts: true },
-                },
-              },
-            },
-            ExampleOutput: true,
-            SupportedPaymentSources: {
-              include: {
-                Pricing: {
-                  include: {
-                    FixedPricing: { include: { Amounts: true } },
-                  },
-                },
-              },
-              orderBy: { sourceIndex: 'asc' },
-            },
-            Verifications: true,
-          },
-        });
-        logger.info(
-          `Found ${invalidEntries.length} registry entries in status invalid`
-        );
-        const filteredOutInvalidStaggeredEntries = invalidEntries.filter(
-          (e) => {
-            const retries = Math.max(0.2, e.uptimeCheckCount - e.uptimeCount);
-            const staggeredWaitTime = Math.min(
-              1000 * 60 * 10 * retries,
-              1000 * 60 * 60 * 48
-            );
-            return (
-              e.lastUptimeCheck.getTime() + staggeredWaitTime <
-              onlyEntriesAfter.getTime()
-            );
-          }
-        );
-        const excludedEntries = invalidEntries.filter(
-          (e) =>
-            filteredOutInvalidStaggeredEntries.find((e2) => e2.id === e.id) !=
-            null
-        );
-        logger.info(
-          `Filtered out ${filteredOutInvalidStaggeredEntries.length} invalid staggered entries`
-        );
-        await Promise.allSettled(
-          excludedEntries.map(async (e) => {
-            await prisma.registryEntry.update({
-              where: { id: e.id },
-              data: {
-                updatedAt: new Date(),
-              },
-            });
-          })
-        );
-        const invalidBatch = filteredOutInvalidStaggeredEntries.slice(
-          0,
-          Math.min(10, filteredOutInvalidStaggeredEntries.length)
-        );
-        const combinedEntries = [...entries, ...invalidBatch];
-        logger.info(
-          `Checking and updating ${combinedEntries.length} registry entries`
-        );
-        await healthCheckService.checkVerifyAndUpdateRegistryEntries({
-          registryEntries: combinedEntries,
-          minHealthCheckDate: onlyEntriesAfter,
-        });
-
-        const inboxAgentRegistrations =
-          await prisma.inboxAgentRegistration.findMany({
-            where: {
-              registrySourceId: source.id,
-              status: {
-                in: [
-                  InboxAgentRegistrationStatus.Pending,
-                  InboxAgentRegistrationStatus.Verified,
-                  InboxAgentRegistrationStatus.Invalid,
-                ],
-              },
-              updatedAt: {
-                lte: onlyEntriesAfter,
-              },
-            },
-            orderBy: { updatedAt: 'asc' },
-            take: 50,
-            include: {
-              RegistrySource: true,
-            },
-          });
-        logger.info(
-          `Found ${inboxAgentRegistrations.length} inbox agent registrations eligible for verification`
-        );
-        await healthCheckService.checkVerifyAndUpdateInboxAgentRegistrations({
-          inboxAgentRegistrations,
-        });
-      })
-    );
-  } finally {
-    release();
-  }
-}
-type ScriptRedeemer = {
-  tx_hash: string;
-  tx_index: number;
-  purpose: 'spend' | 'mint' | 'cert' | 'reward';
-  redeemer_data_hash: string;
-  datum_hash: string;
-  unit_mem: string;
-  unit_steps: string;
-  fee: string;
-};
-type ScriptRedeemersResponse = ScriptRedeemer[];
-
-async function getScriptsRedeemers(
-  network: $Enums.Network,
-  blockfrostToken: string,
-  policyId: string,
-  page: number
-) {
-  const result = await fetch(
-    `https://cardano-${network == $Enums.Network.Mainnet ? 'mainnet' : 'preprod'}.blockfrost.io/api/v0/scripts/${policyId}/redeemers?count=100&page=${page}&order=asc`,
-    {
-      headers: {
-        project_id: blockfrostToken,
-      },
-    }
-  );
-  if (!result.ok) {
-    throw new Error('Failed to get scripts redeemers');
-  }
-  const json = await result.json();
-  const data = json as ScriptRedeemersResponse;
-  return data;
 }
 
 const registryMetadataTypeSchema = z.object({
@@ -793,7 +567,10 @@ async function syncMintedAsset(params: {
 }) {
   const metadataType = getRegistryMetadataType(params.onchainMetadata);
 
-  if (metadataType != null && INBOX_REGISTRY_METADATA_TYPES.includes(metadataType)) {
+  if (
+    metadataType != null &&
+    INBOX_REGISTRY_METADATA_TYPES.includes(metadataType)
+  ) {
     await syncInboxAgentRegistration(params);
     return;
   }
@@ -845,13 +622,12 @@ export async function updateLatestCardanoRegistryEntries() {
   }
   //if we are already performing an update, we wait for it to finish and return
 
-  sources = await getSyncableRegistrySources();
-  if (sources.length == 0) {
-    release();
-    return;
-  }
-
+  // Everything after acquisition stays inside try so a failed query cannot
+  // leave the mutex held and block all later runs.
   try {
+    sources = await getSyncableRegistrySources();
+    if (sources.length == 0) return;
+
     //sanity checks
     const invalidSourceIdentifiers = sources.filter((s) => s.policyId == null);
     if (invalidSourceIdentifiers.length > 0)
@@ -914,35 +690,8 @@ export async function updateLatestCardanoRegistryEntries() {
                 continue;
               }
               const txsUtxos = await blockfrost.txsUtxos(tx.tx_hash);
-              const mintedOrBurnedAssetsOfPolicy = new Map<string, number>();
-              for (const inputUtxo of txsUtxos.inputs) {
-                for (const asset of inputUtxo.amount) {
-                  if (asset.unit.startsWith(source.policyId)) {
-                    mintedOrBurnedAssetsOfPolicy.set(
-                      asset.unit,
-                      -parseInt(asset.quantity)
-                    );
-                  }
-                }
-              }
-              for (const outputUtxo of txsUtxos.outputs) {
-                for (const asset of outputUtxo.amount) {
-                  if (asset.unit.startsWith(source.policyId)) {
-                    if (mintedOrBurnedAssetsOfPolicy.has(asset.unit)) {
-                      mintedOrBurnedAssetsOfPolicy.set(
-                        asset.unit,
-                        mintedOrBurnedAssetsOfPolicy.get(asset.unit)! +
-                          parseInt(asset.quantity)
-                      );
-                    } else {
-                      mintedOrBurnedAssetsOfPolicy.set(
-                        asset.unit,
-                        parseInt(asset.quantity)
-                      );
-                    }
-                  }
-                }
-              }
+              const mintedOrBurnedAssetsOfPolicy =
+                getPolicyAssetQuantityChanges(txsUtxos, source.policyId);
               for (const [
                 asset,
                 quantity,

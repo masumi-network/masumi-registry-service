@@ -3,6 +3,7 @@ import { prisma } from '@/utils/db';
 import { getBlockfrostInstance } from '@/utils/blockfrost';
 import { healthCheckService } from '@/services/health-check';
 import { DEFAULTS } from '@/utils/config';
+import { logger } from '@/utils/logger';
 import { updateLatestCardanoRegistryEntries } from './cardano-registry.service';
 import { INBOX_REGISTRY_METADATA_TYPE } from './inbox-agent-registration';
 
@@ -271,5 +272,60 @@ describe('updateLatestCardanoRegistryEntries', () => {
       where: { id: v2Source.id },
       data: { lastCheckedPage: 1, lastTxId: 'tx-valid' },
     });
+  });
+});
+
+describe('updateLatestCardanoRegistryEntries mutex', () => {
+  const source = {
+    id: 'source-1',
+    network: $Enums.Network.Preprod,
+    policyId: 'policy-id',
+    lastTxId: null,
+    lastCheckedPage: 1,
+    RegistrySourceConfig: {
+      rpcProviderApiKey: 'blockfrost-token',
+    },
+  };
+  const emptyPage = { ok: true, json: () => Promise.resolve([]) };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    global.fetch = jest.fn().mockResolvedValue(emptyPage);
+    (prisma.registrySource.findMany as jest.Mock).mockResolvedValue([source]);
+  });
+
+  it('releases the mutex when the source query after acquisition fails', async () => {
+    (prisma.registrySource.findMany as jest.Mock)
+      .mockResolvedValueOnce([source])
+      .mockRejectedValueOnce(new Error('db down'));
+
+    await expect(updateLatestCardanoRegistryEntries()).rejects.toThrow(
+      'db down'
+    );
+    expect(global.fetch).not.toHaveBeenCalled();
+
+    await updateLatestCardanoRegistryEntries();
+
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('skips a concurrent invocation while a sync is running', async () => {
+    let finishFetch: (value: typeof emptyPage) => void = () => {};
+    (global.fetch as jest.Mock).mockImplementationOnce(
+      () => new Promise((resolve) => (finishFetch = resolve))
+    );
+
+    const running = updateLatestCardanoRegistryEntries();
+    await new Promise((resolve) => setImmediate(resolve));
+    await updateLatestCardanoRegistryEntries();
+
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    expect(logger.info).toHaveBeenCalledWith(
+      'Mutex timeout when locking',
+      expect.anything()
+    );
+
+    finishFetch(emptyPage);
+    await running;
   });
 });
