@@ -43,11 +43,8 @@ jobs:
       - name: Run Open API Generator
         run: pnpm run swagger-json
 
-      - name: Run ESLint for issues
-        id: lint_fix_remaining
-        run: |
-          pnpm exec eslint --fix --config eslint.config.mjs src/ > lint-results.txt || true
-
-      - name: Check Lint Results File
-        run: |
-          if [ -s lint-results.txt ]; then echo "Lint issues found. Please fix them." && exit 1; fi
+      # Read-only (no --fix) so CI checks the committed code. Any nonzero exit
+      # fails the job: lint errors, warnings (--max-warnings 0) and config or
+      # crash errors alike, with ESLint's own output left in the log.
+      - name: Run ESLint
+        run: pnpm exec eslint --config eslint.config.mjs --max-warnings 0 src/
