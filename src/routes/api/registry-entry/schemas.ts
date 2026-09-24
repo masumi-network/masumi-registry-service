@@ -127,35 +127,67 @@ const registryEntryFilterSchema = z
   })
   .openapi('RegistryEntryFilter');
 
+const QUERY_SORT_BY = ['uptime', 'price', 'recency', 'score'] as const;
+const SEARCH_SORT_BY = ['relevance', ...QUERY_SORT_BY] as const;
+export type RegistryEntrySortBy = (typeof SEARCH_SORT_BY)[number];
+
+const SORT_BY_DESCRIPTION =
+  'Explicit result order; omit it to keep the default order (newest id ' +
+  'first). uptime = rolling uptime, price = lowest fixed price in ' +
+  'filter.pricing.unit (required), recency = first seen, score = weighted ' +
+  'rank (see ranking on each entry). Ranked results carry their score ' +
+  'components in `ranking`.';
+
+// sortBy=price compares amounts, which is only meaningful within one unit.
+function hasPriceUnitWhenSortingByPrice(input: {
+  sortBy?: RegistryEntrySortBy;
+  filter?: { pricing?: { unit?: string } };
+}): boolean {
+  return input.sortBy !== 'price' || input.filter?.pricing?.unit != null;
+}
+const priceSortRefinement = {
+  message: 'sortBy=price requires filter.pricing.unit',
+  path: ['sortBy'],
+};
+
 const deprecatedMinHealthCheckDateSchema = ez.dateIn().optional().openapi({
   deprecated: true,
   description: 'Deprecated: use filter.health.lastCheckedAfter.',
 });
 
-export const queryRegistrySchemaInput = z.object({
-  network: z.nativeEnum(Network),
-  limit: z.coerce.number().int().min(1).max(50).default(10),
-  //optional data
-  cursorId: z.string().min(1).max(50).optional(),
-  filter: registryEntryFilterSchema.optional(),
-  minHealthCheckDate: deprecatedMinHealthCheckDateSchema,
-});
+export const queryRegistrySchemaInput = z
+  .object({
+    network: z.nativeEnum(Network),
+    limit: z.coerce.number().int().min(1).max(50).default(10),
+    //optional data
+    cursorId: z.string().min(1).max(50).optional(),
+    filter: registryEntryFilterSchema.optional(),
+    minHealthCheckDate: deprecatedMinHealthCheckDateSchema,
+    sortBy: z.enum(QUERY_SORT_BY).optional().describe(SORT_BY_DESCRIPTION),
+  })
+  .refine(hasPriceUnitWhenSortingByPrice, priceSortRefinement);
 
-export const searchRegistrySchemaInput = z.object({
-  network: z.nativeEnum(Network),
-  limit: z.coerce.number().int().min(1).max(50).default(10),
-  cursorId: z.string().min(1).max(50).optional(),
-  query: z
-    .string()
-    .trim()
-    .min(1)
-    .max(120)
-    .describe(
-      'Case-insensitive fuzzy match against registry entry core metadata, capability, asset identifier, api base URL, and tags.'
-    ),
-  filter: registryEntryFilterSchema.optional(),
-  minHealthCheckDate: deprecatedMinHealthCheckDateSchema,
-});
+export const searchRegistrySchemaInput = z
+  .object({
+    network: z.nativeEnum(Network),
+    limit: z.coerce.number().int().min(1).max(50).default(10),
+    cursorId: z.string().min(1).max(50).optional(),
+    query: z
+      .string()
+      .trim()
+      .min(1)
+      .max(120)
+      .describe(
+        'Case-insensitive fuzzy match against registry entry core metadata, capability, asset identifier, api base URL, and tags.'
+      ),
+    filter: registryEntryFilterSchema.optional(),
+    minHealthCheckDate: deprecatedMinHealthCheckDateSchema,
+    sortBy: z
+      .enum(SEARCH_SORT_BY)
+      .optional()
+      .describe(`${SORT_BY_DESCRIPTION} relevance = text match strength.`),
+  })
+  .refine(hasPriceUnitWhenSortingByPrice, priceSortRefinement);
 
 export const refreshRegistryEntrySchemaInput = z.object({
   network: z.nativeEnum(Network),
@@ -183,6 +215,26 @@ export const registryDiffSchemaInput = z.object({
       'The policy ID of the registry source to filter by. If not specified, queries all registry sources.'
     ),
 });
+
+const rankingWeightsSchema = z.object({
+  successfulPurchases: z.number(),
+  uptime: z.number(),
+  lineageAge: z.number(),
+});
+
+const registryEntryRankingSchema = z
+  .object({
+    score: z
+      .number()
+      .describe('Weighted sum of the components divided by the weight sum.'),
+    components: rankingWeightsSchema.describe(
+      'Each input normalized to 0-1 within the ranked result set: ' +
+        'successfulPurchases (seller withdrawals on chain, relative to the ' +
+        'top agent), uptime (rolling), lineageAge (V2 version root age).'
+    ),
+    weights: rankingWeightsSchema,
+  })
+  .openapi('RegistryEntryRanking');
 
 const registryEntrySchemaOutput = z
   .object({
@@ -327,6 +379,11 @@ const registryEntrySchemaOutput = z
     ),
     metadataVersion: z.number().int(),
     updatedAt: z.date(),
+    ranking: registryEntryRankingSchema
+      .optional()
+      .describe(
+        'Present when sortBy is set: why the entry ranks where it does.'
+      ),
   })
   .openapi('RegistryEntry');
 
@@ -367,6 +424,7 @@ export type RegistryEntrySerializable = {
   supersededByAgentIdentifier?: string | null;
   paymentType: $Enums.PaymentType;
   metadataVersion: number;
+  ranking?: z.infer<typeof registryEntryRankingSchema>;
   RegistrySource: {
     id: string;
     policyId: string | null;

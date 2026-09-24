@@ -17,6 +17,10 @@ const getRegistryDiffEntries = jest.fn();
 const findVersionSiblingAssetIdentifiers = jest.fn();
 const updateLatestCardanoRegistryEntries = jest.fn();
 const checkVerifyAndUpdateRegistryEntries = jest.fn();
+const getRegistryEntriesByIds = jest.fn();
+const findRankingCandidates = jest.fn();
+const countSuccessfulPurchases = jest.fn();
+const findVersionCreatedAts = jest.fn();
 
 jest.mock('@/repositories/registry-entry', () => ({
   registryEntryRepository: {
@@ -25,6 +29,15 @@ jest.mock('@/repositories/registry-entry', () => ({
     getRegistryEntryByIdentifier,
     getRegistryDiffEntries,
     findVersionSiblingAssetIdentifiers,
+    getRegistryEntriesByIds,
+  },
+}));
+
+jest.mock('@/repositories/registry-entry/registry-metrics.repository', () => ({
+  registryMetricsRepository: {
+    findRankingCandidates,
+    countSuccessfulPurchases,
+    findVersionCreatedAts,
   },
 }));
 
@@ -355,5 +368,107 @@ describe('registryEntryService.getRegistryEntries version handling', () => {
     );
     expect(entry.supersedesAgentIdentifier).toBeNull();
     expect(entry.supersededByAgentIdentifier).toBeNull();
+  });
+});
+
+describe('registryEntryService ranked listing (sortBy)', () => {
+  const candidate = (id: string, overrides: Record<string, unknown> = {}) => ({
+    id,
+    assetIdentifier: `asset-${id}`,
+    name: id,
+    tags: [],
+    createdAt: new Date('2026-09-01T00:00:00.000Z'),
+    uptimeEwma: 0.9,
+    uptimeCount: 9,
+    uptimeCheckCount: 10,
+    RegistrySource: { policyId: DEFAULTS.REGISTRY_POLICY_ID_PREPROD },
+    AgentPricing: null,
+    SupportedPaymentSources: [],
+    ...overrides,
+  });
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    updateLatestCardanoRegistryEntries.mockResolvedValue(undefined);
+    findVersionCreatedAts.mockResolvedValue([]);
+    findVersionSiblingAssetIdentifiers.mockResolvedValue([]);
+    checkVerifyAndUpdateRegistryEntries.mockImplementation(
+      async ({ registryEntries }: { registryEntries: unknown[] }) =>
+        registryEntries
+    );
+    getRegistryEntriesByIds.mockImplementation(async (ids: string[]) =>
+      ids.map((id) => ({
+        id,
+        assetIdentifier: `asset-${id}`,
+        RegistrySource: { policyId: DEFAULTS.REGISTRY_POLICY_ID_PREPROD },
+      }))
+    );
+    findRankingCandidates.mockResolvedValue([
+      candidate('low'),
+      candidate('top'),
+      candidate('mid'),
+    ]);
+    countSuccessfulPurchases.mockResolvedValue(
+      new Map([
+        ['asset-top', 30],
+        ['asset-mid', 10],
+      ])
+    );
+  });
+
+  it('returns entries in score order with their ranking attached', async () => {
+    const entries = await registryEntryService.getRegistryEntries({
+      network: Network.Preprod,
+      limit: 10,
+      sortBy: 'score',
+    });
+
+    expect(entries.map((entry) => entry.id)).toEqual(['top', 'mid', 'low']);
+    expect(getRegistryEntriesByIds).toHaveBeenCalledWith(['top', 'mid', 'low']);
+    expect(entries[0]).toMatchObject({
+      ranking: {
+        components: { successfulPurchases: 1 },
+      },
+    });
+    expect(getRegistryEntry).not.toHaveBeenCalled();
+  });
+
+  it('continues a ranked listing from the cursor entry', async () => {
+    const entries = await registryEntryService.getRegistryEntries({
+      network: Network.Preprod,
+      limit: 10,
+      sortBy: 'score',
+      cursorId: 'mid',
+    });
+
+    expect(entries.map((entry) => entry.id)).toEqual(['mid', 'low']);
+  });
+
+  it('keeps the default order and skips ranking without sortBy', async () => {
+    getRegistryEntry.mockResolvedValue([{ id: 'entry-1' }]);
+
+    const entries = await registryEntryService.getRegistryEntries({
+      network: Network.Preprod,
+      limit: 10,
+    });
+
+    expect(findRankingCandidates).not.toHaveBeenCalled();
+    expect(entries[0]).not.toHaveProperty('ranking');
+  });
+
+  it('applies minUptimePercent before ranking', async () => {
+    findRankingCandidates.mockResolvedValue([
+      candidate('top', { uptimeCount: 1, uptimeCheckCount: 10 }),
+      candidate('mid'),
+    ]);
+
+    const entries = await registryEntryService.getRegistryEntries({
+      network: Network.Preprod,
+      limit: 10,
+      sortBy: 'score',
+      filter: { health: { minUptimePercent: 50 } },
+    });
+
+    expect(entries.map((entry) => entry.id)).toEqual(['mid']);
   });
 });

@@ -918,6 +918,9 @@
                     "updatedAt": {
                         "type": "string",
                         "format": "date-time"
+                    },
+                    "ranking": {
+                        "$ref": "#/components/schemas/RegistryEntryRanking"
                     }
                 },
                 "required": [
@@ -956,6 +959,60 @@
                     "metadataVersion",
                     "updatedAt"
                 ]
+            },
+            "RegistryEntryRanking": {
+                "type": "object",
+                "properties": {
+                    "score": {
+                        "type": "number",
+                        "description": "Weighted sum of the components divided by the weight sum."
+                    },
+                    "components": {
+                        "type": "object",
+                        "properties": {
+                            "successfulPurchases": {
+                                "type": "number"
+                            },
+                            "uptime": {
+                                "type": "number"
+                            },
+                            "lineageAge": {
+                                "type": "number"
+                            }
+                        },
+                        "required": [
+                            "successfulPurchases",
+                            "uptime",
+                            "lineageAge"
+                        ],
+                        "description": "Each input normalized to 0-1 within the ranked result set: successfulPurchases (seller withdrawals on chain, relative to the top agent), uptime (rolling), lineageAge (V2 version root age)."
+                    },
+                    "weights": {
+                        "type": "object",
+                        "properties": {
+                            "successfulPurchases": {
+                                "type": "number"
+                            },
+                            "uptime": {
+                                "type": "number"
+                            },
+                            "lineageAge": {
+                                "type": "number"
+                            }
+                        },
+                        "required": [
+                            "successfulPurchases",
+                            "uptime",
+                            "lineageAge"
+                        ]
+                    }
+                },
+                "required": [
+                    "score",
+                    "components",
+                    "weights"
+                ],
+                "description": "Present when sortBy is set: why the entry ranks where it does."
             },
             "RegistryEntryFilter": {
                 "type": "object",
@@ -1657,6 +1714,16 @@
                                         ],
                                         "deprecated": true,
                                         "description": "Deprecated: use filter.health.lastCheckedAfter."
+                                    },
+                                    "sortBy": {
+                                        "type": "string",
+                                        "enum": [
+                                            "uptime",
+                                            "price",
+                                            "recency",
+                                            "score"
+                                        ],
+                                        "description": "Explicit result order; omit it to keep the default order (newest id first). uptime = rolling uptime, price = lowest fixed price in filter.pricing.unit (required), recency = first seen, score = weighted rank (see ranking on each entry). Ranked results carry their score components in `ranking`."
                                     }
                                 },
                                 "required": [
@@ -1859,6 +1926,17 @@
                                         ],
                                         "deprecated": true,
                                         "description": "Deprecated: use filter.health.lastCheckedAfter."
+                                    },
+                                    "sortBy": {
+                                        "type": "string",
+                                        "enum": [
+                                            "relevance",
+                                            "uptime",
+                                            "price",
+                                            "recency",
+                                            "score"
+                                        ],
+                                        "description": "Explicit result order; omit it to keep the default order (newest id first). uptime = rolling uptime, price = lowest fixed price in filter.pricing.unit (required), recency = first seen, score = weighted rank (see ranking on each entry). Ranked results carry their score components in `ranking`. relevance = text match strength."
                                     }
                                 },
                                 "required": [

@@ -1,11 +1,14 @@
 import { registryEntryRepository } from '@/repositories/registry-entry';
+import { registryMetricsRepository } from '@/repositories/registry-entry/registry-metrics.repository';
 import {
   queryRegistrySchemaInput,
   refreshRegistryEntrySchemaInput,
   registryDiffSchemaInput,
+  RegistryEntrySortBy,
   searchRegistrySchemaInput,
 } from '@/routes/api/registry-entry/schemas';
-import { $Enums, Status } from '@prisma/client';
+import { $Enums, Prisma, Status } from '@prisma/client';
+import { CONFIG } from '@/utils/config';
 import { z } from '@/utils/zod-openapi';
 import { cardanoRegistryService } from '@/services/cardano-registry';
 import { healthCheckService } from '@/services/health-check';
@@ -20,6 +23,12 @@ import {
   buildRegistryEntryWhere,
   meetsMinUptimePercent,
 } from './registry-filter';
+import {
+  computeRankings,
+  lowestPriceInUnit,
+  sliceFromCursor,
+  sortRankingInputs,
+} from './registry-ranking';
 
 type VersionedEntry = {
   assetIdentifier: string;
@@ -119,6 +128,126 @@ async function attachVersionLinks<T extends VersionedEntry>(
   });
 }
 
+// Earliest first-seen date per V2 version root, for lineage age.
+async function getLineageStarts(
+  assetIdentifiers: { assetIdentifier: string; policyId: string | null }[],
+  network: $Enums.Network
+): Promise<Map<string, Date>> {
+  const roots = [
+    ...new Set(
+      assetIdentifiers
+        .filter((entry) => isV2Policy(entry.policyId))
+        .map((entry) => getAgentVersionRoot(entry.assetIdentifier))
+    ),
+  ];
+  const versions = await registryMetricsRepository.findVersionCreatedAts({
+    roots,
+    network,
+  });
+  const starts = new Map<string, Date>();
+  for (const version of versions) {
+    const root = getAgentVersionRoot(version.assetIdentifier);
+    const current = starts.get(root);
+    if (current == null || version.createdAt < current) {
+      starts.set(root, version.createdAt);
+    }
+  }
+  return starts;
+}
+
+// Explicit sortBy: rank the whole filtered set, then health-check pages in
+// ranked order. The order comes from here, never from the client.
+async function getRankedRegistryEntries(params: {
+  input:
+    | z.infer<typeof queryRegistrySchemaInput>
+    | z.infer<typeof searchRegistrySchemaInput>;
+  where: Prisma.RegistryEntryWhereInput;
+  sortBy: RegistryEntrySortBy;
+  minUptimePercent: number | undefined;
+  minHealthCheckDate: Date | undefined;
+}) {
+  const { input } = params;
+  const candidates = (
+    await registryMetricsRepository.findRankingCandidates(params.where)
+  ).filter((entry) => meetsMinUptimePercent(entry, params.minUptimePercent));
+
+  const [purchases, lineageStarts] = await Promise.all([
+    registryMetricsRepository.countSuccessfulPurchases({
+      network: input.network,
+      agentIdentifiers: candidates.map((entry) => entry.assetIdentifier),
+    }),
+    getLineageStarts(
+      candidates.map((entry) => ({
+        assetIdentifier: entry.assetIdentifier,
+        policyId: entry.RegistrySource.policyId,
+      })),
+      input.network
+    ),
+  ]);
+
+  const priceUnit = input.filter?.pricing?.unit;
+  const rankingInputs = candidates.map((entry) => ({
+    id: entry.id,
+    name: entry.name,
+    tags: entry.tags,
+    createdAt: entry.createdAt,
+    uptimeEwma: entry.uptimeEwma,
+    successfulPurchases: purchases.get(entry.assetIdentifier) ?? 0,
+    lineageStartedAt: isV2Policy(entry.RegistrySource.policyId)
+      ? (lineageStarts.get(getAgentVersionRoot(entry.assetIdentifier)) ??
+        entry.createdAt)
+      : entry.createdAt,
+    priceAmount: lowestPriceInUnit(
+      [
+        entry.AgentPricing,
+        ...entry.SupportedPaymentSources.map((source) => source.Pricing),
+      ],
+      priceUnit
+    ),
+  }));
+  const rankings = computeRankings({
+    inputs: rankingInputs,
+    weights: CONFIG.RANKING_WEIGHTS,
+    now: new Date(),
+  });
+  const ordered = sliceFromCursor(
+    sortRankingInputs({
+      inputs: rankingInputs,
+      rankings,
+      sortBy: params.sortBy,
+      searchQuery: 'query' in input ? input.query : undefined,
+    }),
+    input.cursorId
+  );
+
+  const healthCheckedEntries: Awaited<
+    ReturnType<typeof healthCheckService.checkVerifyAndUpdateRegistryEntries>
+  > = [];
+  const batchSize = input.limit * 2;
+  for (
+    let offset = 0;
+    offset < ordered.length && healthCheckedEntries.length < input.limit;
+    offset += batchSize
+  ) {
+    const registryEntries =
+      await registryEntryRepository.getRegistryEntriesByIds(
+        ordered.slice(offset, offset + batchSize).map((entry) => entry.id)
+      );
+    healthCheckedEntries.push(
+      ...(await healthCheckService.checkVerifyAndUpdateRegistryEntries({
+        registryEntries,
+        minHealthCheckDate: params.minHealthCheckDate,
+      }))
+    );
+  }
+
+  const ranked = healthCheckedEntries.map((entry) => ({
+    ...entry,
+    ranking: rankings.get(entry.id),
+  }));
+  return attachVersionLinks(ranked, input.network);
+}
+
 async function getHealthCheckedRegistryEntries(
   input:
     | z.infer<typeof queryRegistrySchemaInput>
@@ -152,6 +281,16 @@ async function getHealthCheckedRegistryEntries(
     assetIdentifier,
     searchQuery,
   });
+
+  if (input.sortBy != null) {
+    return getRankedRegistryEntries({
+      input,
+      where,
+      sortBy: input.sortBy,
+      minUptimePercent,
+      minHealthCheckDate,
+    });
+  }
 
   while (healthCheckedEntries.length < input.limit) {
     const queryParams = {

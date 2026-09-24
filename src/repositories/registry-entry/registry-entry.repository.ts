@@ -8,6 +8,24 @@ type RegistryEntryQueryParams = {
   network: Network;
 };
 
+const registryEntryInclude = {
+  Capability: true,
+  RegistrySource: true,
+  AgentPricing: {
+    include: { FixedPricing: { include: { Amounts: true } } },
+  },
+  ExampleOutput: true,
+  SupportedPaymentSources: {
+    include: {
+      Pricing: {
+        include: { FixedPricing: { include: { Amounts: true } } },
+      },
+    },
+    orderBy: { sourceIndex: 'asc' },
+  },
+  Verifications: true,
+} satisfies Prisma.RegistryEntryInclude;
+
 async function findRegistryEntries(params: RegistryEntryQueryParams) {
   const networkExists = await prisma.registrySource.findFirst({
     where: {
@@ -20,23 +38,7 @@ async function findRegistryEntries(params: RegistryEntryQueryParams) {
 
   return await prisma.registryEntry.findMany({
     where: params.where,
-    include: {
-      Capability: true,
-      RegistrySource: true,
-      AgentPricing: {
-        include: { FixedPricing: { include: { Amounts: true } } },
-      },
-      ExampleOutput: true,
-      SupportedPaymentSources: {
-        include: {
-          Pricing: {
-            include: { FixedPricing: { include: { Amounts: true } } },
-          },
-        },
-        orderBy: { sourceIndex: 'asc' },
-      },
-      Verifications: true,
-    },
+    include: registryEntryInclude,
     orderBy: [
       {
         id: 'desc',
@@ -54,6 +56,16 @@ async function getRegistryEntry(params: RegistryEntryQueryParams) {
 
 async function searchRegistryEntries(params: RegistryEntryQueryParams) {
   return findRegistryEntries(params);
+}
+
+// Full rows for a ranked page, returned in the order of `ids`.
+async function getRegistryEntriesByIds(ids: string[]) {
+  const rows = await prisma.registryEntry.findMany({
+    where: { id: { in: ids } },
+    include: registryEntryInclude,
+  });
+  const byId = new Map(rows.map((row) => [row.id, row]));
+  return ids.flatMap((id) => byId.get(id) ?? []);
 }
 
 async function getRegistryEntryByIdentifier(params: {
@@ -198,6 +210,7 @@ async function getRegistryEntrySpecByIdentifier(params: {
 export const registryEntryRepository = {
   getRegistryEntry,
   searchRegistryEntries,
+  getRegistryEntriesByIds,
   getRegistryEntryByIdentifier,
   getRegistryEntrySpecByIdentifier,
   findVersionSiblingAssetIdentifiers,
