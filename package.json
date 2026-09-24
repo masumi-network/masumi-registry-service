@@ -24,7 +24,7 @@
     "prisma:seed": "prisma db seed",
     "dev": "tsx watch ./src/index.ts",
     "build": "prisma generate && tsc --noEmit && pkgroll && mkdir -p dist/public && cp -r public/* dist/public/",
-    "start": "NODE_ENV=production && node ./dist/index.js",
+    "start": "NODE_ENV=production node ./dist/index.js",
     "swagger-json": "export DATABASE_URL=postgresql://mock-user:mock-pass@localhost:5432/mock-testdb && tsx ./src/utils/swagger-generator/cli.ts",
     "knip": "knip",
     "snapshot:export": "tsx ./src/scripts/snapshot-export.ts",
