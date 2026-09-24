@@ -6,28 +6,61 @@ dotenv.config();
 if (process.env.DATABASE_URL == null)
   throw new Error('Undefined DATABASE_URL ENV variables');
 
-const updateCardanoRegistryInterval = Number(
-  process.env.UPDATE_CARDANO_REGISTRY_INTERVAL ?? '50'
-);
-const updateHealthCheckInterval = Number(
-  process.env.UPDATE_HEALTH_CHECK_INTERVAL ?? '100'
-);
-if (updateCardanoRegistryInterval < 20)
-  throw new Error('Invalid UPDATE_CARDANO_REGISTRY_INTERVAL ENV variables');
+// Node timers silently fire after 1ms for delays above 2^31-1 ms, so every
+// value that ends up in a timer is capped there.
+const MAX_TIMER_MS = 2147483647;
+const MAX_TIMER_SECONDS = Math.floor(MAX_TIMER_MS / 1000);
 
-const dbConnectionTimeout = Number(process.env.DB_CONNECTION_TIMEOUT ?? '20');
-if (dbConnectionTimeout < 5)
-  throw new Error('Invalid DB_CONNECTION_TIMEOUT ENV variables');
-const dbConnectionPoolLimit = Number(
-  process.env.DB_CONNECTION_POOL_LIMIT ?? '5'
+// Reads a numeric env var, falling back to `fallback` only when it is unset.
+// Rejects NaN, Infinity, empty strings and out-of-range values at startup,
+// naming the variable.
+function readNumberEnv(
+  name: string,
+  fallback: number,
+  bounds: { min: number; max: number; integer?: boolean }
+): number {
+  const raw = process.env[name];
+  const value = raw === undefined ? fallback : Number(raw.trim() || NaN);
+  if (
+    !Number.isFinite(value) ||
+    value < bounds.min ||
+    value > bounds.max ||
+    (bounds.integer === true && !Number.isInteger(value))
+  ) {
+    throw new Error(
+      `Invalid ${name} ENV variable: expected ${bounds.integer === true ? 'an integer' : 'a number'} between ${bounds.min} and ${bounds.max}, got "${raw}"`
+    );
+  }
+  return value;
+}
+
+const updateCardanoRegistryInterval = readNumberEnv(
+  'UPDATE_CARDANO_REGISTRY_INTERVAL',
+  50,
+  { min: 20, max: MAX_TIMER_SECONDS }
 );
-if (dbConnectionPoolLimit < 1)
-  throw new Error('Invalid DB_CONNECTION_POOL_LIMIT ENV variables');
-const dbStatementTimeout = Number(process.env.DB_STAEMENT_TIMEOUT ?? '25000');
-if (dbStatementTimeout < 10000)
-  throw new Error('Invalid DB_STAEMENT_TIMEOUT ENV variables');
-const dbPoolTimeout = Number(process.env.DB_POOL_TIMEOUT ?? '25');
-if (dbPoolTimeout < 5) throw new Error('Invalid DB_POOL_TIMEOUT ENV variables');
+const updateHealthCheckInterval = readNumberEnv(
+  'UPDATE_HEALTH_CHECK_INTERVAL',
+  100,
+  { min: 20, max: MAX_TIMER_SECONDS }
+);
+const dbConnectionTimeout = readNumberEnv('DB_CONNECTION_TIMEOUT', 20, {
+  min: 5,
+  max: MAX_TIMER_SECONDS,
+});
+const dbConnectionPoolLimit = readNumberEnv('DB_CONNECTION_POOL_LIMIT', 5, {
+  min: 1,
+  max: Number.MAX_SAFE_INTEGER,
+  integer: true,
+});
+const dbStatementTimeout = readNumberEnv('DB_STAEMENT_TIMEOUT', 25000, {
+  min: 10000,
+  max: MAX_TIMER_MS,
+});
+const dbPoolTimeout = readNumberEnv('DB_POOL_TIMEOUT', 25, {
+  min: 5,
+  max: MAX_TIMER_SECONDS,
+});
 const corsAllowedOrigins = parseCorsAllowedOrigins(
   process.env.CORS_ALLOWED_ORIGINS
 );

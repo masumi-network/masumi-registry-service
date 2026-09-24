@@ -1,31 +1,17 @@
-import dotenv from 'dotenv';
-dotenv.config();
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import pg from 'pg';
+import { CONFIG } from '../config';
 import { logger } from '../logger';
 
-const buildPoolConfig = (): pg.PoolConfig => {
-  const connectionString = process.env.DATABASE_URL!;
-  const dbConnectionTimeoutSec = Number(
-    process.env.DB_CONNECTION_TIMEOUT ?? '20'
-  );
-  const dbConnectionPoolLimit = Number(
-    process.env.DB_CONNECTION_POOL_LIMIT ?? '5'
-  );
-  const dbStatementTimeoutMs = Number(
-    process.env.DB_STAEMENT_TIMEOUT ?? '25000'
-  );
-  const dbPoolTimeoutSec = Number(process.env.DB_POOL_TIMEOUT ?? '25');
-
-  return {
-    connectionString,
-    max: dbConnectionPoolLimit,
-    statement_timeout: dbStatementTimeoutMs,
-    connectionTimeoutMillis: dbConnectionTimeoutSec * 1000,
-    idleTimeoutMillis: dbPoolTimeoutSec * 1000,
-  };
-};
+// Pool settings come from the validated CONFIG, never from raw env vars.
+const buildPoolConfig = (): pg.PoolConfig => ({
+  connectionString: CONFIG.DATABASE_URL,
+  max: CONFIG.DB_CONNECTION_POOL_LIMIT,
+  statement_timeout: CONFIG.DB_STAEMENT_TIMEOUT,
+  connectionTimeoutMillis: CONFIG.DB_CONNECTION_TIMEOUT * 1000,
+  idleTimeoutMillis: CONFIG.DB_POOL_TIMEOUT * 1000,
+});
 
 const pool = new pg.Pool(buildPoolConfig());
 const adapter = new PrismaPg(pool);
