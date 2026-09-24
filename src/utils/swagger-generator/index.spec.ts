@@ -3,6 +3,7 @@ import path from 'path';
 
 type OpenApiDocument = {
   paths: Record<string, Record<string, { security?: unknown[] }>>;
+  components: { schemas: Record<string, unknown> };
 };
 
 // The generator loads the config module, which requires a database URL.
@@ -38,12 +39,13 @@ describe('generateOpenAPI', () => {
         Object.keys(methods).map((method) => `${method} ${route}`)
     );
 
-    expect(operations).toHaveLength(20);
+    expect(operations).toHaveLength(21);
     expect(operations).toEqual(
       expect.arrayContaining([
         'get /health/',
         'post /registry-entry/',
         'post /registry-diff/',
+        'get /registry-entry-spec/',
         'get /capability/',
         'post /inbox-agent-registration-diff/',
         'delete /registry-source/',
@@ -62,5 +64,24 @@ describe('generateOpenAPI', () => {
         });
       }
     }
+  });
+
+  it('documents the registry-entry-spec endpoint with its schema', () => {
+    const operation = document.paths['/registry-entry-spec/']?.get as
+      | { responses: Record<string, unknown>; parameters: { name: string }[] }
+      | undefined;
+
+    expect(operation?.parameters.map((parameter) => parameter.name)).toEqual([
+      'network',
+      'agentIdentifier',
+    ]);
+    expect(Object.keys(operation?.responses ?? {})).toEqual([
+      '200',
+      '400',
+      '401',
+      '404',
+      '500',
+    ]);
+    expect(document.components.schemas).toHaveProperty('RegistryEntrySpec');
   });
 });

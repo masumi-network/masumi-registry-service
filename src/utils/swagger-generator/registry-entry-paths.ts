@@ -13,10 +13,19 @@ import {
   capabilitySchemaOutput,
 } from '@/routes/api/capability';
 import {
+  registryEntrySpecSchemaInput,
+  registryEntrySpecSchemaOutput,
+} from '@/routes/api/registry-entry-spec';
+import {
   queryPaymentInformationInput,
   queryPaymentInformationSchemaOutput,
 } from '@/routes/api/payment-information';
-import { PaymentType, Status, PricingType } from '@prisma/client';
+import {
+  PaymentType,
+  Status,
+  PricingType,
+  RegistryEntryType,
+} from '@prisma/client';
 
 export function registerRegistryEntryPaths(
   registry: OpenAPIRegistry,
@@ -364,6 +373,72 @@ export function registerRegistryEntryPaths(
     },
   });
 
+  registry.registerPath({
+    method: 'get',
+    path: '/registry-entry-spec/',
+    description:
+      "Returns the registry's cached, validated copy of an OpenApi or X402 " +
+      "agent's spec (OpenAPI document or x402 resource manifest), so callers " +
+      "do not have to fetch the agent's URL themselves. The periodic health " +
+      'check re-validates it; spec and specValidatedAt stay null until the ' +
+      'first successful validation.',
+    summary: 'REQUIRES API KEY Authentication (+user)',
+    tags: ['registry-entry'],
+    request: {
+      query: registryEntrySpecSchemaInput.openapi({
+        example: {
+          network: 'Preprod',
+          agentIdentifier:
+            '222222222222222222222222222222222222222222222222222222222222222222',
+        },
+      }),
+    },
+    security: [{ [apiKeyAuthName]: [] }],
+    responses: {
+      200: {
+        description: 'The cached spec of the registry entry',
+        content: {
+          'application/json': {
+            schema: z
+              .object({
+                data: registryEntrySpecSchemaOutput,
+                status: z.string(),
+              })
+              .openapi({
+                example: {
+                  data: {
+                    agentIdentifier:
+                      '222222222222222222222222222222222222222222222222222222222222222222',
+                    type: RegistryEntryType.OpenApi,
+                    status: Status.Online,
+                    specValidatedAt: new Date(120000),
+                    spec: {
+                      openapi: '3.1.0',
+                      info: { title: 'Example API', version: '1.0.0' },
+                      paths: {},
+                    },
+                  },
+                  status: 'success',
+                },
+              }),
+          },
+        },
+      },
+      400: {
+        description: 'Bad Request (possible parameters missing or invalid)',
+      },
+      401: {
+        description: 'Unauthorized',
+      },
+      404: {
+        description:
+          'Registry entry not found, or it is a Standard entry, which does not expose a spec',
+      },
+      500: {
+        description: 'Internal Server Error',
+      },
+    },
+  });
   registry.registerPath({
     method: 'post',
     path: '/registry-diff/',
