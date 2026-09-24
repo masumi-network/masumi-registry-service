@@ -6,6 +6,9 @@ import {
   Status,
 } from '@prisma/client';
 import {
+  queryRegistrySchemaInput,
+  queryRegistrySchemaOutput,
+  searchRegistrySchemaInput,
   serializeRegistryEntries,
   type RegistryEntrySerializable,
 } from './schemas';
@@ -165,5 +168,63 @@ describe('serializeRegistryEntries', () => {
         10
       )
     ).toThrow('payment source 0 is missing pricing');
+  });
+});
+
+describe('sortBy input', () => {
+  it('requires filter.pricing.unit to sort by price', () => {
+    expect(
+      queryRegistrySchemaInput.safeParse({
+        network: Network.Preprod,
+        sortBy: 'price',
+      }).success
+    ).toBe(false);
+    expect(
+      queryRegistrySchemaInput.safeParse({
+        network: Network.Preprod,
+        sortBy: 'price',
+        filter: { pricing: { unit: 'lovelace' } },
+      }).success
+    ).toBe(true);
+  });
+
+  it('offers relevance only on search', () => {
+    expect(
+      queryRegistrySchemaInput.safeParse({
+        network: Network.Preprod,
+        sortBy: 'relevance',
+      }).success
+    ).toBe(false);
+    expect(
+      searchRegistrySchemaInput.safeParse({
+        network: Network.Preprod,
+        query: 'agent',
+        sortBy: 'relevance',
+      }).success
+    ).toBe(true);
+  });
+});
+
+describe('ranking output', () => {
+  const ranking = {
+    score: 0.5,
+    components: { successfulPurchases: 1, uptime: 0.5, lineageAge: 0 },
+    weights: { successfulPurchases: 0.6, uptime: 0.3, lineageAge: 0.1 },
+  };
+
+  it('passes the score components through to the response', () => {
+    const entries = serializeRegistryEntries([entry({ ranking })], 10);
+
+    expect(
+      queryRegistrySchemaOutput.parse({ entries }).entries[0].ranking
+    ).toEqual(ranking);
+  });
+
+  it('omits ranking for unsorted listings', () => {
+    const entries = serializeRegistryEntries([entry()], 10);
+
+    expect(
+      queryRegistrySchemaOutput.parse({ entries }).entries[0]
+    ).not.toHaveProperty('ranking');
   });
 });

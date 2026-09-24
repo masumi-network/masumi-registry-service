@@ -2,55 +2,192 @@ import { z } from '@/utils/zod-openapi';
 import { ez } from 'express-zod-api';
 import { $Enums, Network } from '@prisma/client';
 
-const registryEntryFilterSchema = z.object({
-  paymentTypes: z.array(z.nativeEnum($Enums.PaymentType)).max(5).optional(),
-  status: z.array(z.nativeEnum($Enums.Status)).max(5).optional(),
-  policyId: z.string().min(1).max(250).optional(),
-  assetIdentifier: z.string().min(1).max(250).optional(),
-  tags: z.array(z.string().min(1).max(150)).optional(),
-  capability: z
-    .object({
-      name: z.string().min(1).max(150),
-      version: z.string().max(150).optional(),
-    })
-    .optional(),
-  resolveToLatestVersion: z
-    .boolean()
-    .optional()
-    .describe(
-      'When true and an assetIdentifier filter is provided, the assetIdentifier ' +
-        'is first resolved to the latest version of the same V2 agent (same ' +
-        'root, highest version) before matching — so passing any older version ' +
-        'returns the current one. No effect on V1 assets or when no ' +
-        'assetIdentifier is given. The plain assetIdentifier filter always stays ' +
-        'an exact match.'
-    ),
+// Base units (lovelace, token base units) as a digit string, like the output.
+// Capped at the Postgres BIGINT max so an oversized value is a 400, not a 500.
+const MAX_BIGINT = BigInt('9223372036854775807');
+const pricingAmountSchema = z
+  .string()
+  .regex(/^\d{1,19}$/)
+  .refine((value) => BigInt(value) <= MAX_BIGINT, {
+    message: 'Amount exceeds the maximum supported value',
+  });
+
+const registryEntryPricingFilterSchema = z
+  .object({
+    pricingType: z
+      .nativeEnum($Enums.PricingType)
+      .optional()
+      .describe('Pricing model of the agent or of any of its payment sources.'),
+    unit: z
+      .string()
+      .min(1)
+      .max(250)
+      .optional()
+      .describe('Only agents with a fixed price in this unit.'),
+    minAmount: pricingAmountSchema
+      .optional()
+      .describe('Minimum fixed price in `unit`, in base units. Needs `unit`.'),
+    maxAmount: pricingAmountSchema
+      .optional()
+      .describe('Maximum fixed price in `unit`, in base units. Needs `unit`.'),
+  })
+  .refine(
+    (pricing) =>
+      pricing.unit != null ||
+      (pricing.minAmount == null && pricing.maxAmount == null),
+    { message: 'minAmount/maxAmount require unit', path: ['unit'] }
+  )
+  .refine(
+    (pricing) =>
+      pricing.unit == null ||
+      pricing.pricingType == null ||
+      pricing.pricingType === $Enums.PricingType.Fixed,
+    {
+      message: 'unit/minAmount/maxAmount only apply to Fixed pricing',
+      path: ['pricingType'],
+    }
+  )
+  .refine(
+    (pricing) =>
+      pricing.minAmount == null ||
+      pricing.maxAmount == null ||
+      BigInt(pricing.minAmount) <= BigInt(pricing.maxAmount),
+    { message: 'minAmount must not exceed maxAmount', path: ['minAmount'] }
+  )
+  .openapi('RegistryEntryPricingFilter');
+
+const registryEntryHealthFilterSchema = z
+  .object({
+    minUptimePercent: z
+      .number()
+      .min(0)
+      .max(100)
+      .optional()
+      .describe(
+        'Minimum uptimeCount / uptimeCheckCount in percent. Entries that were never checked are excluded.'
+      ),
+    lastCheckedAfter: ez
+      .dateIn()
+      .optional()
+      .describe(
+        'Entries last health-checked before this date are re-checked live before being returned. Replaces minHealthCheckDate.'
+      ),
+    onlyOnline: z
+      .boolean()
+      .optional()
+      .describe('Only return entries whose status is Online.'),
+  })
+  .openapi('RegistryEntryHealthFilter');
+
+const registryEntryFilterSchema = z
+  .object({
+    paymentTypes: z.array(z.nativeEnum($Enums.PaymentType)).max(5).optional(),
+    status: z.array(z.nativeEnum($Enums.Status)).max(5).optional(),
+    excludeStatus: z
+      .array(z.nativeEnum($Enums.Status))
+      .max(5)
+      .optional()
+      .describe(
+        'Statuses to exclude. Without `status`, all other statuses are included.'
+      ),
+    pricing: registryEntryPricingFilterSchema.optional(),
+    health: registryEntryHealthFilterSchema.optional(),
+    registeredAfter: ez
+      .dateIn()
+      .optional()
+      .describe(
+        'Only entries first seen by the registry at or after this date.'
+      ),
+    registeredBefore: ez
+      .dateIn()
+      .optional()
+      .describe(
+        'Only entries first seen by the registry at or before this date.'
+      ),
+    policyId: z.string().min(1).max(250).optional(),
+    assetIdentifier: z.string().min(1).max(250).optional(),
+    tags: z.array(z.string().min(1).max(150)).optional(),
+    capability: z
+      .object({
+        name: z.string().min(1).max(150),
+        version: z.string().max(150).optional(),
+      })
+      .optional(),
+    resolveToLatestVersion: z
+      .boolean()
+      .optional()
+      .describe(
+        'When true and an assetIdentifier filter is provided, the assetIdentifier ' +
+          'is first resolved to the latest version of the same V2 agent (same ' +
+          'root, highest version) before matching — so passing any older version ' +
+          'returns the current one. No effect on V1 assets or when no ' +
+          'assetIdentifier is given. The plain assetIdentifier filter always stays ' +
+          'an exact match.'
+      ),
+  })
+  .openapi('RegistryEntryFilter');
+
+const QUERY_SORT_BY = ['uptime', 'price', 'recency', 'score'] as const;
+const SEARCH_SORT_BY = ['relevance', ...QUERY_SORT_BY] as const;
+export type RegistryEntrySortBy = (typeof SEARCH_SORT_BY)[number];
+
+const SORT_BY_DESCRIPTION =
+  'Explicit result order; omit it to keep the default order (newest id ' +
+  'first). uptime = rolling uptime, price = lowest fixed price in ' +
+  'filter.pricing.unit (required), recency = first seen, score = weighted ' +
+  'rank (see ranking on each entry). Ranked results carry their score ' +
+  'components in `ranking`.';
+
+// sortBy=price compares amounts, which is only meaningful within one unit.
+function hasPriceUnitWhenSortingByPrice(input: {
+  sortBy?: RegistryEntrySortBy;
+  filter?: { pricing?: { unit?: string } };
+}): boolean {
+  return input.sortBy !== 'price' || input.filter?.pricing?.unit != null;
+}
+const priceSortRefinement = {
+  message: 'sortBy=price requires filter.pricing.unit',
+  path: ['sortBy'],
+};
+
+const deprecatedMinHealthCheckDateSchema = ez.dateIn().optional().openapi({
+  deprecated: true,
+  description: 'Deprecated: use filter.health.lastCheckedAfter.',
 });
 
-export const queryRegistrySchemaInput = z.object({
-  network: z.nativeEnum(Network),
-  limit: z.coerce.number().int().min(1).max(50).default(10),
-  //optional data
-  cursorId: z.string().min(1).max(50).optional(),
-  filter: registryEntryFilterSchema.optional(),
-  minHealthCheckDate: ez.dateIn().optional(),
-});
+export const queryRegistrySchemaInput = z
+  .object({
+    network: z.nativeEnum(Network),
+    limit: z.coerce.number().int().min(1).max(50).default(10),
+    //optional data
+    cursorId: z.string().min(1).max(50).optional(),
+    filter: registryEntryFilterSchema.optional(),
+    minHealthCheckDate: deprecatedMinHealthCheckDateSchema,
+    sortBy: z.enum(QUERY_SORT_BY).optional().describe(SORT_BY_DESCRIPTION),
+  })
+  .refine(hasPriceUnitWhenSortingByPrice, priceSortRefinement);
 
-export const searchRegistrySchemaInput = z.object({
-  network: z.nativeEnum(Network),
-  limit: z.coerce.number().int().min(1).max(50).default(10),
-  cursorId: z.string().min(1).max(50).optional(),
-  query: z
-    .string()
-    .trim()
-    .min(1)
-    .max(120)
-    .describe(
-      'Case-insensitive fuzzy match against registry entry core metadata, capability, asset identifier, api base URL, and tags.'
-    ),
-  filter: registryEntryFilterSchema.optional(),
-  minHealthCheckDate: ez.dateIn().optional(),
-});
+export const searchRegistrySchemaInput = z
+  .object({
+    network: z.nativeEnum(Network),
+    limit: z.coerce.number().int().min(1).max(50).default(10),
+    cursorId: z.string().min(1).max(50).optional(),
+    query: z
+      .string()
+      .trim()
+      .min(1)
+      .max(120)
+      .describe(
+        'Case-insensitive fuzzy match against registry entry core metadata, capability, asset identifier, api base URL, and tags.'
+      ),
+    filter: registryEntryFilterSchema.optional(),
+    minHealthCheckDate: deprecatedMinHealthCheckDateSchema,
+    sortBy: z
+      .enum(SEARCH_SORT_BY)
+      .optional()
+      .describe(`${SORT_BY_DESCRIPTION} relevance = text match strength.`),
+  })
+  .refine(hasPriceUnitWhenSortingByPrice, priceSortRefinement);
 
 export const refreshRegistryEntrySchemaInput = z.object({
   network: z.nativeEnum(Network),
@@ -78,6 +215,26 @@ export const registryDiffSchemaInput = z.object({
       'The policy ID of the registry source to filter by. If not specified, queries all registry sources.'
     ),
 });
+
+const rankingWeightsSchema = z.object({
+  successfulPurchases: z.number(),
+  uptime: z.number(),
+  lineageAge: z.number(),
+});
+
+const registryEntryRankingSchema = z
+  .object({
+    score: z
+      .number()
+      .describe('Weighted sum of the components divided by the weight sum.'),
+    components: rankingWeightsSchema.describe(
+      'Each input normalized to 0-1 within the ranked result set: ' +
+        'successfulPurchases (seller withdrawals on chain, relative to the ' +
+        'top agent), uptime (rolling), lineageAge (V2 version root age).'
+    ),
+    weights: rankingWeightsSchema,
+  })
+  .openapi('RegistryEntryRanking');
 
 const registryEntrySchemaOutput = z
   .object({
@@ -222,6 +379,11 @@ const registryEntrySchemaOutput = z
     ),
     metadataVersion: z.number().int(),
     updatedAt: z.date(),
+    ranking: registryEntryRankingSchema
+      .optional()
+      .describe(
+        'Present when sortBy is set: why the entry ranks where it does.'
+      ),
   })
   .openapi('RegistryEntry');
 
@@ -262,6 +424,7 @@ export type RegistryEntrySerializable = {
   supersededByAgentIdentifier?: string | null;
   paymentType: $Enums.PaymentType;
   metadataVersion: number;
+  ranking?: z.infer<typeof registryEntryRankingSchema>;
   RegistrySource: {
     id: string;
     policyId: string | null;

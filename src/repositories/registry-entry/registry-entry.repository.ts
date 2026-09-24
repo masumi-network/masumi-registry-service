@@ -1,39 +1,30 @@
 import { prisma } from '@/utils/db';
-import { Network, PaymentType, Status } from '@prisma/client';
+import { Network, Prisma } from '@prisma/client';
 
 type RegistryEntryQueryParams = {
-  capability:
-    | { name: string | undefined; version: string | undefined }
-    | undefined;
-  allowedPaymentTypes: PaymentType[] | undefined;
-  allowedStatuses: Status[];
-  policyId: string | undefined;
-  assetIdentifier: string | undefined;
-  tags: string[] | undefined;
+  where: Prisma.RegistryEntryWhereInput;
   cursorId: string | undefined;
   limit: number;
   network: Network;
-  searchQuery?: string;
 };
 
-function buildRegistryEntryWhere(params: RegistryEntryQueryParams) {
-  return {
-    Capability: params.capability,
-    paymentType: params.allowedPaymentTypes
-      ? { in: params.allowedPaymentTypes }
-      : undefined,
-    status: { in: params.allowedStatuses },
-    assetIdentifier: params.assetIdentifier,
-    RegistrySource: {
-      policyId: params.policyId,
-      network: params.network,
+const registryEntryInclude = {
+  Capability: true,
+  RegistrySource: true,
+  AgentPricing: {
+    include: { FixedPricing: { include: { Amounts: true } } },
+  },
+  ExampleOutput: true,
+  SupportedPaymentSources: {
+    include: {
+      Pricing: {
+        include: { FixedPricing: { include: { Amounts: true } } },
+      },
     },
-    tags: params.tags ? { hasSome: params.tags } : undefined,
-    searchText: params.searchQuery
-      ? { contains: params.searchQuery }
-      : undefined,
-  };
-}
+    orderBy: { sourceIndex: 'asc' },
+  },
+  Verifications: true,
+} satisfies Prisma.RegistryEntryInclude;
 
 async function findRegistryEntries(params: RegistryEntryQueryParams) {
   const networkExists = await prisma.registrySource.findFirst({
@@ -46,24 +37,8 @@ async function findRegistryEntries(params: RegistryEntryQueryParams) {
   }
 
   return await prisma.registryEntry.findMany({
-    where: buildRegistryEntryWhere(params),
-    include: {
-      Capability: true,
-      RegistrySource: true,
-      AgentPricing: {
-        include: { FixedPricing: { include: { Amounts: true } } },
-      },
-      ExampleOutput: true,
-      SupportedPaymentSources: {
-        include: {
-          Pricing: {
-            include: { FixedPricing: { include: { Amounts: true } } },
-          },
-        },
-        orderBy: { sourceIndex: 'asc' },
-      },
-      Verifications: true,
-    },
+    where: params.where,
+    include: registryEntryInclude,
     orderBy: [
       {
         id: 'desc',
@@ -81,6 +56,16 @@ async function getRegistryEntry(params: RegistryEntryQueryParams) {
 
 async function searchRegistryEntries(params: RegistryEntryQueryParams) {
   return findRegistryEntries(params);
+}
+
+// Full rows for a ranked page, returned in the order of `ids`.
+async function getRegistryEntriesByIds(ids: string[]) {
+  const rows = await prisma.registryEntry.findMany({
+    where: { id: { in: ids } },
+    include: registryEntryInclude,
+  });
+  const byId = new Map(rows.map((row) => [row.id, row]));
+  return ids.flatMap((id) => byId.get(id) ?? []);
 }
 
 async function getRegistryEntryByIdentifier(params: {
@@ -225,6 +210,7 @@ async function getRegistryEntrySpecByIdentifier(params: {
 export const registryEntryRepository = {
   getRegistryEntry,
   searchRegistryEntries,
+  getRegistryEntriesByIds,
   getRegistryEntryByIdentifier,
   getRegistryEntrySpecByIdentifier,
   findVersionSiblingAssetIdentifiers,

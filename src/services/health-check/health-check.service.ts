@@ -1,5 +1,6 @@
 import { prisma } from '@/utils/db';
 import { logger } from '@/utils/logger';
+import { nextUptimeEwma } from '@/utils/uptime-ewma';
 import {
   $Enums,
   AgentVerification,
@@ -336,6 +337,11 @@ async function checkVerifyAndUpdateRegistryEntries({
               increment: s.status == $Enums.Status.Online ? 1 : 0,
             },
             uptimeCheckCount: { increment: 1 },
+            uptimeEwma: nextUptimeEwma(
+              registryEntries.find((entry) => entry.id === s.id)?.uptimeEwma ??
+                null,
+              s.status == $Enums.Status.Online
+            ),
             lastUptimeCheck: new Date(),
             ...specCachePatch(s), // caches a just-validated spec snapshot
           },

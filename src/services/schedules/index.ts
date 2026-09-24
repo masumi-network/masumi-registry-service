@@ -2,6 +2,7 @@ import {
   updateLatestCardanoRegistryEntries,
   updateHealthCheck,
 } from '@/services/cardano-registry/cardano-registry.service';
+import { updateSuccessfulPurchaseIndex } from '@/services/purchase-indexer/purchase-indexer.service';
 import { CONFIG } from '@/utils/config';
 import { logger } from '@/utils/logger';
 import { AsyncInterval } from '@/utils/async-interval';
@@ -29,5 +30,11 @@ async function init() {
         's'
     );
   }, CONFIG.UPDATE_HEALTH_CHECK_INTERVAL * 1000);
+
+  AsyncInterval.start(async () => {
+    logger.info('Updating successful purchase index');
+    await updateSuccessfulPurchaseIndex();
+    logger.info('Finished updating successful purchase index');
+  }, CONFIG.UPDATE_PURCHASE_INDEX_INTERVAL * 1000);
 }
 export default init;
