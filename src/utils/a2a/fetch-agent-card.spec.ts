@@ -2,6 +2,7 @@ import { request, type RequestOptions } from 'node:https';
 import { lookup } from 'node:dns/promises';
 import { PassThrough } from 'node:stream';
 import { EventEmitter } from 'node:events';
+import { urlToHttpOptions } from 'node:url';
 import type { IncomingMessage, ClientRequest } from 'node:http';
 import {
   fetchAgentCardBody,
@@ -93,11 +94,24 @@ describe('pinned Agent Card fetch', () => {
     expect(callback).toHaveBeenCalledWith(null, '93.184.216.34', 4);
     expect(lookup).toHaveBeenCalledTimes(1);
   });
+  it('accepts a fragment while keeping it out of the HTTP request path', async () => {
+    const url = 'https://agent.example/card.json?version=1#card';
+    await expect(fetchAgentCardBody(url)).resolves.toEqual({
+      ok: true,
+      body: '{"name":"Agent"}',
+    });
+    const [target, options] = (request as jest.Mock).mock.calls[0];
+    expect(target.href).toBe(url);
+    expect(urlToHttpOptions(target).path).toBe('/card.json?version=1');
+    const callback = jest.fn();
+    options.lookup('agent.example', {}, callback);
+    expect(callback).toHaveBeenCalledWith(null, '93.184.216.34', 4);
+    expect(lookup).toHaveBeenCalledTimes(1);
+  });
   it.each([
     'http://agent.example/card',
     'https://user:pass@agent.example/card',
     'https://127.0.0.1/card',
-    'https://agent.example/card#fragment',
   ])('rejects invalid or blocked destination %s', async (url) => {
     await expect(fetchAgentCardBody(url)).resolves.toMatchObject({
       ok: false,

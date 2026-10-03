@@ -154,7 +154,11 @@ export async function fetchAgentCardBody(rawUrl: string): Promise<FetchResult> {
       };
     }
     const destination = await Promise.race([
-      resolvePublicUrl(rawUrl, { allowQuery: true, trimTrailingSlash: false }),
+      resolvePublicUrl(rawUrl, {
+        allowQuery: true,
+        allowHash: true,
+        trimTrailingSlash: false,
+      }),
       deadline,
     ]);
     return await Promise.race([
