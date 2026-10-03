@@ -74,6 +74,32 @@ describe('web3CardanoV2 metadata', () => {
     ).toBe(true);
   });
 
+  it('accepts MIP-002 api_url with numeric metadata_version', () => {
+    const metadata = { ...sampleV2Metadata, api_base_url: undefined };
+    expect(
+      web3CardanoV2MetadataSchema.safeParse({
+        ...metadata,
+        type: 'a2aV1',
+        api_url: 'https://agent.example/a2a',
+        agent_card_url: 'https://agent.example/card.json',
+        a2a_protocol_versions: ['1.0'],
+        metadata_version: 2,
+      }).success
+    ).toBe(true);
+  });
+
+  it('rejects conflicting A2A endpoint aliases', () => {
+    expect(
+      web3CardanoV2MetadataSchema.safeParse({
+        ...sampleV2Metadata,
+        type: 'a2aV1',
+        api_url: 'https://agent.example/other',
+        agent_card_url: 'https://agent.example/card.json',
+        a2a_protocol_versions: ['1.0'],
+      }).success
+    ).toBe(false);
+  });
+
   it('accepts an A2A entry carrying api_base_url AND the a2a keys together', () => {
     const parsed = web3CardanoV2MetadataSchema.safeParse({
       ...sampleV2Metadata,

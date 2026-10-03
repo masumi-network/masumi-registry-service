@@ -1,3 +1,4 @@
+import { fetchAgentCardBody } from '@/utils/a2a/fetch-agent-card';
 import { lookup } from 'node:dns/promises';
 import {
   validateAgentCard,
@@ -5,6 +6,10 @@ import {
   validateSpecUrl,
   validateX402Manifest,
 } from './index';
+
+jest.mock('@/utils/a2a/fetch-agent-card', () => ({
+  fetchAgentCardBody: jest.fn(),
+}));
 
 jest.mock('node:dns/promises', () => ({
   lookup: jest.fn(),
@@ -17,6 +22,11 @@ function mockFetchOnce(options: {
 }) {
   const { ok = true, status = 200, body = '' } = options;
   const chunks = Array.isArray(body) ? body : [body];
+  (fetchAgentCardBody as jest.Mock).mockResolvedValueOnce(
+    ok
+      ? { ok: true, body: chunks.join('') }
+      : { ok: false, reason: `HTTP ${status}`, unreachable: true }
+  );
   const encoder = new TextEncoder();
   (global.fetch as jest.Mock).mockResolvedValueOnce({
     ok,
@@ -48,6 +58,7 @@ const VALID_X402_MANIFEST = JSON.stringify({
 describe('spec-validation', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    (fetchAgentCardBody as jest.Mock).mockReset();
     global.fetch = jest.fn();
     // Public IP -> passes the SSRF guard.
     (lookup as jest.Mock).mockResolvedValue([
@@ -244,6 +255,8 @@ describe('spec-validation', () => {
       mockFetchOnce({ body: agentCard() });
       const result = await validateAgentCard(CARD_URL, ['1.0']);
       expect(result.outcome).toBe('valid');
+      expect(fetchAgentCardBody).toHaveBeenCalledWith(CARD_URL);
+      expect(global.fetch).not.toHaveBeenCalled();
       if (result.outcome === 'valid') {
         expect((result.spec as { name: string }).name).toBe('Test A2A Agent');
       }
@@ -283,8 +296,44 @@ describe('spec-validation', () => {
       }
     });
 
+    it('rejects a published version without a supported interface', async () => {
+      mockFetchOnce({ body: agentCard({ protocolVersions: ['1.0', '9.9'] }) });
+      const result = await validateAgentCard(CARD_URL, ['9.9']);
+      expect(result.outcome).toBe('invalid');
+    });
+
+    it.each(['€', '1.0.0', 'v1.0', '1'.repeat(64) + '.0'])(
+      'rejects malformed protocol version %s',
+      async (version) => {
+        mockFetchOnce({
+          body: agentCard({
+            protocolVersions: [version],
+            supportedInterfaces: [
+              {
+                url: 'https://agent.example/a2a',
+                protocolBinding: 'JSONRPC',
+                protocolVersion: version,
+              },
+            ],
+          }),
+        });
+        expect((await validateAgentCard(CARD_URL, [version])).outcome).toBe(
+          'invalid'
+        );
+      }
+    );
+
     it('accepts when every declared version is published by the card', async () => {
-      mockFetchOnce({ body: agentCard({ protocolVersions: ['1.0', '1.1'] }) });
+      mockFetchOnce({
+        body: agentCard({
+          protocolVersions: ['1.0', '1.1'],
+          supportedInterfaces: ['1.0', '1.1'].map((protocolVersion) => ({
+            url: 'https://agent.example/a2a',
+            protocolBinding: 'JSONRPC',
+            protocolVersion,
+          })),
+        }),
+      });
       const result = await validateAgentCard(CARD_URL, ['1.0', '1.1']);
       expect(result.outcome).toBe('valid');
     });
@@ -342,10 +391,12 @@ describe('spec-validation', () => {
       expect(result.outcome).toBe('invalid');
     });
 
-    it('reports a private/SSRF target as unreachable without fetching', async () => {
-      (lookup as jest.Mock).mockResolvedValue([
-        { address: '169.254.169.254', family: 4 },
-      ]);
+    it('propagates a blocked card destination as unreachable', async () => {
+      (fetchAgentCardBody as jest.Mock).mockResolvedValue({
+        ok: false,
+        reason: 'blocked url: private-address',
+        unreachable: true,
+      });
       const result = await validateAgentCard(
         'https://metadata.internal/.well-known/agent-card.json',
         ['1.0']

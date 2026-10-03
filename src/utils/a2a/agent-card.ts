@@ -7,11 +7,14 @@ import { z } from '@/utils/zod-openapi';
 // time (src/utils/validator/agent-card.ts there), so an agent card accepted at
 // mint time also validates here at index time.
 //
-// No per-field length caps: the card is stored as a single Json blob already
-// bounded by the shared spec pipeline (MAX_SPEC_BYTES streaming cap on fetch,
-// MAX_CACHED_SPEC_BYTES cap before it is cached), so per-field bounds would be
-// redundant. `.passthrough()` keeps unknown/newer card fields from failing a
-// card that is otherwise valid.
+// Protocol versions use Major.Minor and fit within one metadata string.
+// The fetch pipeline bounds the card body and the cached JSON snapshot.
+// `.passthrough()` retains unknown card fields.
+
+export const a2aProtocolVersionSchema = z
+  .string()
+  .max(64)
+  .regex(/^[0-9]+\.[0-9]+$/, 'protocol version must use Major.Minor');
 
 const agentCardInterfaceSchema = z.object({
   url: z
@@ -22,7 +25,7 @@ const agentCardInterfaceSchema = z.object({
       'supportedInterfaces[].url must be HTTPS'
     ),
   protocolBinding: z.enum(['HTTP+JSON', 'JSONRPC', 'GRPC']),
-  protocolVersion: z.string(),
+  protocolVersion: a2aProtocolVersionSchema,
 });
 
 const agentCardSkillSchema = z.object({
@@ -51,7 +54,7 @@ const agentCardCapabilitiesSchema = z
 
 export const agentCardSchema = z
   .object({
-    protocolVersions: z.array(z.string()).min(1),
+    protocolVersions: z.array(a2aProtocolVersionSchema).min(1),
     name: z.string(),
     description: z.string(),
     version: z.string(),
@@ -73,6 +76,19 @@ export const agentCardSchema = z
   // Spec cross-field rule: an interface may only advertise a protocol version
   // the card itself claims to support.
   .superRefine((card, ctx) => {
+    card.protocolVersions.forEach((version, index) => {
+      if (
+        !card.supportedInterfaces.some(
+          (agentInterface) => agentInterface.protocolVersion === version
+        )
+      ) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['protocolVersions', index],
+          message: `protocolVersion "${version}" has no supported interface`,
+        });
+      }
+    });
     card.supportedInterfaces.forEach((agentInterface, index) => {
       if (!card.protocolVersions.includes(agentInterface.protocolVersion)) {
         ctx.addIssue({
