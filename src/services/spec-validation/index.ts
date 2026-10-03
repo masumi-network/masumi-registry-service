@@ -271,8 +271,9 @@ export async function validateAgentCard(
       reason: `not a valid agent card: ${result.error.issues[0]?.message ?? 'unknown'}`,
     };
   }
+  const supportedVersions = new Set(result.data.protocolVersions);
   const missingVersions = declaredProtocolVersions.filter(
-    (version) => !result.data.protocolVersions.includes(version)
+    (version) => !supportedVersions.has(version)
   );
   if (missingVersions.length > 0) {
     return {

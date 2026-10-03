@@ -296,6 +296,59 @@ describe('spec-validation', () => {
       }
     });
 
+    it('checks declared versions without repeated card-array scans', async () => {
+      const protocolVersions = Array.from(
+        { length: 512 },
+        (_, index) => `${index}.0`
+      );
+      const declaredVersions = Array.from({ length: 1024 }, (_, index) =>
+        index % 2 === 0 ? '999999.0' : '888888.0'
+      );
+      mockFetchOnce({
+        body: agentCard({
+          protocolVersions,
+          supportedInterfaces: protocolVersions.map((protocolVersion) => ({
+            url: 'https://agent.example/a2a',
+            protocolBinding: 'JSONRPC',
+            protocolVersion,
+          })),
+        }),
+      });
+      let membershipOperations = 0;
+      const originalIncludes = Array.prototype.includes;
+      const originalHas = Set.prototype.has;
+      const includesSpy = jest.spyOn(Array.prototype, 'includes');
+      const hasSpy = jest.spyOn(Set.prototype, 'has');
+      const isMissingVersion = (value: unknown) =>
+        value === '999999.0' || value === '888888.0';
+      includesSpy.mockImplementation(function (this: unknown[], value, start) {
+        if (
+          this.length === protocolVersions.length &&
+          this[0] === protocolVersions[0] &&
+          isMissingVersion(value)
+        ) {
+          membershipOperations += this.length;
+        }
+        return originalIncludes.call(this, value, start);
+      });
+      hasSpy.mockImplementation(function (this: Set<unknown>, value) {
+        if (isMissingVersion(value)) membershipOperations += 1;
+        return originalHas.call(this, value);
+      });
+      let result: Awaited<ReturnType<typeof validateAgentCard>>;
+      try {
+        result = await validateAgentCard(CARD_URL, declaredVersions);
+      } finally {
+        includesSpy.mockRestore();
+        hasSpy.mockRestore();
+      }
+      expect(result).toEqual({
+        outcome: 'invalid',
+        reason: `agent card does not support declared protocol version(s): ${declaredVersions.join(', ')}`,
+      });
+      expect(membershipOperations).toBe(declaredVersions.length);
+    });
+
     it('rejects a published version without a supported interface', async () => {
       mockFetchOnce({ body: agentCard({ protocolVersions: ['1.0', '9.9'] }) });
       const result = await validateAgentCard(CARD_URL, ['9.9']);
