@@ -35,6 +35,48 @@ function validCard() {
 }
 
 describe('Agent Card protocol membership', () => {
+  it.each([
+    'skills',
+    'supportedInterfaces',
+    'protocolVersions',
+    'defaultInputModes',
+  ])('limits validation errors for a large malformed %s array', (field) => {
+    const parsed = agentCardSchema.safeParse({
+      ...validCard(),
+      [field]: Array.from({ length: 10_000 }, () => ({})),
+    });
+    expect(parsed.success).toBe(false);
+    if (!parsed.success)
+      expect(parsed.error.issues.length).toBeLessThanOrEqual(8);
+  });
+
+  it('limits validation errors within a skill array field', () => {
+    const card = validCard();
+    const parsed = agentCardSchema.safeParse({
+      ...card,
+      skills: [
+        { ...card.skills[0], tags: Array.from({ length: 10_000 }, () => ({})) },
+      ],
+    });
+    expect(parsed.success).toBe(false);
+    if (!parsed.success) expect(parsed.error.issues.length).toBe(1);
+  });
+
+  it('limits version mismatch errors to the first mismatch in each direction', () => {
+    const card = validCard();
+    card.supportedInterfaces.forEach((iface) => {
+      iface.protocolVersion = '999.0';
+    });
+    const parsed = agentCardSchema.safeParse(card);
+    expect(parsed.success).toBe(false);
+    if (!parsed.success) {
+      expect(parsed.error.issues.map((issue) => issue.path)).toEqual([
+        ['protocolVersions', 0],
+        ['supportedInterfaces', 0, 'protocolVersion'],
+      ]);
+    }
+  });
+
   it('bounds cross-field membership work linearly for a large valid card', () => {
     let membershipChecks = 0;
     const originalSome = Array.prototype.some;
