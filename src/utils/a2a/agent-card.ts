@@ -76,12 +76,14 @@ export const agentCardSchema = z
   // Spec cross-field rule: an interface may only advertise a protocol version
   // the card itself claims to support.
   .superRefine((card, ctx) => {
+    const protocolVersions = new Set(card.protocolVersions);
+    const interfaceVersions = new Set(
+      card.supportedInterfaces.map(
+        (agentInterface) => agentInterface.protocolVersion
+      )
+    );
     card.protocolVersions.forEach((version, index) => {
-      if (
-        !card.supportedInterfaces.some(
-          (agentInterface) => agentInterface.protocolVersion === version
-        )
-      ) {
+      if (!interfaceVersions.has(version)) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ['protocolVersions', index],
@@ -90,7 +92,7 @@ export const agentCardSchema = z
       }
     });
     card.supportedInterfaces.forEach((agentInterface, index) => {
-      if (!card.protocolVersions.includes(agentInterface.protocolVersion)) {
+      if (!protocolVersions.has(agentInterface.protocolVersion)) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ['supportedInterfaces', index, 'protocolVersion'],
