@@ -205,6 +205,8 @@ async function importSnapshotForSource(
       const agentPricingRows: Prisma.AgentPricingCreateManyInput[] = [];
       const entryRows: Prisma.RegistryEntryCreateManyInput[] = [];
       const exampleOutputRows: Prisma.ExampleOutputCreateManyInput[] = [];
+
+      const a2aRows: Prisma.A2ARegistryEntryCreateManyInput[] = [];
       const supportedPaymentSourceRows: Prisma.SupportedPaymentSourceCreateManyInput[] =
         [];
 
@@ -285,6 +287,15 @@ async function importSnapshotForSource(
           });
         }
 
+        // Older snapshots have no `a2a` key -> no descriptor row created.
+        if (entry.a2a != null) {
+          a2aRows.push({
+            registryEntryId: entryId,
+            agentCardUrl: entry.a2a.agentCardUrl,
+            protocolVersions: entry.a2a.protocolVersions,
+          });
+        }
+
         for (const output of entry.exampleOutputs) {
           exampleOutputRows.push({ registryEntryId: entryId, ...output });
         }
@@ -348,6 +359,11 @@ async function importSnapshotForSource(
       await createManyChunked(
         (data) => tx.exampleOutput.createMany({ data }),
         exampleOutputRows
+      );
+      // After registryEntry: each descriptor FKs to its entry.
+      await createManyChunked(
+        (data) => tx.a2ARegistryEntry.createMany({ data }),
+        a2aRows
       );
       await createManyChunked(
         (data) => tx.supportedPaymentSource.createMany({ data }),

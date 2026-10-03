@@ -6,6 +6,7 @@ import {
   PublicUrlValidationError,
   validatePublicUrl,
 } from '@/utils/public-url';
+import { agentCardSchema } from '@/utils/a2a/agent-card';
 
 // Bounds for fetching an untrusted, agent-supplied spec URL (OWASP SSRF):
 // resolve+reject non-public targets, never follow redirects (a public URL could
@@ -13,7 +14,7 @@ import {
 const FETCH_TIMEOUT_MS = 20_000;
 const MAX_SPEC_BYTES = 5 * 1024 * 1024; // 5 MiB
 
-export type SpecKind = 'openapi' | 'x402';
+export type SpecKind = 'openapi' | 'x402' | 'a2a';
 
 // `valid`       — reachable and a valid spec (-> Online, cache the snapshot)
 // `invalid`     — reachable but not a valid spec (-> Invalid)
@@ -231,15 +232,81 @@ export async function validateX402Manifest(
   return { outcome: 'valid', spec: parsed };
 }
 
+export async function validateAgentCard(
+  url: string,
+  declaredProtocolVersions: string[]
+): Promise<SpecValidationOutcome> {
+  let protocol: string;
+  try {
+    protocol = new URL(url).protocol;
+  } catch {
+    return { outcome: 'invalid', reason: 'agent card url is not a valid URL' };
+  }
+  if (protocol !== 'https:') {
+    return { outcome: 'invalid', reason: 'agent card url must use https' };
+  }
+
+  const fetched = await fetchSpecBody(url);
+  if (!fetched.ok) {
+    return {
+      outcome: fetched.unreachable ? 'unreachable' : 'invalid',
+      reason: fetched.reason,
+    };
+  }
+  let parsed: unknown;
+  try {
+    // Agent cards are JSON (unlike OpenAPI documents, which are often YAML).
+    parsed = JSON.parse(fetched.body);
+  } catch (error) {
+    return {
+      outcome: 'invalid',
+      reason: `agent card is not JSON: ${error instanceof Error ? error.message : String(error)}`,
+    };
+  }
+  const result = agentCardSchema.safeParse(parsed);
+  if (!result.success) {
+    return {
+      outcome: 'invalid',
+      reason: `not a valid agent card: ${result.error.issues[0]?.message ?? 'unknown'}`,
+    };
+  }
+  const missingVersions = declaredProtocolVersions.filter(
+    (version) => !result.data.protocolVersions.includes(version)
+  );
+  if (missingVersions.length > 0) {
+    return {
+      outcome: 'invalid',
+      reason: `agent card does not support declared protocol version(s): ${missingVersions.join(', ')}`,
+    };
+  }
+  return { outcome: 'valid', spec: parsed };
+}
+
 /** Validate whichever spec kind an entry advertises. */
 export async function validateSpecUrl(
   kind: SpecKind,
-  url: string
+  url: string,
+  options: { declaredProtocolVersions?: string[] } = {}
 ): Promise<SpecValidationOutcome> {
-  const outcome =
-    kind === 'openapi'
-      ? await validateOpenApiSpec(url)
-      : await validateX402Manifest(url);
+  let outcome: SpecValidationOutcome;
+  switch (kind) {
+    case 'openapi':
+      outcome = await validateOpenApiSpec(url);
+      break;
+    case 'x402':
+      outcome = await validateX402Manifest(url);
+      break;
+    case 'a2a':
+      outcome = await validateAgentCard(
+        url,
+        options.declaredProtocolVersions ?? []
+      );
+      break;
+    default: {
+      const exhaustiveKind: never = kind;
+      throw new Error(`unhandled spec kind: ${String(exhaustiveKind)}`);
+    }
+  }
   if (outcome.outcome !== 'valid') {
     logger.info('Spec validation did not pass', {
       kind,

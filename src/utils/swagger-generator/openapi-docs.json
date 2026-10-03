@@ -333,7 +333,8 @@
                         "enum": [
                             "Standard",
                             "OpenApi",
-                            "X402"
+                            "X402",
+                            "A2A"
                         ]
                     },
                     "apiBaseUrl": {
@@ -347,6 +348,25 @@
                     "x402ResourcesUrl": {
                         "type": "string",
                         "nullable": true
+                    },
+                    "A2A": {
+                        "type": "object",
+                        "nullable": true,
+                        "properties": {
+                            "agentCardUrl": {
+                                "type": "string"
+                            },
+                            "protocolVersions": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "required": [
+                            "agentCardUrl",
+                            "protocolVersions"
+                        ]
                     },
                     "authorName": {
                         "type": "string",
@@ -441,6 +461,7 @@
                     "apiBaseUrl",
                     "openApiSpecUrl",
                     "x402ResourcesUrl",
+                    "A2A",
                     "authorName",
                     "authorOrganization",
                     "authorContactEmail",
@@ -500,7 +521,8 @@
                         "enum": [
                             "Standard",
                             "OpenApi",
-                            "X402"
+                            "X402",
+                            "A2A"
                         ]
                     },
                     "apiBaseUrl": {
@@ -613,6 +635,26 @@
                             "name",
                             "version"
                         ]
+                    },
+                    "A2A": {
+                        "type": "object",
+                        "nullable": true,
+                        "properties": {
+                            "agentCardUrl": {
+                                "type": "string"
+                            },
+                            "protocolVersions": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "required": [
+                            "agentCardUrl",
+                            "protocolVersions"
+                        ],
+                        "description": "MIP-002 A2A descriptor. Non-null only for A2A-type entries. The Agent Card document itself is served by the registry-entry-spec endpoint."
                     },
                     "AgentPricing": {
                         "anyOf": [
@@ -949,6 +991,7 @@
                     "paymentType",
                     "RegistrySource",
                     "Capability",
+                    "A2A",
                     "AgentPricing",
                     "ExampleOutput",
                     "SupportedPaymentSources",

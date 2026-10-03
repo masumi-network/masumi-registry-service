@@ -63,6 +63,7 @@ async function findRegistryEntries(params: RegistryEntryQueryParams) {
         orderBy: { sourceIndex: 'asc' },
       },
       Verifications: true,
+      A2A: true,
     },
     orderBy: [
       {
@@ -110,6 +111,7 @@ async function getRegistryEntryByIdentifier(params: {
         orderBy: { sourceIndex: 'asc' },
       },
       Verifications: true,
+      A2A: true,
     },
   });
 }
@@ -189,6 +191,7 @@ async function getRegistryDiffEntries(
         orderBy: { sourceIndex: 'asc' },
       },
       Verifications: true,
+      A2A: true,
     },
     orderBy: [
       {

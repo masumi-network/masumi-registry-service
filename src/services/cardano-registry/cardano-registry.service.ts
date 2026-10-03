@@ -225,6 +225,7 @@ export async function updateHealthCheck(onlyEntriesAfter?: Date | undefined) {
               orderBy: { sourceIndex: 'asc' },
             },
             Verifications: true,
+            A2A: true,
           },
         });
         logger.info(
@@ -267,6 +268,7 @@ export async function updateHealthCheck(onlyEntriesAfter?: Date | undefined) {
               orderBy: { sourceIndex: 'asc' },
             },
             Verifications: true,
+            A2A: true,
           },
         });
         logger.info(
@@ -397,12 +399,13 @@ function getRegistryMetadataType(metadata: unknown): string | undefined {
 // not know) degrade to the base standard shape instead of being dropped. Kept in
 // sync with payment-core's registryEntryTypeFromOnChain / the inbox types are
 // handled separately by getRegistryMetadataType before this is reached.
-function registryEntryTypeFromOnChain(
+export function registryEntryTypeFromOnChain(
   onChainType: string | string[] | undefined
 ): $Enums.RegistryEntryType {
   const value = Array.isArray(onChainType) ? onChainType.join('') : onChainType;
   if (value === 'OpenAPI') return $Enums.RegistryEntryType.OpenApi;
   if (value === 'x402V1') return $Enums.RegistryEntryType.X402;
+  if (value === 'a2aV1') return $Enums.RegistryEntryType.A2A;
   return $Enums.RegistryEntryType.Standard;
 }
 
@@ -602,17 +605,21 @@ async function syncWeb3CardanoV2RegistryEntry(params: {
     return false;
   }
   const metadata = parsedMetadata.data;
+  const entryType = registryEntryTypeFromOnChain(metadata.type);
 
-  // See the V1 sync: health-check whichever endpoint URL the entry advertises;
-  // OpenApi/X402 entries omit api_base_url in favour of the spec/manifest URL.
-  const endpoint = metadataStringConvert(
-    metadata.api_base_url ??
-      metadata.openapi_spec_url ??
-      metadata.x402_resources_url
-  )!;
-  const isAvailable = await healthCheckService.checkAndVerifyEndpoint({
-    api_url: endpoint,
-  });
+  const endpoint =
+    metadataStringConvert(
+      entryType === $Enums.RegistryEntryType.A2A
+        ? metadata.agent_card_url
+        : (metadata.api_base_url ??
+            metadata.openapi_spec_url ??
+            metadata.x402_resources_url)
+    ) ?? null;
+
+  const isAvailable =
+    endpoint == null
+      ? { returnedAgentIdentifier: null, status: $Enums.Status.Invalid }
+      : await healthCheckService.checkAndVerifyEndpoint({ api_url: endpoint });
   const status =
     isAvailable.returnedAgentIdentifier != null
       ? isAvailable.returnedAgentIdentifier == params.asset
@@ -654,11 +661,20 @@ async function syncWeb3CardanoV2RegistryEntry(params: {
   }
   const verificationRows = buildV2VerificationRows(metadata);
 
+  const agentCardUrl = metadataStringConvert(metadata.agent_card_url);
+  const a2aDescriptor =
+    entryType === $Enums.RegistryEntryType.A2A && agentCardUrl != null
+      ? {
+          agentCardUrl,
+          protocolVersions: metadata.a2a_protocol_versions ?? [],
+        }
+      : null;
+
   const sharedQuery = {
     status,
     name: metadataStringConvert(metadata.name)!,
     description: metadataStringConvert(metadata.description),
-    type: registryEntryTypeFromOnChain(metadata.type),
+    type: entryType,
     apiBaseUrl: metadataStringConvert(metadata.api_base_url) ?? null,
     openApiSpecUrl: metadataStringConvert(metadata.openapi_spec_url) ?? null,
     x402ResourcesUrl:
@@ -692,42 +708,57 @@ async function syncWeb3CardanoV2RegistryEntry(params: {
           },
   };
 
-  await prisma.registryEntry.upsert({
-    where: { assetIdentifier: params.asset },
-    update: {
-      ...sharedQuery,
-      lastUptimeCheck: new Date(),
-      uptimeCount: { increment: status == $Enums.Status.Online ? 1 : 0 },
-      uptimeCheckCount: { increment: 1 },
-      ExampleOutput: { deleteMany: {}, ...(exampleOutputCreate ?? {}) },
-      SupportedPaymentSources: {
-        deleteMany: {},
-        ...(supportedPaymentSourceRows.length > 0
-          ? { create: supportedPaymentSourceRows }
-          : {}),
+  await prisma.$transaction(async (tx) => {
+    const entry = await tx.registryEntry.upsert({
+      where: { assetIdentifier: params.asset },
+      update: {
+        ...sharedQuery,
+        lastUptimeCheck: new Date(),
+        uptimeCount: { increment: status == $Enums.Status.Online ? 1 : 0 },
+        uptimeCheckCount: { increment: 1 },
+        ExampleOutput: { deleteMany: {}, ...(exampleOutputCreate ?? {}) },
+        SupportedPaymentSources: {
+          deleteMany: {},
+          ...(supportedPaymentSourceRows.length > 0
+            ? { create: supportedPaymentSourceRows }
+            : {}),
+        },
+        Verifications: {
+          deleteMany: {},
+          ...(verificationRows.length > 0
+            ? { createMany: { data: verificationRows } }
+            : {}),
+        },
       },
-      Verifications: {
-        deleteMany: {},
-        ...(verificationRows.length > 0
-          ? { createMany: { data: verificationRows } }
-          : {}),
+      create: {
+        ...sharedQuery,
+        lastUptimeCheck: new Date(),
+        uptimeCount: status == $Enums.Status.Online ? 1 : 0,
+        uptimeCheckCount: 1,
+        ExampleOutput: exampleOutputCreate,
+        SupportedPaymentSources:
+          supportedPaymentSourceRows.length > 0
+            ? { create: supportedPaymentSourceRows }
+            : undefined,
+        Verifications:
+          verificationRows.length > 0
+            ? { createMany: { data: verificationRows } }
+            : undefined,
       },
-    },
-    create: {
-      ...sharedQuery,
-      lastUptimeCheck: new Date(),
-      uptimeCount: status == $Enums.Status.Online ? 1 : 0,
-      uptimeCheckCount: 1,
-      ExampleOutput: exampleOutputCreate,
-      SupportedPaymentSources:
-        supportedPaymentSourceRows.length > 0
-          ? { create: supportedPaymentSourceRows }
-          : undefined,
-      Verifications:
-        verificationRows.length > 0
-          ? { createMany: { data: verificationRows } }
-          : undefined,
-    },
+      select: { id: true },
+    });
+
+    if (a2aDescriptor != null) {
+      await tx.a2ARegistryEntry.upsert({
+        where: { registryEntryId: entry.id },
+        create: { ...a2aDescriptor, registryEntryId: entry.id },
+        update: a2aDescriptor,
+      });
+    } else {
+      await tx.a2ARegistryEntry.deleteMany({
+        where: { registryEntryId: entry.id },
+      });
+    }
   });
 
   return true;
@@ -793,7 +824,10 @@ async function syncMintedAsset(params: {
 }) {
   const metadataType = getRegistryMetadataType(params.onchainMetadata);
 
-  if (metadataType != null && INBOX_REGISTRY_METADATA_TYPES.includes(metadataType)) {
+  if (
+    metadataType != null &&
+    INBOX_REGISTRY_METADATA_TYPES.includes(metadataType)
+  ) {
     await syncInboxAgentRegistration(params);
     return;
   }

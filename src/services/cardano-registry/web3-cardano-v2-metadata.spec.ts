@@ -74,6 +74,42 @@ describe('web3CardanoV2 metadata', () => {
     ).toBe(true);
   });
 
+  it('accepts an A2A entry carrying api_base_url AND the a2a keys together', () => {
+    const parsed = web3CardanoV2MetadataSchema.safeParse({
+      ...sampleV2Metadata,
+      type: 'a2aV1',
+      agent_card_url: 'https://agent.example/.well-known/agent-card.json',
+      a2a_protocol_versions: ['1.0', '1.1'],
+    });
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.api_base_url).toBe('https://agent.example/mip');
+      expect(parsed.data.agent_card_url).toBe(
+        'https://agent.example/.well-known/agent-card.json'
+      );
+      expect(parsed.data.a2a_protocol_versions).toEqual(['1.0', '1.1']);
+    }
+  });
+
+  it('accepts a chunked agent_card_url (CIP-25 64-char splitting)', () => {
+    const parsed = web3CardanoV2MetadataSchema.safeParse({
+      ...sampleV2Metadata,
+      type: 'a2aV1',
+      agent_card_url: ['https://agent.example/.well-kn', 'own/agent-card.json'],
+      a2a_protocol_versions: ['1.0'],
+    });
+    expect(parsed.success).toBe(true);
+  });
+
+  it('tolerates an empty a2a_protocol_versions on a non-A2A entry', () => {
+    expect(
+      web3CardanoV2MetadataSchema.safeParse({
+        ...sampleV2Metadata,
+        a2a_protocol_versions: [],
+      }).success
+    ).toBe(true);
+  });
+
   it('accepts a V2 entry with no api_base_url (OpenApi/X402 shape)', () => {
     const withoutBaseUrl: Record<string, unknown> = { ...sampleV2Metadata };
     delete withoutBaseUrl.api_base_url;
