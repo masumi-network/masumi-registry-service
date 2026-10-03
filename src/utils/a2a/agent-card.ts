@@ -7,11 +7,39 @@ import { z } from '@/utils/zod-openapi';
 // time (src/utils/validator/agent-card.ts there), so an agent card accepted at
 // mint time also validates here at index time.
 //
-// No per-field length caps: the card is stored as a single Json blob already
-// bounded by the shared spec pipeline (MAX_SPEC_BYTES streaming cap on fetch,
-// MAX_CACHED_SPEC_BYTES cap before it is cached), so per-field bounds would be
-// redundant. `.passthrough()` keeps unknown/newer card fields from failing a
-// card that is otherwise valid.
+// Protocol versions use Major.Minor and fit within one metadata string.
+// The fetch pipeline bounds the card body and the cached JSON snapshot.
+// `.passthrough()` retains unknown card fields.
+
+export const a2aProtocolVersionSchema = z
+  .string()
+  .max(64)
+  .regex(/^[0-9]+\.[0-9]+$/, 'protocol version must use Major.Minor');
+
+// Stop on the first invalid item. Untrusted arrays must not multiply validation errors.
+function agentCardArray<T>(schema: z.ZodType<T>, minLength = 0) {
+  return z
+    .array(z.unknown())
+    .min(minLength)
+    .transform((items, ctx) => {
+      const values: T[] = [];
+      for (const [index, item] of items.entries()) {
+        const parsed = schema.safeParse(item);
+        if (!parsed.success) {
+          for (const issue of parsed.error.issues) {
+            ctx.addIssue({
+              ...issue,
+              path: [index, ...issue.path],
+              fatal: true,
+            });
+          }
+          return z.NEVER;
+        }
+        values.push(parsed.data);
+      }
+      return values;
+    });
+}
 
 const agentCardInterfaceSchema = z.object({
   url: z
@@ -22,17 +50,17 @@ const agentCardInterfaceSchema = z.object({
       'supportedInterfaces[].url must be HTTPS'
     ),
   protocolBinding: z.enum(['HTTP+JSON', 'JSONRPC', 'GRPC']),
-  protocolVersion: z.string(),
+  protocolVersion: a2aProtocolVersionSchema,
 });
 
 const agentCardSkillSchema = z.object({
   id: z.string(),
   name: z.string(),
   description: z.string(),
-  tags: z.array(z.string()),
-  inputModes: z.array(z.string()),
-  outputModes: z.array(z.string()),
-  examples: z.array(z.string()).optional(),
+  tags: agentCardArray(z.string()),
+  inputModes: agentCardArray(z.string()),
+  outputModes: agentCardArray(z.string()),
+  examples: agentCardArray(z.string()).optional(),
 });
 
 const agentCardExtensionSchema = z.object({
@@ -45,21 +73,21 @@ const agentCardCapabilitiesSchema = z
   .object({
     streaming: z.boolean().optional(),
     pushNotifications: z.boolean().optional(),
-    extensions: z.array(agentCardExtensionSchema).optional(),
+    extensions: agentCardArray(agentCardExtensionSchema).optional(),
   })
   .passthrough();
 
 export const agentCardSchema = z
   .object({
-    protocolVersions: z.array(z.string()).min(1),
+    protocolVersions: agentCardArray(a2aProtocolVersionSchema, 1),
     name: z.string(),
     description: z.string(),
     version: z.string(),
-    supportedInterfaces: z.array(agentCardInterfaceSchema).min(1),
+    supportedInterfaces: agentCardArray(agentCardInterfaceSchema, 1),
     capabilities: agentCardCapabilitiesSchema,
-    defaultInputModes: z.array(z.string()),
-    defaultOutputModes: z.array(z.string()),
-    skills: z.array(agentCardSkillSchema).min(1),
+    defaultInputModes: agentCardArray(z.string()),
+    defaultOutputModes: agentCardArray(z.string()),
+    skills: agentCardArray(agentCardSkillSchema, 1),
     provider: z
       .object({
         organization: z.string().optional(),
@@ -73,13 +101,30 @@ export const agentCardSchema = z
   // Spec cross-field rule: an interface may only advertise a protocol version
   // the card itself claims to support.
   .superRefine((card, ctx) => {
-    card.supportedInterfaces.forEach((agentInterface, index) => {
-      if (!card.protocolVersions.includes(agentInterface.protocolVersion)) {
+    const protocolVersions = new Set(card.protocolVersions);
+    const interfaceVersions = new Set(
+      card.supportedInterfaces.map(
+        (agentInterface) => agentInterface.protocolVersion
+      )
+    );
+    for (const [index, version] of card.protocolVersions.entries()) {
+      if (!interfaceVersions.has(version)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['protocolVersions', index],
+          message: `protocolVersion "${version}" has no supported interface`,
+        });
+        break;
+      }
+    }
+    for (const [index, agentInterface] of card.supportedInterfaces.entries()) {
+      if (!protocolVersions.has(agentInterface.protocolVersion)) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ['supportedInterfaces', index, 'protocolVersion'],
           message: `protocolVersion "${agentInterface.protocolVersion}" is not listed in protocolVersions`,
         });
+        break;
       }
-    });
+    }
   });

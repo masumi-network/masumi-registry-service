@@ -6,6 +6,7 @@ import {
   PublicUrlValidationError,
   validatePublicUrl,
 } from '@/utils/public-url';
+import { fetchAgentCardBody } from '@/utils/a2a/fetch-agent-card';
 import { agentCardSchema } from '@/utils/a2a/agent-card';
 
 // Bounds for fetching an untrusted, agent-supplied spec URL (OWASP SSRF):
@@ -246,7 +247,7 @@ export async function validateAgentCard(
     return { outcome: 'invalid', reason: 'agent card url must use https' };
   }
 
-  const fetched = await fetchSpecBody(url);
+  const fetched = await fetchAgentCardBody(url);
   if (!fetched.ok) {
     return {
       outcome: fetched.unreachable ? 'unreachable' : 'invalid',
@@ -270,8 +271,9 @@ export async function validateAgentCard(
       reason: `not a valid agent card: ${result.error.issues[0]?.message ?? 'unknown'}`,
     };
   }
+  const supportedVersions = new Set(result.data.protocolVersions);
   const missingVersions = declaredProtocolVersions.filter(
-    (version) => !result.data.protocolVersions.includes(version)
+    (version) => !supportedVersions.has(version)
   );
   if (missingVersions.length > 0) {
     return {

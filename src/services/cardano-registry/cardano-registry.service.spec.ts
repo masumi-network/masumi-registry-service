@@ -1,3 +1,4 @@
+import { checkSpecEntry } from '@/services/health-check/spec-entry-check';
 import { $Enums, InboxAgentRegistrationStatus } from '@prisma/client';
 import { prisma } from '@/utils/db';
 import { getBlockfrostInstance } from '@/utils/blockfrost';
@@ -8,6 +9,14 @@ import {
   updateLatestCardanoRegistryEntries,
 } from './cardano-registry.service';
 import { INBOX_REGISTRY_METADATA_TYPE } from './inbox-agent-registration';
+
+jest.mock('@/services/health-check/spec-entry-check', () => ({
+  checkSpecEntry: jest.fn(),
+  specCachePatch: (result: { spec?: unknown }) =>
+    result.spec === undefined
+      ? {}
+      : { spec: result.spec, specValidatedAt: new Date() },
+}));
 
 jest.mock('@/utils/db', () => {
   const prismaMock = {
@@ -191,7 +200,48 @@ describe('updateLatestCardanoRegistryEntries', () => {
     ).not.toHaveBeenCalled();
   });
 
-  it('probes an A2A entry via its agent card url, not api_base_url', async () => {
+  it('rejects A2A V1 metadata before endpoint probes or entry writes', async () => {
+    const asset = `${source.policyId}a2a`;
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => [{ tx_hash: 'v1-a2a', purpose: 'mint' }],
+      })
+      .mockResolvedValueOnce({ ok: true, json: async () => [] });
+    (getBlockfrostInstance as jest.Mock).mockReturnValue({
+      txsUtxos: jest.fn(async () => ({
+        inputs: [],
+        outputs: [{ amount: [{ unit: asset, quantity: '1' }] }],
+      })),
+      assetsById: jest.fn(async () => ({
+        onchain_metadata: {
+          name: 'V1 A2A',
+          type: 'a2aV1',
+          api_base_url: 'https://agent.example/a2a',
+          author: { name: 'Author' },
+          tags: ['ai'],
+          image: 'https://agent.example/logo.png',
+          metadata_version: 1,
+          agentPricing: { pricingType: 'Free' },
+        },
+      })),
+    });
+    (healthCheckService.checkAndVerifyEndpoint as jest.Mock).mockResolvedValue({
+      returnedAgentIdentifier: null,
+      status: $Enums.Status.Online,
+    });
+    await updateLatestCardanoRegistryEntries();
+    expect(healthCheckService.checkAndVerifyEndpoint).not.toHaveBeenCalled();
+    expect(checkSpecEntry).not.toHaveBeenCalled();
+    expect(prisma.registryEntry.upsert).not.toHaveBeenCalled();
+    expect(prisma.registryEntry.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: $Enums.Status.Invalid }),
+      })
+    );
+  });
+
+  it('validates and caches an A2A card during ingestion', async () => {
     const v2Source = {
       ...source,
       policyId: DEFAULTS.REGISTRY_POLICY_ID_PREPROD_V2,
@@ -245,16 +295,26 @@ describe('updateLatestCardanoRegistryEntries', () => {
       id: 'entry-a2a',
     });
 
+    (checkSpecEntry as jest.Mock).mockResolvedValue({
+      status: $Enums.Status.Online,
+      spec: { name: 'Cached card' },
+    });
     await updateLatestCardanoRegistryEntries();
 
-    expect(healthCheckService.checkAndVerifyEndpoint).toHaveBeenCalledWith({
-      api_url: cardUrl,
+    expect(healthCheckService.checkAndVerifyEndpoint).not.toHaveBeenCalled();
+    expect(checkSpecEntry).toHaveBeenCalledWith({
+      type: $Enums.RegistryEntryType.A2A,
+      openApiSpecUrl: null,
+      x402ResourcesUrl: null,
+      A2A: { agentCardUrl: cardUrl, protocolVersions: ['1.0'] },
     });
     expect(prisma.registryEntry.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { assetIdentifier: a2aAsset },
         create: expect.objectContaining({
           type: $Enums.RegistryEntryType.A2A,
+          spec: { name: 'Cached card' },
+          specValidatedAt: expect.any(Date),
           // Coexistence: apiBaseUrl is still indexed for an A2A entry.
           apiBaseUrl: 'https://agent.example/mip',
         }),
