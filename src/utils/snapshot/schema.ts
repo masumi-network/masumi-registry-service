@@ -96,6 +96,15 @@ const snapshotEntrySchema = z.object({
   apiBaseUrl: z.string().nullable(),
   openApiSpecUrl: z.string().nullable().optional(),
   x402ResourcesUrl: z.string().nullable().optional(),
+  // Optional for the same reason as the two above: snapshots taken before the
+  // A2A feature omit this key entirely and must still import.
+  a2a: z
+    .object({
+      agentCardUrl: z.string().min(1),
+      protocolVersions: z.array(z.string()),
+    })
+    .nullable()
+    .optional(),
   description: z.string().nullable(),
   image: z.string(),
   tags: z.array(z.string()),

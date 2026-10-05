@@ -52,6 +52,8 @@ export interface SnapshotEntry {
   apiBaseUrl: string | null;
   openApiSpecUrl: string | null;
   x402ResourcesUrl: string | null;
+
+  a2a: { agentCardUrl: string; protocolVersions: string[] } | null;
   description: string | null;
   image: string;
   tags: string[];

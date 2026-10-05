@@ -80,6 +80,7 @@ export async function updateHealthCheck(onlyEntriesAfter?: Date | undefined) {
               orderBy: { sourceIndex: 'asc' },
             },
             Verifications: true,
+            A2A: true,
           },
         });
         logger.info(
@@ -122,6 +123,7 @@ export async function updateHealthCheck(onlyEntriesAfter?: Date | undefined) {
               orderBy: { sourceIndex: 'asc' },
             },
             Verifications: true,
+            A2A: true,
           },
         });
         logger.info(

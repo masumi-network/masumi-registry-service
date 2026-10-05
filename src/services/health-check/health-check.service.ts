@@ -187,6 +187,8 @@ async function checkVerifyAndUpdateRegistryEntries({
       } | null;
     })[];
     Verifications: AgentVerification[];
+
+    A2A: { agentCardUrl: string; protocolVersions: string[] } | null;
   })[];
   minHealthCheckDate: Date | undefined;
 }) {
@@ -329,6 +331,7 @@ async function checkVerifyAndUpdateRegistryEntries({
               orderBy: { sourceIndex: 'asc' },
             },
             Verifications: true,
+            A2A: true,
           },
           data: {
             status: s.status,

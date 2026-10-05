@@ -333,7 +333,8 @@
                         "enum": [
                             "Standard",
                             "OpenApi",
-                            "X402"
+                            "X402",
+                            "A2A"
                         ]
                     },
                     "apiBaseUrl": {
@@ -347,6 +348,25 @@
                     "x402ResourcesUrl": {
                         "type": "string",
                         "nullable": true
+                    },
+                    "A2A": {
+                        "type": "object",
+                        "nullable": true,
+                        "properties": {
+                            "agentCardUrl": {
+                                "type": "string"
+                            },
+                            "protocolVersions": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "required": [
+                            "agentCardUrl",
+                            "protocolVersions"
+                        ]
                     },
                     "authorName": {
                         "type": "string",
@@ -441,6 +461,7 @@
                     "apiBaseUrl",
                     "openApiSpecUrl",
                     "x402ResourcesUrl",
+                    "A2A",
                     "authorName",
                     "authorOrganization",
                     "authorContactEmail",
@@ -500,7 +521,8 @@
                         "enum": [
                             "Standard",
                             "OpenApi",
-                            "X402"
+                            "X402",
+                            "A2A"
                         ]
                     },
                     "apiBaseUrl": {
@@ -613,6 +635,26 @@
                             "name",
                             "version"
                         ]
+                    },
+                    "A2A": {
+                        "type": "object",
+                        "nullable": true,
+                        "properties": {
+                            "agentCardUrl": {
+                                "type": "string"
+                            },
+                            "protocolVersions": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "required": [
+                            "agentCardUrl",
+                            "protocolVersions"
+                        ],
+                        "description": "MIP-002 A2A descriptor. Non-null only for A2A-type entries. The Agent Card document itself is served by the registry-entry-spec endpoint."
                     },
                     "AgentPricing": {
                         "anyOf": [
@@ -949,12 +991,82 @@
                     "paymentType",
                     "RegistrySource",
                     "Capability",
+                    "A2A",
                     "AgentPricing",
                     "ExampleOutput",
                     "SupportedPaymentSources",
                     "Verifications",
                     "metadataVersion",
                     "updatedAt"
+                ]
+            },
+            "RegistryEntrySpec": {
+                "type": "object",
+                "properties": {
+                    "agentIdentifier": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "Standard",
+                            "OpenApi",
+                            "X402"
+                        ]
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "Online",
+                            "Offline",
+                            "Deregistered",
+                            "Invalid"
+                        ]
+                    },
+                    "specValidatedAt": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "date-time"
+                    },
+                    "spec": {
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "agentIdentifier",
+                    "type",
+                    "status",
+                    "specValidatedAt"
+                ]
+            },
+            "Capability": {
+                "type": "object",
+                "properties": {
+                    "capabilities": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "id": {
+                                    "type": "string"
+                                },
+                                "name": {
+                                    "type": "string"
+                                },
+                                "version": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": [
+                                "id",
+                                "name",
+                                "version"
+                            ]
+                        }
+                    }
+                },
+                "required": [
+                    "capabilities"
                 ]
             },
             "InboxAgentRegistration": {
@@ -1117,36 +1229,6 @@
                     "latestIdentifier",
                     "rpcProviderApiKey",
                     "network"
-                ]
-            },
-            "Capability": {
-                "type": "object",
-                "properties": {
-                    "capabilities": {
-                        "type": "array",
-                        "items": {
-                            "type": "object",
-                            "properties": {
-                                "id": {
-                                    "type": "string"
-                                },
-                                "name": {
-                                    "type": "string"
-                                },
-                                "version": {
-                                    "type": "string"
-                                }
-                            },
-                            "required": [
-                                "id",
-                                "name",
-                                "version"
-                            ]
-                        }
-                    }
-                },
-                "required": [
-                    "capabilities"
                 ]
             },
             "APIKey": {
@@ -2083,6 +2165,358 @@
                     },
                     "404": {
                         "description": "Registry entry not found"
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
+                    }
+                }
+            }
+        },
+        "/registry-entry-spec/": {
+            "get": {
+                "description": "Returns the registry's cached, validated copy of an OpenApi or X402 agent's spec (OpenAPI document or x402 resource manifest), so callers do not have to fetch the agent's URL themselves. The periodic health check re-validates it; spec and specValidatedAt stay null until the first successful validation.",
+                "summary": "REQUIRES API KEY Authentication (+user)",
+                "tags": [
+                    "registry-entry"
+                ],
+                "security": [
+                    {
+                        "API-Key": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "Preprod",
+                                "Mainnet"
+                            ]
+                        },
+                        "required": true,
+                        "name": "network",
+                        "in": "query"
+                    },
+                    {
+                        "schema": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 250
+                        },
+                        "required": true,
+                        "name": "agentIdentifier",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The cached spec of the registry entry",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/RegistryEntrySpec"
+                                        },
+                                        "status": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "data",
+                                        "status"
+                                    ],
+                                    "example": {
+                                        "data": {
+                                            "agentIdentifier": "222222222222222222222222222222222222222222222222222222222222222222",
+                                            "type": "OpenApi",
+                                            "status": "Online",
+                                            "specValidatedAt": "1970-01-01T00:02:00.000Z",
+                                            "spec": {
+                                                "openapi": "3.1.0",
+                                                "info": {
+                                                    "title": "Example API",
+                                                    "version": "1.0.0"
+                                                },
+                                                "paths": {}
+                                            }
+                                        },
+                                        "status": "success"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request (possible parameters missing or invalid)"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Registry entry not found, or it is a Standard entry, which does not expose a spec"
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
+                    }
+                }
+            }
+        },
+        "/registry-diff/": {
+            "post": {
+                "description": "Query registry entries whose status was updated after the provided timestamp. Supports pagination. Always use statusUpdatedAt of the last item + its cursorId to paginate forward. This guarantees to include all items at least once, when paginating. Note: if the cursorId is not valid it will include all items with an id greater than the cursorId (in string comparison order). If no cursorId is provided, all items, including those with the same statusUpdatedAt, will be included. In case the statusUpdatedAt is before the provided statusUpdatedAfter, all items after the statusUpdatedAfter will be included, regardless of the cursorId.",
+                "summary": "REQUIRES API KEY Authentication (+user)",
+                "tags": [
+                    "registry-entry"
+                ],
+                "security": [
+                    {
+                        "API-Key": []
+                    }
+                ],
+                "requestBody": {
+                    "description": "",
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "network": {
+                                        "type": "string",
+                                        "enum": [
+                                            "Preprod",
+                                            "Mainnet"
+                                        ]
+                                    },
+                                    "statusUpdatedAfter": {
+                                        "anyOf": [
+                                            {
+                                                "type": "string",
+                                                "format": "date"
+                                            },
+                                            {
+                                                "type": "string",
+                                                "format": "date-time"
+                                            },
+                                            {
+                                                "type": "string",
+                                                "format": "date-time"
+                                            }
+                                        ]
+                                    },
+                                    "limit": {
+                                        "type": "integer",
+                                        "minimum": 1,
+                                        "maximum": 50,
+                                        "default": 10
+                                    },
+                                    "cursorId": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 75,
+                                        "description": "The ID of the last item in the previous page, it and all items after it will be included in the next page response if they did not change since the last page (if they did they will be moved to the newer timestamp). Guaranteed to include all items at least once, when paginating forward. (always use statusUpdatedAt of the last item + its cursorId to paginate forward) "
+                                    },
+                                    "policyId": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 250,
+                                        "description": "The policy ID of the registry source to filter by. If not specified, queries all registry sources."
+                                    }
+                                },
+                                "required": [
+                                    "network",
+                                    "statusUpdatedAfter"
+                                ],
+                                "example": {
+                                    "limit": 10,
+                                    "cursorId": "last_paginated_item",
+                                    "network": "Preprod",
+                                    "statusUpdatedAfter": "1970-01-01T00:00:00.000Z",
+                                    "policyId": "7e8bdaf2b2b919a3a4b94002cafb50086c0c845fe535d07a77ab7f77"
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Registry entries with updated status",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "entries": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/components/schemas/RegistryEntry"
+                                                    }
+                                                }
+                                            },
+                                            "required": [
+                                                "entries"
+                                            ]
+                                        },
+                                        "status": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "data",
+                                        "status"
+                                    ],
+                                    "example": {
+                                        "data": {
+                                            "entries": [
+                                                {
+                                                    "id": "unique_cuid_v2",
+                                                    "name": "Example API",
+                                                    "createdAt": "1970-01-01T00:00:00.000Z",
+                                                    "updatedAt": "1970-01-01T00:02:00.000Z",
+                                                    "description": "Example API description",
+                                                    "status": "Online",
+                                                    "statusUpdatedAt": "1970-01-01T00:02:00.000Z",
+                                                    "authorName": null,
+                                                    "authorContactEmail": null,
+                                                    "authorContactOther": null,
+                                                    "image": "testimage.de",
+                                                    "otherLegal": null,
+                                                    "privacyPolicy": null,
+                                                    "tags": [],
+                                                    "termsAndCondition": "If the answer is 42 what was the question",
+                                                    "uptimeCheckCount": 10,
+                                                    "uptimeCount": 8,
+                                                    "lastUptimeCheck": "1970-01-01T00:00:00.000Z",
+                                                    "apiBaseUrl": "https://example.com/api/",
+                                                    "authorOrganization": "MASUMI",
+                                                    "paymentType": "Web3CardanoV1",
+                                                    "agentIdentifier": "222222222222222222222222222222222222222222222222222222222222222222",
+                                                    "RegistrySource": {
+                                                        "id": "unique_cuid_v2",
+                                                        "policyId": "policy_id",
+                                                        "url": "https://example.com/api/"
+                                                    },
+                                                    "Capability": {
+                                                        "name": "Example Capability",
+                                                        "version": "1.0.0"
+                                                    },
+                                                    "AgentPricing": {
+                                                        "pricingType": "Fixed",
+                                                        "FixedPricing": {
+                                                            "Amounts": [
+                                                                {
+                                                                    "amount": "100",
+                                                                    "unit": "USDC"
+                                                                }
+                                                            ]
+                                                        }
+                                                    },
+                                                    "ExampleOutput": [
+                                                        {
+                                                            "name": "Example Output",
+                                                            "mimeType": "image/png",
+                                                            "url": "https://example.com/image.png"
+                                                        }
+                                                    ],
+                                                    "metadataVersion": 1
+                                                }
+                                            ]
+                                        },
+                                        "status": "success"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request (possible parameters missing or invalid)"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
+                    }
+                }
+            }
+        },
+        "/capability/": {
+            "get": {
+                "description": "Gets all capabilities that are currently online",
+                "summary": "REQUIRES API KEY Authentication (+user)",
+                "tags": [
+                    "capability"
+                ],
+                "security": [
+                    {
+                        "API-Key": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "schema": {
+                            "type": "number",
+                            "minimum": 1,
+                            "maximum": 100,
+                            "default": 10
+                        },
+                        "required": false,
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": false,
+                        "name": "cursorId",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Registry entries",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/Capability"
+                                        },
+                                        "status": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "data",
+                                        "status"
+                                    ],
+                                    "example": {
+                                        "data": {
+                                            "capabilities": [
+                                                {
+                                                    "id": "unique-cuid-v2-auto-generated",
+                                                    "name": "Example Capability",
+                                                    "version": "1.0.0"
+                                                }
+                                            ]
+                                        },
+                                        "status": "success"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request (possible parameters missing or invalid)"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
                     },
                     "500": {
                         "description": "Internal Server Error"
@@ -3032,267 +3466,6 @@
                                 }
                             }
                         }
-                    }
-                }
-            }
-        },
-        "/registry-diff/": {
-            "post": {
-                "description": "Query registry entries whose status was updated after the provided timestamp. Supports pagination. Always use statusUpdatedAt of the last item + its cursorId to paginate forward. This guarantees to include all items at least once, when paginating. Note: if the cursorId is not valid it will include all items with an id greater than the cursorId (in string comparison order). If no cursorId is provided, all items, including those with the same statusUpdatedAt, will be included. In case the statusUpdatedAt is before the provided statusUpdatedAfter, all items after the statusUpdatedAfter will be included, regardless of the cursorId.",
-                "summary": "REQUIRES API KEY Authentication (+user)",
-                "tags": [
-                    "registry-entry"
-                ],
-                "security": [
-                    {
-                        "API-Key": []
-                    }
-                ],
-                "requestBody": {
-                    "description": "",
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "type": "object",
-                                "properties": {
-                                    "network": {
-                                        "type": "string",
-                                        "enum": [
-                                            "Preprod",
-                                            "Mainnet"
-                                        ]
-                                    },
-                                    "statusUpdatedAfter": {
-                                        "anyOf": [
-                                            {
-                                                "type": "string",
-                                                "format": "date"
-                                            },
-                                            {
-                                                "type": "string",
-                                                "format": "date-time"
-                                            },
-                                            {
-                                                "type": "string",
-                                                "format": "date-time"
-                                            }
-                                        ]
-                                    },
-                                    "limit": {
-                                        "type": "integer",
-                                        "minimum": 1,
-                                        "maximum": 50,
-                                        "default": 10
-                                    },
-                                    "cursorId": {
-                                        "type": "string",
-                                        "minLength": 1,
-                                        "maxLength": 75,
-                                        "description": "The ID of the last item in the previous page, it and all items after it will be included in the next page response if they did not change since the last page (if they did they will be moved to the newer timestamp). Guaranteed to include all items at least once, when paginating forward. (always use statusUpdatedAt of the last item + its cursorId to paginate forward) "
-                                    },
-                                    "policyId": {
-                                        "type": "string",
-                                        "minLength": 1,
-                                        "maxLength": 250,
-                                        "description": "The policy ID of the registry source to filter by. If not specified, queries all registry sources."
-                                    }
-                                },
-                                "required": [
-                                    "network",
-                                    "statusUpdatedAfter"
-                                ],
-                                "example": {
-                                    "limit": 10,
-                                    "cursorId": "last_paginated_item",
-                                    "network": "Preprod",
-                                    "statusUpdatedAfter": "1970-01-01T00:00:00.000Z",
-                                    "policyId": "7e8bdaf2b2b919a3a4b94002cafb50086c0c845fe535d07a77ab7f77"
-                                }
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "200": {
-                        "description": "Registry entries with updated status",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "type": "object",
-                                            "properties": {
-                                                "entries": {
-                                                    "type": "array",
-                                                    "items": {
-                                                        "$ref": "#/components/schemas/RegistryEntry"
-                                                    }
-                                                }
-                                            },
-                                            "required": [
-                                                "entries"
-                                            ]
-                                        },
-                                        "status": {
-                                            "type": "string"
-                                        }
-                                    },
-                                    "required": [
-                                        "data",
-                                        "status"
-                                    ],
-                                    "example": {
-                                        "data": {
-                                            "entries": [
-                                                {
-                                                    "id": "unique_cuid_v2",
-                                                    "name": "Example API",
-                                                    "createdAt": "1970-01-01T00:00:00.000Z",
-                                                    "updatedAt": "1970-01-01T00:02:00.000Z",
-                                                    "description": "Example API description",
-                                                    "status": "Online",
-                                                    "statusUpdatedAt": "1970-01-01T00:02:00.000Z",
-                                                    "authorName": null,
-                                                    "authorContactEmail": null,
-                                                    "authorContactOther": null,
-                                                    "image": "testimage.de",
-                                                    "otherLegal": null,
-                                                    "privacyPolicy": null,
-                                                    "tags": [],
-                                                    "termsAndCondition": "If the answer is 42 what was the question",
-                                                    "uptimeCheckCount": 10,
-                                                    "uptimeCount": 8,
-                                                    "lastUptimeCheck": "1970-01-01T00:00:00.000Z",
-                                                    "apiBaseUrl": "https://example.com/api/",
-                                                    "authorOrganization": "MASUMI",
-                                                    "paymentType": "Web3CardanoV1",
-                                                    "agentIdentifier": "222222222222222222222222222222222222222222222222222222222222222222",
-                                                    "RegistrySource": {
-                                                        "id": "unique_cuid_v2",
-                                                        "policyId": "policy_id",
-                                                        "url": "https://example.com/api/"
-                                                    },
-                                                    "Capability": {
-                                                        "name": "Example Capability",
-                                                        "version": "1.0.0"
-                                                    },
-                                                    "AgentPricing": {
-                                                        "pricingType": "Fixed",
-                                                        "FixedPricing": {
-                                                            "Amounts": [
-                                                                {
-                                                                    "amount": "100",
-                                                                    "unit": "USDC"
-                                                                }
-                                                            ]
-                                                        }
-                                                    },
-                                                    "ExampleOutput": [
-                                                        {
-                                                            "name": "Example Output",
-                                                            "mimeType": "image/png",
-                                                            "url": "https://example.com/image.png"
-                                                        }
-                                                    ],
-                                                    "metadataVersion": 1
-                                                }
-                                            ]
-                                        },
-                                        "status": "success"
-                                    }
-                                }
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request (possible parameters missing or invalid)"
-                    },
-                    "401": {
-                        "description": "Unauthorized"
-                    },
-                    "500": {
-                        "description": "Internal Server Error"
-                    }
-                }
-            }
-        },
-        "/capability/": {
-            "get": {
-                "description": "Gets all capabilities that are currently online",
-                "summary": "REQUIRES API KEY Authentication (+user)",
-                "tags": [
-                    "capability"
-                ],
-                "security": [
-                    {
-                        "API-Key": []
-                    }
-                ],
-                "parameters": [
-                    {
-                        "schema": {
-                            "type": "number",
-                            "minimum": 1,
-                            "maximum": 100,
-                            "default": 10
-                        },
-                        "required": false,
-                        "name": "limit",
-                        "in": "query"
-                    },
-                    {
-                        "schema": {
-                            "type": "string"
-                        },
-                        "required": false,
-                        "name": "cursorId",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Registry entries",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/components/schemas/Capability"
-                                        },
-                                        "status": {
-                                            "type": "string"
-                                        }
-                                    },
-                                    "required": [
-                                        "data",
-                                        "status"
-                                    ],
-                                    "example": {
-                                        "data": {
-                                            "capabilities": [
-                                                {
-                                                    "id": "unique-cuid-v2-auto-generated",
-                                                    "name": "Example Capability",
-                                                    "version": "1.0.0"
-                                                }
-                                            ]
-                                        },
-                                        "status": "success"
-                                    }
-                                }
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request (possible parameters missing or invalid)"
-                    },
-                    "401": {
-                        "description": "Unauthorized"
-                    },
-                    "500": {
-                        "description": "Internal Server Error"
                     }
                 }
             }

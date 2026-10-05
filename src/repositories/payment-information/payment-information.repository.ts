@@ -35,6 +35,7 @@ async function getPaymentInformation(currentAgentIdentifier: string) {
         orderBy: { sourceIndex: 'asc' },
       },
       Capability: true,
+      A2A: true,
       ExampleOutput: true,
       RegistrySource: {
         include: {

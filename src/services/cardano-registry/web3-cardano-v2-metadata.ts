@@ -1,5 +1,6 @@
 import { $Enums, PricingType, Prisma } from '@prisma/client';
 import { z } from '@/utils/zod-openapi';
+import { a2aProtocolVersionSchema } from '@/utils/a2a/agent-card';
 import { metadataStringConvert } from '@/utils/metadata-string-convert';
 
 const MAX_SUPPORTED_PAYMENT_SOURCES = 25;
@@ -76,8 +77,13 @@ export const web3CardanoV2MetadataSchema = z
     // it (and omit api_base_url), so the .strict() schema must accept these keys.
     type: z.string().optional(),
     api_base_url: metadataString.optional(),
+    api_url: metadataString.optional(),
     openapi_spec_url: metadataString.optional(),
     x402_resources_url: metadataString.optional(),
+
+    agent_card_url: metadataString.optional(),
+
+    a2a_protocol_versions: z.array(z.string()).optional(),
     example_output: z
       .array(
         z.object({
@@ -112,7 +118,58 @@ export const web3CardanoV2MetadataSchema = z
       .max(MAX_SUPPORTED_PAYMENT_SOURCES),
     verifications: z.array(v2VerificationSchema).optional(),
   })
-  .strict();
+  .strict()
+  .superRefine((metadata, ctx) => {
+    if (metadata.type !== 'a2aV1') {
+      if (metadata.api_url !== undefined)
+        ctx.addIssue({
+          code: 'custom',
+          path: ['api_url'],
+          message: 'api_url is only supported for A2A metadata',
+        });
+      return;
+    }
+    metadata.a2a_protocol_versions?.forEach((version, index) => {
+      if (!a2aProtocolVersionSchema.safeParse(version).success)
+        ctx.addIssue({
+          code: 'custom',
+          path: ['a2a_protocol_versions', index],
+          message:
+            'protocol version must use Major.Minor and at most 64 ASCII bytes',
+        });
+    });
+    const endpoint = metadataStringConvert(
+      metadata.api_url ?? metadata.api_base_url
+    );
+    if (endpoint == null || endpoint.length === 0)
+      ctx.addIssue({
+        code: 'custom',
+        path: ['api_url'],
+        message: 'A2A requires api_url or api_base_url',
+      });
+    if (
+      metadata.api_url !== undefined &&
+      metadata.api_base_url !== undefined &&
+      metadataStringConvert(metadata.api_url) !==
+        metadataStringConvert(metadata.api_base_url)
+    ) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['api_url'],
+        message: 'A2A endpoint aliases conflict',
+      });
+    }
+    if (
+      metadataStringConvert(metadata.agent_card_url) == null ||
+      (metadata.a2a_protocol_versions?.length ?? 0) === 0
+    ) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['agent_card_url'],
+        message: 'A2A requires agent_card_url and a2a_protocol_versions',
+      });
+    }
+  });
 
 export type Web3CardanoV2Metadata = z.infer<typeof web3CardanoV2MetadataSchema>;
 

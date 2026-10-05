@@ -50,6 +50,16 @@ describe('updateHealthCheck mutex', () => {
     checkEntries.mockResolvedValue(undefined);
   });
 
+  it('loads A2A descriptors for both health-check batches', async () => {
+    await updateHealthCheck();
+
+    expect(prisma.registryEntry.findMany).toHaveBeenCalledTimes(2);
+    for (const call of (prisma.registryEntry.findMany as jest.Mock).mock
+      .calls) {
+      expect(call[0].include).toEqual(expect.objectContaining({ A2A: true }));
+    }
+  });
+
   it('releases the mutex when the source query after acquisition fails', async () => {
     (prisma.registrySource.findMany as jest.Mock).mockRejectedValueOnce(
       new Error('db down')
