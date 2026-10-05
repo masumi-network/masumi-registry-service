@@ -55,20 +55,25 @@ Copy the `.env.example` file to `.env` and update only the following variables:
 
 ```sh
 DATABASE_URL="postgresql://johndoe:randompassword@localhost:5432/masumi_registry?schema=public"
-Admin_KEY="abcdef_this_should_be_very_secure"
-Blockfrost_API_KEY="your_blockfrost_api_key"
+ADMIN_KEY="abcdef_this_should_be_very_secure"
+BLOCKFROST_API_KEY_PREPROD="your_blockfrost_api_key"
 ```
+
+Then delete the `BLOCKFROST_API_KEY_MAINNET` line. The seed creates a registry source for every Blockfrost key that is set, so leaving the placeholder would add a Mainnet source with an invalid key.
 
 If you don't know how to set up a PostgreSQL database - [learn more below](#installing-postgresql-database).
 
-Get a free Blockfrost API Key from [blockfrost.io](https://blockfrost.io) - [learn more below](#getting-the-blockfrost-api-key).
+Get a free Blockfrost API Key for Preprod from [blockfrost.io](https://blockfrost.io) - [learn more below](#getting-the-blockfrost-api-key).
 
-Set the Admin Keys yourself.
+Set the Admin Key yourself. It must be at least 15 characters long.
 
 ### Step 4: Configure and Seed the PostgreSQL Database
 
+Apply the migrations, then seed the admin key and the Preprod registry source:
+
 ```sh
 pnpm prisma:migrate
+pnpm prisma:seed
 ```
 
 ### Step 5: Running the Service
@@ -129,7 +134,7 @@ Blockfrost is an API Service that allows the Masumi Registry Service to interact
 1. Sign up on [blockfrost.io](https://blockfrost.io)
 2. Click "Add Project"
 3. Make sure to choose "Cardano Preprod" as Network
-4. Copy and Paste the API Key into your `.env` file
+4. Copy and Paste the API Key into your `.env` file as `BLOCKFROST_API_KEY_PREPROD`
 
 Blockfrost is free for one project and allows **50,000 Requests a Day**, which is sufficient for testing. If switching to **Mainnet**, you may need to upgrade your plan.
 

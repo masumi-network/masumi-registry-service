@@ -18,370 +18,21 @@ import {
   nextInboxAgentRegistrationStatus,
   parseInboxAgentRegistrationMetadata,
 } from './inbox-agent-registration';
+import { web3CardanoMetadataSchema } from './web3-cardano-metadata';
+import { syncWeb3CardanoV2RegistryEntry } from './sync-web3-cardano-v2';
 import {
-  buildV2SupportedPaymentSourceRows,
-  buildV2VerificationRows,
-  resolveV2PaymentType,
-  web3CardanoV2MetadataSchema,
-} from './web3-cardano-v2-metadata';
+  markRegistryMetadataInvalid,
+  registryEntryTypeFromOnChain,
+  type SyncableRegistrySource,
+} from './registry-sync-metadata';
+import {
+  getPolicyAssetQuantityChanges,
+  getScriptsRedeemers,
+  ScriptRedeemersResponse,
+} from './registry-sync-blockfrost';
 
-const web3CardanoMetadataSchema = z
-  .object({
-    name: z
-      .string()
-      .min(1)
-      .or(z.array(z.string().min(1))),
-    description: z.string().or(z.array(z.string())).optional(),
-    // Access-model discriminator. Absent -> Standard. OpenAPI/x402 entries carry
-    // it (and omit api_base_url), so the .strict() schema must accept these keys.
-    type: z.string().optional(),
-    api_base_url: z
-      .string()
-      .min(1)
-      .or(z.array(z.string().min(1)))
-      .optional(),
-    openapi_spec_url: z
-      .string()
-      .min(1)
-      .or(z.array(z.string().min(1)))
-      .optional(),
-    x402_resources_url: z
-      .string()
-      .min(1)
-      .or(z.array(z.string().min(1)))
-      .optional(),
-    example_output: z
-      .array(
-        z.object({
-          name: z
-            .string()
-            .max(60)
-            .or(z.array(z.string().max(60)).min(1).max(1)),
-          mime_type: z
-            .string()
-            .min(1)
-            .max(60)
-            .or(z.array(z.string().min(1).max(60)).min(1).max(1)),
-          url: z.string().or(z.array(z.string())),
-        })
-      )
-      .optional(),
-    capability: z
-      .object({
-        name: z.string().or(z.array(z.string())),
-        version: z
-          .string()
-          .max(60)
-          .or(z.array(z.string().max(60)).min(1).max(1)),
-      })
-      .optional(),
-    author: z.object({
-      name: z
-        .string()
-        .min(1)
-        .or(z.array(z.string().min(1))),
-      contact_email: z.string().or(z.array(z.string())).optional(),
-      contact_other: z.string().or(z.array(z.string())).optional(),
-      organization: z.string().or(z.array(z.string())).optional(),
-    }),
-    legal: z
-      .object({
-        privacy_policy: z.string().or(z.array(z.string())).optional(),
-        terms: z.string().or(z.array(z.string())).optional(),
-        other: z.string().or(z.array(z.string())).optional(),
-      })
-      .optional(),
-    tags: z.array(z.string().min(1)).min(1),
-    agentPricing: z
-      .object({
-        pricingType: z.enum([PricingType.Fixed]),
-        fixedPricing: z
-          .array(
-            z.object({
-              amount: z.coerce.number().int().min(1),
-              unit: z
-                .string()
-                .min(1)
-                .or(z.array(z.string().min(1))),
-            })
-          )
-          .min(1)
-          .max(25),
-      })
-      .or(
-        z.object({
-          pricingType: z.enum([PricingType.Free]),
-        })
-      )
-      .or(
-        z.object({
-          pricingType: z.enum([PricingType.Dynamic]),
-        })
-      ),
-    image: z.string().or(z.array(z.string())),
-    metadata_version: z.coerce.number().int().min(1).max(1),
-  })
-  .strict();
-
-type SyncableRegistrySource = {
-  id: string;
-  policyId: string;
-  network: $Enums.Network;
-  lastTxId: string | null;
-  lastCheckedPage: number;
-  RegistrySourceConfig: {
-    rpcProviderApiKey: string;
-  };
-};
-
-const healthMutex = new Mutex();
-
-async function markRegistryMetadataInvalid(params: {
-  sourceId: string;
-  assetIdentifier: string;
-}): Promise<void> {
-  await prisma.registryEntry.updateMany({
-    where: {
-      registrySourceId: params.sourceId,
-      assetIdentifier: params.assetIdentifier,
-    },
-    data: {
-      status: $Enums.Status.Invalid,
-      statusUpdatedAt: new Date(),
-    },
-  });
-}
-
-export async function updateHealthCheck(onlyEntriesAfter?: Date | undefined) {
-  logger.info('Updating cardano registry entries health check: ', {
-    onlyEntriesAfter: onlyEntriesAfter,
-  });
-  if (onlyEntriesAfter == undefined) {
-    onlyEntriesAfter = new Date();
-  }
-
-  //we do not need any isolation level here as worst case we have a few duplicate checks in the next run but no data loss. Advantage we do not need to lock the table
-  const sourcesCount = await prisma.registrySource.aggregate({
-    _count: true,
-  });
-
-  if (sourcesCount._count == 0) return;
-
-  let release: MutexInterface.Releaser | null;
-  try {
-    release = await tryAcquire(healthMutex).acquire();
-  } catch (e) {
-    logger.info('Mutex timeout when locking', { error: e });
-    return;
-  }
-  //if we are already performing an update, we wait for it to finish and return
-
-  const sources = await prisma.registrySource.findMany({
-    include: {
-      RegistrySourceConfig: true,
-    },
-  });
-  if (sources.length == 0) {
-    logger.info('No registry sources found, skipping health check');
-    release();
-    return;
-  }
-
-  try {
-    logger.info('updating entries from sources', { count: sources.length });
-    await Promise.allSettled(
-      sources.map(async (source) => {
-        const entries = await prisma.registryEntry.findMany({
-          where: {
-            registrySourceId: source.id,
-            status: {
-              in: [$Enums.Status.Online, $Enums.Status.Offline],
-            },
-            lastUptimeCheck: {
-              lte: onlyEntriesAfter,
-            },
-          },
-          orderBy: { lastUptimeCheck: 'asc' },
-          take: 50,
-          include: {
-            RegistrySource: true,
-            Capability: true,
-            AgentPricing: {
-              include: {
-                FixedPricing: {
-                  include: { Amounts: true },
-                },
-              },
-            },
-            ExampleOutput: true,
-            SupportedPaymentSources: {
-              include: {
-                Pricing: {
-                  include: {
-                    FixedPricing: { include: { Amounts: true } },
-                  },
-                },
-              },
-              orderBy: { sourceIndex: 'asc' },
-            },
-            Verifications: true,
-          },
-        });
-        logger.info(
-          `Found ${entries.length} registry entries in status online or offline`
-        );
-        const invalidEntries = await prisma.registryEntry.findMany({
-          where: {
-            registrySourceId: source.id,
-            status: {
-              in: [$Enums.Status.Invalid],
-            },
-            lastUptimeCheck: {
-              lte: onlyEntriesAfter,
-            },
-            uptimeCheckCount: {
-              lte: 20,
-            },
-          },
-          orderBy: { updatedAt: 'asc' },
-          take: 50,
-          include: {
-            RegistrySource: true,
-            Capability: true,
-            AgentPricing: {
-              include: {
-                FixedPricing: {
-                  include: { Amounts: true },
-                },
-              },
-            },
-            ExampleOutput: true,
-            SupportedPaymentSources: {
-              include: {
-                Pricing: {
-                  include: {
-                    FixedPricing: { include: { Amounts: true } },
-                  },
-                },
-              },
-              orderBy: { sourceIndex: 'asc' },
-            },
-            Verifications: true,
-          },
-        });
-        logger.info(
-          `Found ${invalidEntries.length} registry entries in status invalid`
-        );
-        const filteredOutInvalidStaggeredEntries = invalidEntries.filter(
-          (e) => {
-            const retries = Math.max(0.2, e.uptimeCheckCount - e.uptimeCount);
-            const staggeredWaitTime = Math.min(
-              1000 * 60 * 10 * retries,
-              1000 * 60 * 60 * 48
-            );
-            return (
-              e.lastUptimeCheck.getTime() + staggeredWaitTime <
-              onlyEntriesAfter.getTime()
-            );
-          }
-        );
-        const excludedEntries = invalidEntries.filter(
-          (e) =>
-            filteredOutInvalidStaggeredEntries.find((e2) => e2.id === e.id) !=
-            null
-        );
-        logger.info(
-          `Filtered out ${filteredOutInvalidStaggeredEntries.length} invalid staggered entries`
-        );
-        await Promise.allSettled(
-          excludedEntries.map(async (e) => {
-            await prisma.registryEntry.update({
-              where: { id: e.id },
-              data: {
-                updatedAt: new Date(),
-              },
-            });
-          })
-        );
-        const invalidBatch = filteredOutInvalidStaggeredEntries.slice(
-          0,
-          Math.min(10, filteredOutInvalidStaggeredEntries.length)
-        );
-        const combinedEntries = [...entries, ...invalidBatch];
-        logger.info(
-          `Checking and updating ${combinedEntries.length} registry entries`
-        );
-        await healthCheckService.checkVerifyAndUpdateRegistryEntries({
-          registryEntries: combinedEntries,
-          minHealthCheckDate: onlyEntriesAfter,
-        });
-
-        const inboxAgentRegistrations =
-          await prisma.inboxAgentRegistration.findMany({
-            where: {
-              registrySourceId: source.id,
-              status: {
-                in: [
-                  InboxAgentRegistrationStatus.Pending,
-                  InboxAgentRegistrationStatus.Verified,
-                  InboxAgentRegistrationStatus.Invalid,
-                ],
-              },
-              updatedAt: {
-                lte: onlyEntriesAfter,
-              },
-            },
-            orderBy: { updatedAt: 'asc' },
-            take: 50,
-            include: {
-              RegistrySource: true,
-            },
-          });
-        logger.info(
-          `Found ${inboxAgentRegistrations.length} inbox agent registrations eligible for verification`
-        );
-        await healthCheckService.checkVerifyAndUpdateInboxAgentRegistrations({
-          inboxAgentRegistrations,
-        });
-      })
-    );
-  } finally {
-    release();
-  }
-}
-type ScriptRedeemer = {
-  tx_hash: string;
-  tx_index: number;
-  purpose: 'spend' | 'mint' | 'cert' | 'reward';
-  redeemer_data_hash: string;
-  datum_hash: string;
-  unit_mem: string;
-  unit_steps: string;
-  fee: string;
-};
-type ScriptRedeemersResponse = ScriptRedeemer[];
-
-async function getScriptsRedeemers(
-  network: $Enums.Network,
-  blockfrostToken: string,
-  policyId: string,
-  page: number
-) {
-  const result = await fetch(
-    `https://cardano-${network == $Enums.Network.Mainnet ? 'mainnet' : 'preprod'}.blockfrost.io/api/v0/scripts/${policyId}/redeemers?count=100&page=${page}&order=asc`,
-    {
-      headers: {
-        project_id: blockfrostToken,
-      },
-    }
-  );
-  if (!result.ok) {
-    throw new Error('Failed to get scripts redeemers');
-  }
-  const json = await result.json();
-  const data = json as ScriptRedeemersResponse;
-  return data;
-}
+export { registryEntryTypeFromOnChain } from './registry-sync-metadata';
+export { updateHealthCheck } from './registry-health-check-job';
 
 const registryMetadataTypeSchema = z.object({
   type: z.string(),
@@ -390,20 +41,6 @@ const registryMetadataTypeSchema = z.object({
 function getRegistryMetadataType(metadata: unknown): string | undefined {
   const parsed = registryMetadataTypeSchema.safeParse(metadata);
   return parsed.success ? parsed.data.type : undefined;
-}
-
-// On-chain registry `type` string -> RegistryEntryType. Absent/unrecognised ->
-// Standard so legacy/untyped entries (and any newer type an older indexer does
-// not know) degrade to the base standard shape instead of being dropped. Kept in
-// sync with payment-core's registryEntryTypeFromOnChain / the inbox types are
-// handled separately by getRegistryMetadataType before this is reached.
-function registryEntryTypeFromOnChain(
-  onChainType: string | string[] | undefined
-): $Enums.RegistryEntryType {
-  const value = Array.isArray(onChainType) ? onChainType.join('') : onChainType;
-  if (value === 'OpenAPI') return $Enums.RegistryEntryType.OpenApi;
-  if (value === 'x402V1') return $Enums.RegistryEntryType.X402;
-  return $Enums.RegistryEntryType.Standard;
 }
 
 async function getSyncableRegistrySources() {
@@ -577,162 +214,6 @@ async function syncWeb3CardanoRegistryEntry(params: {
   return true;
 }
 
-// Sync a Web3CardanoV2 registry entry. V2 metadata groups payment sources (with
-// per-source pricing) and adds verifications, and drops the top-level
-// agentPricing — so pricing is resolved from the Cardano source. Re-synced via
-// the same upsert-by-assetIdentifier path, so on-chain metadata updates are
-// picked up; the relational read models are fully replaced each sync.
-async function syncWeb3CardanoV2RegistryEntry(params: {
-  source: SyncableRegistrySource;
-  asset: string;
-  onchainMetadata: unknown;
-}): Promise<boolean> {
-  const parsedMetadata = web3CardanoV2MetadataSchema.safeParse(
-    params.onchainMetadata
-  );
-  if (!parsedMetadata.success) {
-    logger.warn('Rejected invalid V2 registry metadata', {
-      assetIdentifier: params.asset,
-      validationIssues: parsedMetadata.error.issues,
-    });
-    await markRegistryMetadataInvalid({
-      sourceId: params.source.id,
-      assetIdentifier: params.asset,
-    });
-    return false;
-  }
-  const metadata = parsedMetadata.data;
-
-  // See the V1 sync: health-check whichever endpoint URL the entry advertises;
-  // OpenApi/X402 entries omit api_base_url in favour of the spec/manifest URL.
-  const endpoint = metadataStringConvert(
-    metadata.api_base_url ??
-      metadata.openapi_spec_url ??
-      metadata.x402_resources_url
-  )!;
-  const isAvailable = await healthCheckService.checkAndVerifyEndpoint({
-    api_url: endpoint,
-  });
-  const status =
-    isAvailable.returnedAgentIdentifier != null
-      ? isAvailable.returnedAgentIdentifier == params.asset
-        ? isAvailable.status
-        : $Enums.Status.Invalid
-      : isAvailable.status;
-
-  const capabilityName = metadataStringConvert(metadata.capability?.name);
-  const capabilityVersion = metadataStringConvert(metadata.capability?.version);
-
-  const exampleOutputCreate =
-    metadata.example_output && metadata.example_output.length > 0
-      ? {
-          createMany: {
-            data: metadata.example_output.map((example) => ({
-              name: metadataStringConvert(example.name)!,
-              mimeType: metadataStringConvert(example.mime_type)!,
-              url: metadataStringConvert(example.url)!,
-            })),
-          },
-        }
-      : undefined;
-
-  let supportedPaymentSourceRows: ReturnType<
-    typeof buildV2SupportedPaymentSourceRows
-  >;
-  try {
-    supportedPaymentSourceRows = buildV2SupportedPaymentSourceRows(metadata);
-  } catch (error) {
-    logger.warn('Rejected invalid V2 registry payment sources', {
-      assetIdentifier: params.asset,
-      validationError: error instanceof Error ? error.message : String(error),
-    });
-    await markRegistryMetadataInvalid({
-      sourceId: params.source.id,
-      assetIdentifier: params.asset,
-    });
-    return false;
-  }
-  const verificationRows = buildV2VerificationRows(metadata);
-
-  const sharedQuery = {
-    status,
-    name: metadataStringConvert(metadata.name)!,
-    description: metadataStringConvert(metadata.description),
-    type: registryEntryTypeFromOnChain(metadata.type),
-    apiBaseUrl: metadataStringConvert(metadata.api_base_url) ?? null,
-    openApiSpecUrl: metadataStringConvert(metadata.openapi_spec_url) ?? null,
-    x402ResourcesUrl:
-      metadataStringConvert(metadata.x402_resources_url) ?? null,
-    authorName: metadataStringConvert(metadata.author.name),
-    authorOrganization: metadataStringConvert(metadata.author.organization),
-    authorContactEmail: metadataStringConvert(metadata.author.contact_email),
-    authorContactOther: metadataStringConvert(metadata.author.contact_other),
-    image: metadataStringConvert(metadata.image)!,
-    privacyPolicy: metadataStringConvert(metadata.legal?.privacy_policy),
-    termsAndCondition: metadataStringConvert(metadata.legal?.terms),
-    otherLegal: metadataStringConvert(metadata.legal?.other),
-    tags: metadata.tags,
-    metadataVersion: DEFAULTS.METADATA_VERSION_V2,
-    assetIdentifier: params.asset,
-    paymentType: resolveV2PaymentType(metadata),
-    RegistrySource: { connect: { id: params.source.id } },
-    Capability:
-      capabilityName == null || capabilityVersion == null
-        ? undefined
-        : {
-            connectOrCreate: {
-              create: { name: capabilityName, version: capabilityVersion },
-              where: {
-                name_version: {
-                  name: capabilityName,
-                  version: capabilityVersion,
-                },
-              },
-            },
-          },
-  };
-
-  await prisma.registryEntry.upsert({
-    where: { assetIdentifier: params.asset },
-    update: {
-      ...sharedQuery,
-      lastUptimeCheck: new Date(),
-      uptimeCount: { increment: status == $Enums.Status.Online ? 1 : 0 },
-      uptimeCheckCount: { increment: 1 },
-      ExampleOutput: { deleteMany: {}, ...(exampleOutputCreate ?? {}) },
-      SupportedPaymentSources: {
-        deleteMany: {},
-        ...(supportedPaymentSourceRows.length > 0
-          ? { create: supportedPaymentSourceRows }
-          : {}),
-      },
-      Verifications: {
-        deleteMany: {},
-        ...(verificationRows.length > 0
-          ? { createMany: { data: verificationRows } }
-          : {}),
-      },
-    },
-    create: {
-      ...sharedQuery,
-      lastUptimeCheck: new Date(),
-      uptimeCount: status == $Enums.Status.Online ? 1 : 0,
-      uptimeCheckCount: 1,
-      ExampleOutput: exampleOutputCreate,
-      SupportedPaymentSources:
-        supportedPaymentSourceRows.length > 0
-          ? { create: supportedPaymentSourceRows }
-          : undefined,
-      Verifications:
-        verificationRows.length > 0
-          ? { createMany: { data: verificationRows } }
-          : undefined,
-    },
-  });
-
-  return true;
-}
-
 async function syncInboxAgentRegistration(params: {
   source: SyncableRegistrySource;
   asset: string;
@@ -793,7 +274,10 @@ async function syncMintedAsset(params: {
 }) {
   const metadataType = getRegistryMetadataType(params.onchainMetadata);
 
-  if (metadataType != null && INBOX_REGISTRY_METADATA_TYPES.includes(metadataType)) {
+  if (
+    metadataType != null &&
+    INBOX_REGISTRY_METADATA_TYPES.includes(metadataType)
+  ) {
     await syncInboxAgentRegistration(params);
     return;
   }
@@ -845,13 +329,12 @@ export async function updateLatestCardanoRegistryEntries() {
   }
   //if we are already performing an update, we wait for it to finish and return
 
-  sources = await getSyncableRegistrySources();
-  if (sources.length == 0) {
-    release();
-    return;
-  }
-
+  // Everything after acquisition stays inside try so a failed query cannot
+  // leave the mutex held and block all later runs.
   try {
+    sources = await getSyncableRegistrySources();
+    if (sources.length == 0) return;
+
     //sanity checks
     const invalidSourceIdentifiers = sources.filter((s) => s.policyId == null);
     if (invalidSourceIdentifiers.length > 0)
@@ -914,35 +397,8 @@ export async function updateLatestCardanoRegistryEntries() {
                 continue;
               }
               const txsUtxos = await blockfrost.txsUtxos(tx.tx_hash);
-              const mintedOrBurnedAssetsOfPolicy = new Map<string, number>();
-              for (const inputUtxo of txsUtxos.inputs) {
-                for (const asset of inputUtxo.amount) {
-                  if (asset.unit.startsWith(source.policyId)) {
-                    mintedOrBurnedAssetsOfPolicy.set(
-                      asset.unit,
-                      -parseInt(asset.quantity)
-                    );
-                  }
-                }
-              }
-              for (const outputUtxo of txsUtxos.outputs) {
-                for (const asset of outputUtxo.amount) {
-                  if (asset.unit.startsWith(source.policyId)) {
-                    if (mintedOrBurnedAssetsOfPolicy.has(asset.unit)) {
-                      mintedOrBurnedAssetsOfPolicy.set(
-                        asset.unit,
-                        mintedOrBurnedAssetsOfPolicy.get(asset.unit)! +
-                          parseInt(asset.quantity)
-                      );
-                    } else {
-                      mintedOrBurnedAssetsOfPolicy.set(
-                        asset.unit,
-                        parseInt(asset.quantity)
-                      );
-                    }
-                  }
-                }
-              }
+              const mintedOrBurnedAssetsOfPolicy =
+                getPolicyAssetQuantityChanges(txsUtxos, source.policyId);
               for (const [
                 asset,
                 quantity,

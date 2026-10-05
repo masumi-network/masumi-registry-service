@@ -11,6 +11,7 @@ import {
   type Snapshot,
 } from './types';
 import { validateSnapshotPricingLayout } from './pricing-layout';
+import { validateSnapshot } from './schema';
 
 function snapshotEntry(metadataVersion: number) {
   return {
@@ -20,6 +21,7 @@ function snapshotEntry(metadataVersion: number) {
     apiBaseUrl: 'https://agent.example',
     openApiSpecUrl: null,
     x402ResourcesUrl: null,
+    a2a: null,
     description: null,
     image: '',
     tags: [],
@@ -81,6 +83,38 @@ function paymentSources(
     entries,
   };
 }
+
+describe('snapshot A2A round-trip', () => {
+  it('preserves the A2A fields through validation', () => {
+    const a2aEntry = {
+      ...snapshotEntry(2),
+      type: RegistryEntryType.A2A,
+      a2a: {
+        agentCardUrl: 'https://agent.example/.well-known/agent-card.json',
+        protocolVersions: ['1.0', '1.1'],
+      },
+    };
+    const result = validateSnapshot(snapshot([a2aEntry]));
+    expect(result.success).toBe(true);
+    const parsed = result.data?.entries[0];
+    expect(parsed?.type).toBe(RegistryEntryType.A2A);
+    expect(parsed?.a2a?.agentCardUrl).toBe(
+      'https://agent.example/.well-known/agent-card.json'
+    );
+    expect(parsed?.a2a?.protocolVersions).toEqual(['1.0', '1.1']);
+  });
+
+  it('still imports a pre-A2A snapshot that omits the key entirely', () => {
+    const legacy: Record<string, unknown> = { ...snapshotEntry(2) };
+    delete legacy.a2a;
+    const result = validateSnapshot(
+      snapshot([legacy as ReturnType<typeof snapshotEntry>])
+    );
+    expect(result.success).toBe(true);
+    const parsed = result.data?.entries[0];
+    expect(parsed?.a2a ?? null).toBeNull();
+  });
+});
 
 describe('validateSnapshotPricingLayout', () => {
   it('accepts V1 top-level pricing and V2 source-owned pricing', () => {
