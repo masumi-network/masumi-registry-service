@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import { CONFIG } from '@/utils/config/';
 import { logger } from '@/utils/logger/';
-import initSchedules from '@/services/schedules';
+import initSchedules, { stopSchedules } from '@/services/schedules';
 import { createConfig, createServer } from 'express-zod-api';
 import { router } from '@/routes/index';
 import ui, { JsonObject } from 'swagger-ui-express';
@@ -15,13 +15,13 @@ import {
   buildSwaggerUiOptions,
   getCorsHeaders,
 } from '@/utils/http-security';
+import {
+  createBeforeExit,
+  HTTP_DRAIN_TIMEOUT_MS,
+  SHUTDOWN_SIGNALS,
+} from '@/utils/graceful-shutdown';
 
-async function initialize() {
-  await initDB();
-  initSchedules();
-}
-
-initialize()
+initDB()
   .then(async () => {
     const PORT = CONFIG.PORT;
     const serverConfig = createConfig({
@@ -92,23 +92,30 @@ initialize()
           allowedOrigins: CONFIG.CORS_ALLOWED_ORIGINS,
         }),
       logger: logger,
+      // On a signal: reject new connections, drain in-flight requests, then
+      // beforeExit waits for jobs and disconnects the database.
+      gracefulShutdown: {
+        events: SHUTDOWN_SIGNALS,
+        timeout: HTTP_DRAIN_TIMEOUT_MS,
+        beforeExit: createBeforeExit({
+          drainJobs: stopSchedules,
+          disconnectDatabase: cleanupDB,
+        }),
+      },
     });
-    createServer(serverConfig, router);
+    await createServer(serverConfig, router);
 
-    // Graceful shutdown
-    const shutdown = async (signal: string) => {
-      try {
+    // Registered only after the framework's handlers: alone, this listener
+    // would stop the jobs without ever exiting the process.
+    for (const signal of SHUTDOWN_SIGNALS) {
+      process.on(signal, () => {
         logger.info(`Received ${signal}. Shutting down gracefully...`);
-        await cleanupDB();
-      } catch (e) {
-        logger.error('Error during shutdown', e);
-      } finally {
-        process.exit(0);
-      }
-    };
-
-    process.on('SIGINT', () => shutdown('SIGINT'));
-    process.on('SIGTERM', () => shutdown('SIGTERM'));
+        // Stop scheduling now rather than after the HTTP drain.
+        void stopSchedules();
+      });
+    }
+    // Started last, so no job runs before shutdown handling is in place.
+    initSchedules();
   })
   .catch((e) => {
     throw e;
