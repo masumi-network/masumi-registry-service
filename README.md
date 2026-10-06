@@ -27,7 +27,7 @@ The API key is `public-test-key-masumi-registry-c23f3d21`.
 
 Ensure your system meets the following requirements before installation:
 
-- Node.js v20.x or later
+- Node.js v22.19 or later
 - PostgreSQL 15 database
 
 ## Installing the Masumi Registry Service
