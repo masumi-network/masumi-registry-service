@@ -2,4 +2,5 @@
 // Feature slices add their own entries next to the hooks that use them.
 export const queryKeys = {
   health: ['health'] as const,
+  apiKeyStatus: ['api-key-status'] as const,
 };

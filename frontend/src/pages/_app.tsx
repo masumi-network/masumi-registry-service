@@ -8,6 +8,8 @@ import '@/styles/globals.css';
 import { ThemeProvider, useTheme } from '@/lib/contexts/ThemeContext';
 import { SidebarProvider } from '@/lib/contexts/SidebarContext';
 import { QueryProvider } from '@/lib/contexts/QueryProvider';
+import { AuthProvider } from '@/lib/contexts/AuthContext';
+import { AuthGate } from '@/components/auth/AuthGate';
 
 function ToastWrapper() {
   const { theme } = useTheme();
@@ -36,13 +38,17 @@ export default function App({ Component, pageProps }: AppProps) {
   return (
     <ThemeProvider>
       <QueryProvider>
-        <SidebarProvider>
-          <Head>
-            <title>Masumi Registry Admin</title>
-          </Head>
-          <Component {...pageProps} />
-          {mounted && <ToastWrapper />}
-        </SidebarProvider>
+        <AuthProvider>
+          <SidebarProvider>
+            <Head>
+              <title>Masumi Registry Admin</title>
+            </Head>
+            <AuthGate>
+              <Component {...pageProps} />
+            </AuthGate>
+            {mounted && <ToastWrapper />}
+          </SidebarProvider>
+        </AuthProvider>
       </QueryProvider>
     </ThemeProvider>
   );
