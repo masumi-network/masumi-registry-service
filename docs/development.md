@@ -35,6 +35,18 @@ The Masumi Payment Service is built using a hexagonal architecture pattern, sepa
 - [**src/middleware/auth-middleware/\*\***](../src/middleware/auth-middleware/): Authentication middleware
 - [**src/config/\*\***](../src/config/): Configuration settings
 - [**prisma/\*\***](../prisma/): Database generation and ORM related files
+- [**frontend/\*\***](../frontend/): Admin interface (Next.js static export, shadcn, Tailwind), served at `/admin`
+
+### Admin Interface
+
+`frontend/` is a pnpm workspace package set up like the payment service admin. `next build` exports static
+files to `frontend/dist` with the `/admin` base path, and the API server serves them through
+[src/utils/admin-ui](../src/utils/admin-ui/index.ts).
+
+- `pnpm build` builds the backend and the admin interface.
+- `pnpm -C frontend dev` runs the admin interface with hot reload at http://localhost:3001/admin.
+- `pnpm lint`, `pnpm lint:fix`, `pnpm format`, `pnpm format:check` and `pnpm check:unused` cover both the backend
+  and the frontend; `pnpm typecheck:frontend` and `pnpm test:frontend` run the frontend checks.
 
 ## Testing
 

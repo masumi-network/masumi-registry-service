@@ -21,3 +21,8 @@ src/services/.DS_Store
 .cursor/snapshots
 .cursor/logs
 .claude*
+# Admin frontend (dist/ and node_modules/ are covered by the patterns above)
+frontend/.next
+frontend/next-env.d.ts
+frontend/*.tsbuildinfo
+frontend/.env.local

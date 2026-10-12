@@ -7,10 +7,13 @@ A Registry Lookup service for MASUMI AI Nodes on the Cardano blockchain. Provide
 | Command | Purpose |
 |---------|---------|
 | `pnpm dev` | Start dev server with hot reload (tsx watch) |
-| `pnpm build` | Build for production (Prisma generate + tsc + pkgroll) |
+| `pnpm build` | Build for production (Prisma generate + tsc + pkgroll + admin frontend export) |
 | `pnpm start` | Run production server |
-| `pnpm lint` | Run ESLint with auto-fix |
-| `pnpm format` | Format code with Prettier |
+| `pnpm lint` | Run ESLint on backend + frontend (`pnpm lint:fix` to auto-fix) |
+| `pnpm format` | Format backend + frontend with Prettier (`pnpm format:check` to verify) |
+| `pnpm typecheck:frontend` | Type-check the admin frontend |
+| `pnpm test:frontend` | Run admin frontend tests (node:test) |
+| `pnpm -C frontend dev` | Admin frontend with hot reload at :3001/admin |
 | `pnpm test` | Run Jest tests |
 | `pnpm test:watch` | Run tests in watch mode |
 | `pnpm test:coverage` | Generate coverage report |
@@ -20,6 +23,7 @@ A Registry Lookup service for MASUMI AI Nodes on the Cardano blockchain. Provide
 | `pnpm prisma:seed` | Seed the database |
 | `pnpm swagger-json` | Generate OpenAPI JSON |
 | `pnpm knip` | Find unused code/dependencies |
+| `pnpm check:unused` | knip + unused locals/params in backend and frontend |
 
 ## Tech Stack
 
@@ -87,6 +91,7 @@ src/
     ├── metadata-string-convert/ # Blockchain metadata parsing
     ├── swagger-generator/      # OpenAPI doc generation
     └── zod-openapi.ts          # Zod + OpenAPI extensions
+frontend/                       # Admin UI: Next.js static export (shadcn + Tailwind), served at /admin
 prisma/
 ├── schema.prisma               # Database schema (source of truth)
 ├── migrations/                 # SQL migrations

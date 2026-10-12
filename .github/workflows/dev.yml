@@ -39,6 +39,17 @@ jobs:
 
       - name: Run Build
         run: pnpm run build
+        env:
+          NEXT_TELEMETRY_DISABLED: 1
+
+      - name: Run Frontend ESLint
+        run: pnpm -C frontend run lint
+
+      - name: Run Frontend TypeScript Check
+        run: pnpm run typecheck:frontend
+
+      - name: Run Frontend Format Check
+        run: pnpm -C frontend run format:check
 
       - name: Run Open API Generator
         run: pnpm run swagger-json

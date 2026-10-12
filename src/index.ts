@@ -20,6 +20,7 @@ import {
   HTTP_DRAIN_TIMEOUT_MS,
   SHUTDOWN_SIGNALS,
 } from '@/utils/graceful-shutdown';
+import { serveAdminUi } from '@/utils/admin-ui';
 
 initDB()
   .then(async () => {
@@ -82,6 +83,8 @@ initDB()
         app.get('/api-docs', (_, res) => {
           res.json(JSON.parse(docsString));
         });
+
+        serveAdminUi(app, join(process.cwd(), 'frontend/dist'));
       },
       http: {
         listen: PORT,
