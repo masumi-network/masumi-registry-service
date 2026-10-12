@@ -6,7 +6,7 @@ import prettierPlugin from 'eslint-plugin-prettier';
 const eslintConfig = defineConfig([
   ...nextVitals,
   prettierConfig,
-  globalIgnores(['.next/**', 'dist/**', 'node_modules/**']),
+  globalIgnores(['.next/**', 'dist/**', 'node_modules/**', 'src/lib/api/generated/**']),
   {
     files: ['**/*.{js,jsx,ts,tsx}'],
     plugins: {

@@ -22,6 +22,7 @@ A Registry Lookup service for MASUMI AI Nodes on the Cardano blockchain. Provide
 | `pnpm prisma:migrate` | Apply migrations (production) |
 | `pnpm prisma:seed` | Seed the database |
 | `pnpm swagger-json` | Generate OpenAPI JSON |
+| `pnpm check:api-client` | Regenerate OpenAPI JSON + admin API client; fails if the committed client is stale |
 | `pnpm knip` | Find unused code/dependencies |
 | `pnpm check:unused` | knip + unused locals/params in backend and frontend |
 
@@ -169,6 +170,7 @@ try {
 
 ### Never Do
 - Commit `.env` files or API keys
+- Hand-edit `frontend/src/lib/api/generated/` (regenerate with `pnpm check:api-client`)
 - Push directly to `main` or `dev` branches
 - Use raw SQL instead of Prisma queries
 - Store plaintext API tokens

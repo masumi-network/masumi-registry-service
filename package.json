@@ -38,6 +38,7 @@
     "build": "pnpm run build:backend && pnpm -C frontend run build",
     "start": "NODE_ENV=production && node ./dist/index.js",
     "swagger-json": "export DATABASE_URL=postgresql://mock-user:mock-pass@localhost:5432/mock-testdb && tsx ./src/utils/swagger-generator/cli.ts",
+    "check:api-client": "pnpm run swagger-json && pnpm -C frontend run openapi-ts-latest && out=$(git status --porcelain -- src/utils/swagger-generator/openapi-docs.json frontend/openapi-docs.json frontend/src/lib/api/generated) && if [ -n \"$out\" ]; then echo \"$out\"; echo 'Generated API client is stale: commit the files listed above.'; exit 1; fi",
     "knip": "knip",
     "snapshot:export": "tsx ./src/scripts/snapshot-export.ts",
     "snapshot:import": "tsx ./src/scripts/snapshot-import.ts",
