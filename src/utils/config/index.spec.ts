@@ -62,6 +62,10 @@ describe('numeric configuration', () => {
       ['whitespace', '   '],
       ['a negative number', '-1'],
       ['zero', '0'],
+      // 20000 is in range for every variable, so only the notation fails.
+      ['hex notation', '0x4e20'],
+      ['exponent notation', '2e4'],
+      ['a leading plus sign', '+20000'],
     ])('rejects %s and names the variable', (_label, value) => {
       expect(() => loadConfig({ [name]: value })).toThrow(
         new RegExp(`^Invalid ${name} ENV variable`)
@@ -73,7 +77,7 @@ describe('numeric configuration', () => {
   it.each(NUMERIC_VARS.filter((name) => name !== 'DB_CONNECTION_POOL_LIMIT'))(
     'rejects a %s that would overflow a Node timer',
     (name) => {
-      expect(() => loadConfig({ [name]: '1e12' })).toThrow(
+      expect(() => loadConfig({ [name]: '99999999999' })).toThrow(
         new RegExp(`^Invalid ${name} ENV variable`)
       );
     }

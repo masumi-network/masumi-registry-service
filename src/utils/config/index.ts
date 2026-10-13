@@ -11,16 +11,26 @@ if (process.env.DATABASE_URL == null)
 const MAX_TIMER_MS = 2147483647;
 const MAX_TIMER_SECONDS = Math.floor(MAX_TIMER_MS / 1000);
 
+// Plain decimal only: Number() alone would also accept hex ("0x20"),
+// binary, octal and exponent ("1e2") notation.
+const DECIMAL_NUMBER = /^\d+(\.\d+)?$/;
+
 // Reads a numeric env var, falling back to `fallback` only when it is unset.
-// Rejects NaN, Infinity, empty strings and out-of-range values at startup,
-// naming the variable.
+// Rejects non-decimal input, empty strings and out-of-range values at
+// startup, naming the variable.
 function readNumberEnv(
   name: string,
   fallback: number,
   bounds: { min: number; max: number; integer?: boolean }
 ): number {
   const raw = process.env[name];
-  const value = raw === undefined ? fallback : Number(raw.trim() || NaN);
+  const trimmed = raw?.trim() ?? '';
+  const value =
+    raw === undefined
+      ? fallback
+      : DECIMAL_NUMBER.test(trimmed)
+        ? Number(trimmed)
+        : NaN;
   if (
     !Number.isFinite(value) ||
     value < bounds.min ||
