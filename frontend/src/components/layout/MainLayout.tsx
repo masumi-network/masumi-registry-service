@@ -3,8 +3,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import {
   BookOpen,
+  Bot,
   FileCode,
-  LayoutDashboard,
   LogOut,
   MessageSquare,
   Moon,
@@ -15,6 +15,7 @@ import {
 import { Button } from '@/components/ui/button';
 import MasumiLogo from '@/components/MasumiLogo';
 import MasumiIconFlat from '@/components/MasumiIconFlat';
+import { NetworkSwitch } from '@/components/layout/NetworkSwitch';
 import { useTheme } from '@/lib/contexts/ThemeContext';
 import { useSidebar } from '@/lib/contexts/SidebarContext';
 import { useAuth } from '@/lib/contexts/AuthContext';
@@ -34,7 +35,7 @@ type NavItem = {
 
 // Feature slices append their pages here. Non-admin keys only see the ones whose path is
 // listed in lib/permissions.ts, so a new read page must be registered there as well.
-const navItems: NavItem[] = [{ href: '/', name: 'Dashboard', icon: LayoutDashboard }];
+const navItems: NavItem[] = [{ href: '/', name: 'Agents', icon: Bot }];
 
 type HeaderLink = {
   href: string;
@@ -185,6 +186,9 @@ export function MainLayout({ children }: MainLayoutProps) {
                 <PanelLeft className="h-4 w-4" />
               </Button>
             )}
+          </div>
+          <div className={cn('px-2 pb-2', isRail && 'flex justify-center px-0')}>
+            <NetworkSwitch compact={isRail} />
           </div>
         </div>
 
