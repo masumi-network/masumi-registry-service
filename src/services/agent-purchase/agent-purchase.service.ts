@@ -121,6 +121,8 @@ async function getPurchaseHistory(params: {
   if (requestedFrom >= to) {
     throw createHttpError(400, '`from` must be before `to`');
   }
+  // The limit applies to the requested range: snapping `from` below can add
+  // up to one bucket, so a one-year request by month stays valid.
   if (
     to.getTime() - requestedFrom.getTime() >
     MAX_PURCHASE_HISTORY_DAYS * DAY_MS

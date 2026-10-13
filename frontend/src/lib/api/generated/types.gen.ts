@@ -733,7 +733,7 @@ export type GetRegistryEntryPurchasesData = {
          */
         from?: Date;
         /**
-         * Series end (exclusive); the last bucket can be partial. Defaults to now. Max range 366 days.
+         * Series end (exclusive); the last bucket can be partial. Defaults to now. Max range 366 days from the requested `from`; moving `from` back to its bucket start can add up to one bucket.
          */
         to?: Date;
     };
