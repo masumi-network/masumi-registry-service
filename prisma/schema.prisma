@@ -103,6 +103,7 @@ model RegistryEntry {
 
   SupportedPaymentSources SupportedPaymentSource[]
   Verifications           AgentVerification[]
+  A2A                     A2ARegistryEntry?
 
   metadataVersion Int
 
@@ -138,6 +139,28 @@ model SupportedPaymentSource {
 
   @@unique([registryEntryId, sourceIndex])
   @@index([registryEntryId])
+}
+
+// A2A (MIP-002) descriptor for an A2A-typed registry entry. Held in its own 1:1
+// table rather than as columns on RegistryEntry so that each access model's
+// type-specific fields stay out of the shared row — otherwise every new type
+// adds more columns that are NULL for every other type. The Agent Card document
+// itself is not exploded here: it is fetched, validated and cached whole in
+// RegistryEntry.spec (see services/spec-validation), same as an OpenApi doc or
+// x402 manifest. Read model — re-synced from chain, never minted.
+model A2ARegistryEntry {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Agent Card location, e.g. https://{domain}/.well-known/agent-card.json.
+  agentCardUrl String
+  // Protocol versions claimed on-chain. Each must appear in the fetched card's
+  // protocolVersions, else the entry is marked Invalid.
+  protocolVersions String[]
+
+  RegistryEntry   RegistryEntry @relation(fields: [registryEntryId], references: [id], onDelete: Cascade)
+  registryEntryId String        @unique
 }
 
 // KERI/Veridian verification claim advertised in a V2 registry entry's metadata.
@@ -257,12 +280,14 @@ enum PaymentType {
 
 // Agent access model advertised in the registry metadata `type` field. Absent
 // on-chain `type` (and legacy rows) map to Standard. On-chain string values:
-// Standard = absent, OpenApi = "OpenAPI", X402 = "x402V1". Kept in sync with the
-// payment-service RegistryEntryType. See docs (payment-service ADR 0010).
+// Standard = absent, OpenApi = "OpenAPI", X402 = "x402V1", A2A = "a2aV1". Kept in
+// sync with the payment-service RegistryEntryType. See docs (payment-service ADR
+// 0010) and MIP-002-A2A for the A2A variant.
 enum RegistryEntryType {
   Standard
   OpenApi
   X402
+  A2A
 }
 
 enum Status {

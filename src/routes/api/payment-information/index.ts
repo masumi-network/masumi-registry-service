@@ -100,6 +100,12 @@ export const queryPaymentInformationSchemaOutput = z
     apiBaseUrl: z.string().nullable(),
     openApiSpecUrl: z.string().nullable(),
     x402ResourcesUrl: z.string().nullable(),
+    A2A: z
+      .object({
+        agentCardUrl: z.string(),
+        protocolVersions: z.array(z.string()),
+      })
+      .nullable(),
     authorName: z.string().nullable(),
     authorOrganization: z.string().nullable(),
     authorContactEmail: z.string().nullable(),
@@ -177,6 +183,13 @@ export const queryPaymentInformationGet = authenticatedEndpointFactory.build({
     return {
       ...result,
       agentIdentifier: result.assetIdentifier,
+      A2A:
+        result.A2A == null
+          ? null
+          : {
+              agentCardUrl: result.A2A.agentCardUrl,
+              protocolVersions: result.A2A.protocolVersions,
+            },
       sellerWallet: {
         address: sellerWallet.address,
         vkey: resolvePaymentKeyHash(sellerWallet.address),

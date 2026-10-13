@@ -27,7 +27,7 @@ As this project handles financial transactions:
 
 ### Code Style
 
-- Run `pnpm lint` before committing
+- Run `pnpm lint` before committing (`pnpm lint:fix` applies automatic fixes)
 - Run `pnpm format` to format code
 - Follow TypeScript best practices
 - Write clear, self-documenting code
