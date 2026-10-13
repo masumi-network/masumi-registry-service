@@ -40,6 +40,8 @@ describe('serveAdminUi', () => {
     writeFileSync(join(distDir, 'index.html'), 'index-page');
     writeFileSync(join(distDir, 'about.html'), 'about-page');
     writeFileSync(join(distDir, '404.html'), 'not-found-page');
+    mkdirSync(join(distDir, 'agents'));
+    writeFileSync(join(distDir, 'agents/detail.html'), 'agent-detail-page');
     writeFileSync(join(distDir, '_next/static/chunks/app.js'), 'chunk');
     writeFileSync(join(rootDir, 'secret.html'), 'secret');
     ({ server, baseUrl } = await startServer(distDir));
@@ -61,6 +63,12 @@ describe('serveAdminUi', () => {
     expect(response.status).toBe(200);
     expect(response.headers.get('content-type')).toContain('text/html');
     expect(await response.text()).toBe('about-page');
+  });
+
+  it('serves a pre-rendered page from a nested route', async () => {
+    const response = await fetch(`${baseUrl}/admin/agents/detail`);
+    expect(response.status).toBe(200);
+    expect(await response.text()).toBe('agent-detail-page');
   });
 
   it('answers an unknown route with the 404 page', async () => {

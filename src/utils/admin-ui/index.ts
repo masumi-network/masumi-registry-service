@@ -1,7 +1,6 @@
 import express, { type IRouter } from 'express';
-import { existsSync } from 'fs';
-import { readFile } from 'fs/promises';
-import { isAbsolute, join, relative, resolve } from 'path';
+import { existsSync, readdirSync, readFileSync } from 'fs';
+import { join, sep } from 'path';
 import { logger } from '@/utils/logger/';
 
 // Must match `basePath` in frontend/next.config.ts.
@@ -9,6 +8,30 @@ const ADMIN_BASE_PATH = '/admin';
 const HAS_FILE_EXTENSION = /\.[a-zA-Z0-9]+$/;
 // Next.js puts a content hash in every file name under _next/static.
 const HASHED_ASSETS_MAX_AGE = '1y';
+const HTML_EXTENSION = '.html';
+const INDEX_ROUTE = 'index';
+const NOT_FOUND_ROUTE = '404';
+
+/**
+ * Reads every exported page once, keyed by route (about.html -> "about").
+ * Requests are then answered from memory, so no request-derived path ever
+ * reaches the file system. A rebuilt export needs a server restart.
+ */
+function loadPages(distDir: string): Map<string, Buffer> {
+  const pages = new Map<string, Buffer>();
+  if (!existsSync(distDir)) {
+    return pages;
+  }
+  const files = readdirSync(distDir, { recursive: true, encoding: 'utf8' });
+  for (const file of files) {
+    if (!file.endsWith(HTML_EXTENSION)) {
+      continue;
+    }
+    const route = file.slice(0, -HTML_EXTENSION.length).split(sep).join('/');
+    pages.set(route, readFileSync(join(distDir, file)));
+  }
+  return pages;
+}
 
 /**
  * Serves the admin UI's Next.js static export (frontend/dist) under /admin.
@@ -30,9 +53,12 @@ export function serveAdminUi(app: IRouter, distDir: string): void {
   );
   app.use(ADMIN_BASE_PATH, express.static(distDir));
 
+  const pages = loadPages(distDir);
+  const notFoundPage = pages.get(NOT_FOUND_ROUTE);
+
   // Every admin route is its own pre-rendered page (about -> about.html), so a hard
-  // reload of /admin/about must send that file rather than the API's JSON 404.
-  app.use(ADMIN_BASE_PATH, async (req, res, next) => {
+  // reload of /admin/about must send that page rather than the API's JSON 404.
+  app.use(ADMIN_BASE_PATH, (req, res, next) => {
     if (req.method !== 'GET' && req.method !== 'HEAD') {
       return next();
     }
@@ -42,28 +68,14 @@ export function serveAdminUi(app: IRouter, distDir: string): void {
     }
 
     const routeName = req.path.replace(/^\/+/, '').replace(/\/+$/, '');
-    const htmlFile = routeName === '' ? 'index.html' : `${routeName}.html`;
-    const requestedPath = resolve(distDir, htmlFile);
-
-    // Keep the resolved path inside dist (no "../" traversal).
-    const relativeToBase = relative(distDir, requestedPath);
-    const isOutsideBase =
-      relativeToBase.startsWith('..') || isAbsolute(relativeToBase);
-    const isMissing = isOutsideBase || !existsSync(requestedPath);
-    const fileToSend = isMissing ? join(distDir, '404.html') : requestedPath;
-
-    // Read before touching the response, so a fall-through leaves no status or
-    // Content-Type behind for the API's own reply.
-    let page: Buffer;
-    try {
-      page = await readFile(fileToSend);
-    } catch {
-      // No build (or no 404 page): let the API answer.
+    const page = pages.get(routeName === '' ? INDEX_ROUTE : routeName);
+    if (page) {
+      return res.type('html').send(page);
+    }
+    // No build (or no 404 page): let the API answer.
+    if (!notFoundPage) {
       return next();
     }
-    res
-      .status(isMissing ? 404 : 200)
-      .type('html')
-      .send(page);
+    res.status(404).type('html').send(notFoundPage);
   });
 }
