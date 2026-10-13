@@ -1,7 +1,8 @@
 export default {
-  // Backend: lint auto-fix, then format only the staged paths lint-staged appends.
+  // Backend: lint and format only the staged paths lint-staged appends, so
+  // unstaged work elsewhere in src/ is never rewritten.
   '{src,prisma}/**/*.{js,ts}': [
-    'pnpm run lint:backend:fix',
+    'eslint --fix --quiet --config eslint.config.mjs',
     'prettier --log-level silent --write',
   ],
   // Frontend: run the workspace's own tools once; staged paths would be root-relative.
