@@ -843,4 +843,36 @@ describe('checkVerifyAndUpdateRegistryEntries uptime tracking', () => {
 
     expect(result).toEqual([{ id: 'entry-1', status: 'Online' }]);
   });
+
+  it('leaves uptime and history alone for an entry returned unchecked', async () => {
+    global.fetch = jest.fn();
+    const updateSpy = jest
+      .spyOn(prisma.registryEntry, 'update')
+      .mockResolvedValue({ id: 'entry-1', status: 'Online' } as never);
+    const createEventsSpy = jest
+      .spyOn(prisma.healthCheckEvent, 'createMany')
+      .mockResolvedValue({ count: 0 });
+
+    await healthCheckService.checkVerifyAndUpdateRegistryEntries({
+      registryEntries: [
+        {
+          id: 'entry-1',
+          status: $Enums.Status.Online,
+          lastUptimeCheck: new Date(0),
+          uptimeEwma: 1,
+          apiBaseUrl: null,
+          type: 'Standard',
+          assetIdentifier: 'asset-1',
+          RegistrySource: { policyId: null },
+        },
+      ] as never,
+      minHealthCheckDate: new Date(),
+      trigger: 'Request',
+    });
+
+    const data = (updateSpy.mock.calls[0][0] as { data: object }).data;
+    expect(data).not.toHaveProperty('uptimeEwma');
+    expect(data).not.toHaveProperty('lastUptimeCheck');
+    expect(createEventsSpy).not.toHaveBeenCalled();
+  });
 });

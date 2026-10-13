@@ -236,11 +236,14 @@ async function checkVerifyAndUpdateRegistryEntries({
     total: neededLookups.size,
   });
 
+  // Entries returned without a probe: their uptime and history stay as is.
+  const uncheckedIds = new Set<string>();
   const data = await Promise.allSettled(
     entriesToCheck.map(async (entry) => {
       const registrySource = entry.RegistrySource;
       if (registrySource == null || registrySource.policyId == null) {
         logger.error('registrySource is null', entry);
+        uncheckedIds.add(entry.id);
         return entry;
       }
       if (specKindForType(entry.type) != null) {
@@ -272,6 +275,11 @@ async function checkVerifyAndUpdateRegistryEntries({
       }
       // Reachable only for Standard entries (spec types returned early), which
       // always carry a non-null apiBaseUrl.
+      if (
+        entry.lastUptimeCheck.getTime() > (minHealthCheckDate?.getTime() ?? 0)
+      ) {
+        uncheckedIds.add(entry.id); // recently checked: cached status only
+      }
       const status = await checkAndVerifyRegistryEntry({
         registryEntry: { ...entry, apiBaseUrl: entry.apiBaseUrl! },
         minHealthCheckDate,
@@ -341,7 +349,9 @@ async function checkVerifyAndUpdateRegistryEntries({
           },
           data: {
             status: s.status,
-            ...uptimeCheckUpdate(entriesById.get(s.id)!, s.status, checkedAt),
+            ...(uncheckedIds.has(s.id)
+              ? {}
+              : uptimeCheckUpdate(entriesById.get(s.id)!, s.status, checkedAt)),
             ...specCachePatch(s), // caches a just-validated spec snapshot
           },
         })
@@ -353,8 +363,8 @@ async function checkVerifyAndUpdateRegistryEntries({
       });
     }
   }
-  // Entries without a policy were returned unchecked: no event for them.
-  // Events are history only, so a failed write must not fail the check.
+  // Unchecked entries get no event. Events are history only, so a failed
+  // write must not fail the check.
   await uptimeTracking
     .recordHealthCheckEvents(
       [
@@ -364,7 +374,7 @@ async function checkVerifyAndUpdateRegistryEntries({
         })),
         ...updatedEntries,
       ]
-        .filter((entry) => entriesById.get(entry.id)?.RegistrySource?.policyId)
+        .filter((entry) => !uncheckedIds.has(entry.id))
         .map((entry) => ({
           registryEntryId: entry.id,
           status: entry.status,

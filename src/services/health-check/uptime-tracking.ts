@@ -1,5 +1,6 @@
 import { $Enums, HealthCheckTrigger } from '@prisma/client';
 import { prisma } from '@/utils/db';
+import { logger } from '@/utils/logger';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 // Time after which an interval's status counts half in the rolling uptime.
@@ -104,9 +105,12 @@ async function recordSyncCheck(
   status: $Enums.Status,
   checkedAt: Date
 ) {
+  // History only: a failed write must not stop the registry sync.
   await recordHealthCheckEvents([
     { registryEntryId, status, trigger: HealthCheckTrigger.Sync, checkedAt },
-  ]);
+  ]).catch((error) =>
+    logger.error('failed to record sync health check event', { error })
+  );
 }
 
 async function pruneHealthCheckEvents(now: Date) {
