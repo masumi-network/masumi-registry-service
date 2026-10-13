@@ -1,7 +1,9 @@
-// Encrypts the API key before it is written to localStorage, so the stored value is
-// not usable on its own (a storage dump, a synced profile, a screenshot of devtools).
+// Encrypts the API key before it is written to localStorage, so a copy of
+// localStorage alone (a storage export, a screenshot of devtools) is not usable.
 // The AES key is a non-extractable CryptoKey in IndexedDB: script can use it to
-// decrypt but can never read its raw bytes. This does not defend against XSS on the
+// decrypt but can never read its raw bytes. The browser still keeps that key in the
+// same profile, so anyone with the whole profile (a shared or stolen machine) can
+// use the stored API key until sign-out. This does not defend against XSS on the
 // same origin, which can still ask the page to decrypt; it is not a substitute for CSP.
 const DB_NAME = 'masumi-registry-secure-storage';
 const STORE_NAME = 'keys';

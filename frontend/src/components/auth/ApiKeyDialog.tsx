@@ -61,8 +61,8 @@ export function ApiKeyDialog() {
           <h1 className="text-2xl font-semibold tracking-tight">Enter your API key</h1>
           <p className="text-sm text-muted-foreground">
             Sign in with the <code className="text-foreground">Admin_KEY</code> from your registry
-            environment, or any API key an admin created. The key is encrypted and kept in this
-            browser only.
+            environment, or any API key an admin created. The key stays encrypted in this browser
+            until you sign out, so do not sign in on a shared device.
           </p>
         </div>
 
