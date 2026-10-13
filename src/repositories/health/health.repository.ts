@@ -1,7 +1,7 @@
-import { CONFIG } from "@/utils/config"
+import { CONFIG } from '@/utils/config';
 
 function getHealthConfiguration() {
-    return { "type": "masumi-registry", "version": CONFIG.VERSION }
+  return { type: 'masumi-registry', version: CONFIG.VERSION };
 }
 
-export const healthRepository = { getHealthConfiguration }
+export const healthRepository = { getHealthConfiguration };
