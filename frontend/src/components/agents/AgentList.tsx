@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { Badge, type BadgeProps } from '@/components/ui/badge';
 import type { RegistryEntry } from '@/lib/api/generated';
 import type { AgentStatus } from '@/lib/agent-filters';
@@ -6,7 +7,7 @@ import { cn } from '@/lib/utils';
 
 const VISIBLE_TAGS = 3;
 
-const STATUS_BADGE: Record<AgentStatus, BadgeProps['variant']> = {
+export const STATUS_BADGE: Record<AgentStatus, BadgeProps['variant']> = {
   Online: 'success',
   Offline: 'warning',
   Deregistered: 'secondary',
@@ -47,7 +48,8 @@ function timeAgo(date: Date): string {
   return relativeTime.format(Math.round(seconds / size), unit);
 }
 
-function LastCheck({ date }: { date: Date }) {
+/** Relative time, with the exact time on hover. */
+export function RelativeTime({ date }: { date: Date }) {
   if (Number.isNaN(date.getTime())) return <span className="text-muted-foreground">Never</span>;
   return (
     <time dateTime={date.toISOString()} title={date.toLocaleString()}>
@@ -64,7 +66,12 @@ function AgentRow({ agent }: { agent: RegistryEntry }) {
     <li className={cn('grid gap-x-6 gap-y-2 px-4 py-4', ROW_GRID)}>
       <div className="min-w-0 space-y-1">
         <p className="truncate font-medium" title={agent.name}>
-          {agent.name}
+          <Link
+            href={{ pathname: '/agent', query: { agentIdentifier: agent.agentIdentifier } }}
+            className="rounded-sm underline-offset-4 hover:underline focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden"
+          >
+            {agent.name}
+          </Link>
         </p>
         {agent.description && (
           <p className="line-clamp-2 text-sm text-muted-foreground">{agent.description}</p>
@@ -111,7 +118,7 @@ function AgentRow({ agent }: { agent: RegistryEntry }) {
           {formatUptime(agent.uptimeCount, agent.uptimeCheckCount)}
         </span>
         <span className="block text-xs text-muted-foreground">
-          <LastCheck date={agent.lastUptimeCheck} />
+          <RelativeTime date={agent.lastUptimeCheck} />
         </span>
       </Cell>
     </li>

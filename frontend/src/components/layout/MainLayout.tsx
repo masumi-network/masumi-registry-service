@@ -31,11 +31,13 @@ type NavItem = {
   href: string;
   name: string;
   icon: LucideIcon;
+  /** Other pages that belong to this item, such as a detail page. */
+  activeOn?: string[];
 };
 
 // Feature slices append their pages here. Non-admin keys only see the ones whose path is
 // listed in lib/permissions.ts, so a new read page must be registered there as well.
-const navItems: NavItem[] = [{ href: '/', name: 'Agents', icon: Bot }];
+const navItems: NavItem[] = [{ href: '/', name: 'Agents', icon: Bot, activeOn: ['/agent'] }];
 
 type HeaderLink = {
   href: string;
@@ -197,7 +199,8 @@ export function MainLayout({ children }: MainLayoutProps) {
           className={cn('flex flex-col gap-1 p-2', isRail ? 'items-center px-0' : 'px-2')}
         >
           {visibleNavItems.map((item, index) => {
-            const isActive = router.pathname === item.href;
+            const isActive =
+              router.pathname === item.href || !!item.activeOn?.includes(router.pathname);
             const Icon = item.icon;
             return (
               <div
