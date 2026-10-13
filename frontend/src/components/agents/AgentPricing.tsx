@@ -145,7 +145,8 @@ export function AgentPricing({ agent, network }: { agent: RegistryEntry; network
   return (
     <DetailSection id="agent-pricing-heading" title="Pricing">
       {paymentInformation.isPending ? (
-        <div aria-hidden="true" className="grid gap-4 @xl:grid-cols-2">
+        <div role="status" className="grid gap-4 @xl:grid-cols-2">
+          <span className="sr-only">Loading pricing…</span>
           <Skeleton className="h-10 w-40" />
           <Skeleton className="h-10 w-56 max-w-full" />
         </div>

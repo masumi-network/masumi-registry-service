@@ -3,7 +3,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 // Header, then the overview and health sections, close enough that the page does not jump.
 export function AgentDetailSkeleton() {
   return (
-    <div aria-hidden="true" className="space-y-6">
+    <div role="status" className="space-y-6">
+      <span className="sr-only">Loading agent…</span>
       <div className="space-y-3">
         <Skeleton className="h-7 w-64 max-w-full" />
         <Skeleton className="h-5 w-48 max-w-full" />

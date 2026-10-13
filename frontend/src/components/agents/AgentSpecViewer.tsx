@@ -433,7 +433,8 @@ export function AgentSpecViewer({ agent, network }: { agent: RegistryEntry; netw
       }
     >
       {query.isPending ? (
-        <div aria-hidden="true" className="space-y-2">
+        <div role="status" className="space-y-2">
+          <span className="sr-only">Loading spec…</span>
           <Skeleton className="h-4 w-56 max-w-full" />
           <Skeleton className="h-3 w-40" />
           <Skeleton className="h-24 w-full" />
