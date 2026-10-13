@@ -54,8 +54,11 @@ jobs:
       - name: Run Frontend Tests
         run: pnpm run test:frontend
 
-      - name: Run Open API Generator
-        run: pnpm run swagger-json
+      # Regenerates the OpenAPI spec and the frontend client from it, then fails
+      # if that changes any committed file. Fix: run `pnpm check:api-client`
+      # locally and commit the result.
+      - name: Check Generated API Client Is Up To Date
+        run: pnpm run check:api-client
 
       - name: Run ESLint for issues
         id: lint_fix_remaining
