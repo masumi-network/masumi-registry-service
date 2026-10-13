@@ -970,7 +970,7 @@
                     "components": {
                         "type": "object",
                         "properties": {
-                            "successfulPurchases": {
+                            "distinctBuyers": {
                                 "type": "number"
                             },
                             "uptime": {
@@ -981,16 +981,16 @@
                             }
                         },
                         "required": [
-                            "successfulPurchases",
+                            "distinctBuyers",
                             "uptime",
                             "lineageAge"
                         ],
-                        "description": "Each input normalized to 0-1 within the ranked result set: successfulPurchases (seller withdrawals on chain, relative to the top agent), uptime (rolling), lineageAge (V2 version root age)."
+                        "description": "Each component is 0-1: distinctBuyers (buyers that funded a seller-withdrawn escrow on chain, relative to the top agent), uptime (time-weighted rolling, not relative), lineageAge (V2 version root age, capped at 90 days)."
                     },
                     "weights": {
                         "type": "object",
                         "properties": {
-                            "successfulPurchases": {
+                            "distinctBuyers": {
                                 "type": "number"
                             },
                             "uptime": {
@@ -1001,7 +1001,7 @@
                             }
                         },
                         "required": [
-                            "successfulPurchases",
+                            "distinctBuyers",
                             "uptime",
                             "lineageAge"
                         ]
