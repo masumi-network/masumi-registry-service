@@ -1,13 +1,21 @@
 import { $Enums, PricingType, Prisma } from '@prisma/client';
 import { z } from '@/utils/zod-openapi';
 import { a2aProtocolVersionSchema } from '@/utils/a2a/agent-card';
-import { metadataStringConvert } from '@/utils/metadata-string-convert';
+import {
+  isNonBlankMetadataString,
+  metadataStringConvert,
+  metadataStringJoin,
+} from '@/utils/metadata-string-convert';
 
 const MAX_SUPPORTED_PAYMENT_SOURCES = 25;
 const MAX_FIXED_PRICES = 5;
 
 // On-chain metadata leaves are string | string[] (CIP-25 60-char chunks).
 const metadataString = z.string().or(z.array(z.string()));
+const requiredMetadataString = metadataString.refine(
+  isNonBlankMetadataString,
+  'must not be blank'
+);
 
 const v2AssetSchema = z.object({
   asset: metadataString,
@@ -71,7 +79,7 @@ const v2VerificationSchema = z.object({
  */
 export const web3CardanoV2MetadataSchema = z
   .object({
-    name: metadataString,
+    name: requiredMetadataString,
     description: metadataString.optional(),
     // Access-model discriminator. Absent -> Standard. OpenAPI/x402 entries carry
     // it (and omit api_base_url), so the .strict() schema must accept these keys.
@@ -87,9 +95,9 @@ export const web3CardanoV2MetadataSchema = z
     example_output: z
       .array(
         z.object({
-          name: metadataString,
-          mime_type: metadataString,
-          url: metadataString,
+          name: requiredMetadataString,
+          mime_type: requiredMetadataString,
+          url: requiredMetadataString,
         })
       )
       .optional(),
@@ -110,7 +118,7 @@ export const web3CardanoV2MetadataSchema = z
       })
       .optional(),
     tags: z.array(z.string().min(1)).min(1),
-    image: metadataString,
+    image: requiredMetadataString,
     metadata_version: z.coerce.number().int().min(2).max(2),
     supported_payment_sources: z
       .array(v2SupportedPaymentSourceSchema)
@@ -178,13 +186,13 @@ const EVM_CHAIN = 'EVM';
 const POSTGRES_BIGINT_MAX = 9223372036854775807n;
 const EVM_ADDRESS = /^0x[a-fA-F0-9]{40}$/;
 
-function parseAtomicAmount(value: string | undefined): bigint | null {
+function parseAtomicAmount(value: string | null): bigint | null {
   if (value == null || !/^\d+$/.test(value)) return null;
   const amount = BigInt(value);
   return amount > 0n && amount <= POSTGRES_BIGINT_MAX ? amount : null;
 }
 
-function parseAssetDecimals(value: string | undefined): number | null {
+function parseAssetDecimals(value: string | null): number | null {
   if (value == null || !/^\d+$/.test(value)) return null;
   const decimals = Number(value);
   return Number.isInteger(decimals) && decimals >= 0 && decimals <= 255
@@ -267,7 +275,7 @@ function buildPricingCreate(
         `${optionLabel}.pricing.dynamic must contain exactly one accepted asset`
       );
     }
-    const asset = metadataStringConvert(dynamic?.asset);
+    const asset = metadataStringJoin(dynamic?.asset);
     const decimalsRaw = metadataStringConvert(dynamic?.decimals);
     const decimals = parseAssetDecimals(decimalsRaw);
     if (
@@ -320,7 +328,7 @@ function buildPricingCreate(
   }
 
   const amounts = fixed.map((entry, priceIndex) => {
-    const asset = metadataStringConvert(entry.asset);
+    const asset = metadataStringJoin(entry.asset);
     const amount = parseAtomicAmount(metadataStringConvert(entry.amount));
     const decimalsRaw = metadataStringConvert(entry.decimals);
     const decimals = parseAssetDecimals(decimalsRaw);
@@ -329,7 +337,7 @@ function buildPricingCreate(
         `${optionLabel}.pricing.fixed[${priceIndex}] requires a valid asset and positive atomic amount`
       );
     }
-    if (chain === CARDANO_CHAIN && decimalsRaw != null) {
+    if (chain === CARDANO_CHAIN && entry.decimals != null) {
       throw new Error(
         `${optionLabel}.pricing.fixed[${priceIndex}].decimals is not valid for Cardano`
       );

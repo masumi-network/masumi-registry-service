@@ -1,12 +1,14 @@
 import { PricingType } from '@prisma/client';
 import { z } from '@/utils/zod-openapi';
+import { isNonBlankMetadataString } from '@/utils/metadata-string-convert';
 
 export const web3CardanoMetadataSchema = z
   .object({
     name: z
       .string()
       .min(1)
-      .or(z.array(z.string().min(1))),
+      .or(z.array(z.string().min(1)))
+      .refine(isNonBlankMetadataString, 'must not be blank'),
     description: z.string().or(z.array(z.string())).optional(),
     // Access-model discriminator. Absent -> Standard. OpenAPI/x402 entries carry
     // it (and omit api_base_url), so the .strict() schema must accept these keys.
@@ -18,16 +20,19 @@ export const web3CardanoMetadataSchema = z
       .string()
       .min(1)
       .or(z.array(z.string().min(1)))
+      .refine(isNonBlankMetadataString, 'must not be blank')
       .optional(),
     openapi_spec_url: z
       .string()
       .min(1)
       .or(z.array(z.string().min(1)))
+      .refine(isNonBlankMetadataString, 'must not be blank')
       .optional(),
     x402_resources_url: z
       .string()
       .min(1)
       .or(z.array(z.string().min(1)))
+      .refine(isNonBlankMetadataString, 'must not be blank')
       .optional(),
     example_output: z
       .array(
@@ -35,13 +40,18 @@ export const web3CardanoMetadataSchema = z
           name: z
             .string()
             .max(60)
-            .or(z.array(z.string().max(60)).min(1).max(1)),
+            .or(z.array(z.string().max(60)).min(1).max(1))
+            .refine(isNonBlankMetadataString, 'must not be blank'),
           mime_type: z
             .string()
             .min(1)
             .max(60)
-            .or(z.array(z.string().min(1).max(60)).min(1).max(1)),
-          url: z.string().or(z.array(z.string())),
+            .or(z.array(z.string().min(1).max(60)).min(1).max(1))
+            .refine(isNonBlankMetadataString, 'must not be blank'),
+          url: z
+            .string()
+            .or(z.array(z.string()))
+            .refine(isNonBlankMetadataString, 'must not be blank'),
         })
       )
       .optional(),
@@ -81,7 +91,8 @@ export const web3CardanoMetadataSchema = z
               unit: z
                 .string()
                 .min(1)
-                .or(z.array(z.string().min(1))),
+                .or(z.array(z.string().min(1)))
+                .refine(isNonBlankMetadataString, 'must not be blank'),
             })
           )
           .min(1)
@@ -97,7 +108,10 @@ export const web3CardanoMetadataSchema = z
           pricingType: z.enum([PricingType.Dynamic]),
         })
       ),
-    image: z.string().or(z.array(z.string())),
+    image: z
+      .string()
+      .or(z.array(z.string()))
+      .refine(isNonBlankMetadataString, 'must not be blank'),
     metadata_version: z.coerce.number().int().min(1).max(1),
   })
   .strict();
