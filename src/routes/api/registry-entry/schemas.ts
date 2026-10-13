@@ -232,7 +232,8 @@ const registryEntryRankingSchema = z
     components: rankingWeightsSchema.describe(
       'Each component is 0-1: ' +
         'distinctBuyers (buyers that funded a seller-withdrawn escrow on ' +
-        'chain, relative to the top agent), uptime (time-weighted rolling, ' +
+        'chain, counted once across all versions of a V2 agent, relative to ' +
+        'the top agent), uptime (time-weighted rolling, ' +
         'not relative), lineageAge (V2 version root age, capped at 90 days).'
     ),
     weights: rankingWeightsSchema,

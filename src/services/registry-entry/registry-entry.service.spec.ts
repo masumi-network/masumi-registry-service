@@ -19,7 +19,7 @@ const updateLatestCardanoRegistryEntries = jest.fn();
 const checkVerifyAndUpdateRegistryEntries = jest.fn();
 const getRegistryEntriesByIds = jest.fn();
 const findRankingCandidates = jest.fn();
-const countDistinctBuyers = jest.fn();
+const findBuyerPairs = jest.fn();
 const findEntryCreatedAts = jest.fn();
 
 jest.mock('@/repositories/registry-entry', () => ({
@@ -36,7 +36,7 @@ jest.mock('@/repositories/registry-entry', () => ({
 jest.mock('@/repositories/registry-entry/registry-metrics.repository', () => ({
   registryMetricsRepository: {
     findRankingCandidates,
-    countDistinctBuyers,
+    findBuyerPairs,
     findEntryCreatedAts,
   },
 }));
@@ -444,12 +444,15 @@ describe('registryEntryService ranked listing (sortBy)', () => {
       candidate('top'),
       candidate('mid'),
     ]);
-    countDistinctBuyers.mockResolvedValue(
-      new Map([
-        ['asset-top', 30],
-        ['asset-mid', 10],
-      ])
-    );
+    const buyers = (agentIdentifier: string, count: number) =>
+      Array.from({ length: count }, (_, index) => ({
+        agentIdentifier,
+        buyerKeyHash: `buyer-${index}`,
+      }));
+    findBuyerPairs.mockResolvedValue([
+      ...buyers('asset-top', 30),
+      ...buyers('asset-mid', 10),
+    ]);
   });
 
   it('returns entries in score order with their ranking attached', async () => {
@@ -467,6 +470,35 @@ describe('registryEntryService ranked listing (sortBy)', () => {
       },
     });
     expect(getRegistryEntry).not.toHaveBeenCalled();
+  });
+
+  it('keeps the buyers of earlier versions on a new V2 version', async () => {
+    const v2Policy = DEFAULTS.REGISTRY_POLICY_ID_PREPROD_V2;
+    findRankingCandidates.mockResolvedValue([
+      candidate('top'),
+      candidate('v2', {
+        assetIdentifier: `${v2Policy}aa000002`,
+        RegistrySource: { policyId: v2Policy },
+      }),
+    ]);
+    // All 30 buyers bought version 1; version 2 has none of its own yet.
+    findBuyerPairs.mockResolvedValue(
+      Array.from({ length: 30 }, (_, index) => ({
+        agentIdentifier: `${v2Policy}aa000001`,
+        buyerKeyHash: `buyer-${index}`,
+      }))
+    );
+
+    const entries = await registryEntryService.getRegistryEntries({
+      network: Network.Preprod,
+      limit: 10,
+      sortBy: 'score',
+    });
+
+    expect(entries.map((entry) => entry.id)).toEqual(['v2', 'top']);
+    expect(entries[0]).toMatchObject({
+      ranking: { components: { distinctBuyers: 1 } },
+    });
   });
 
   it('continues a ranked listing from the cursor entry', async () => {
@@ -515,7 +547,7 @@ describe('registryEntryService ranked listing (sortBy)', () => {
       cursorId: 'mid',
     });
 
-    expect(countDistinctBuyers).toHaveBeenCalledTimes(1);
+    expect(findBuyerPairs).toHaveBeenCalledTimes(1);
     expect(findEntryCreatedAts).toHaveBeenCalledTimes(1);
   });
 

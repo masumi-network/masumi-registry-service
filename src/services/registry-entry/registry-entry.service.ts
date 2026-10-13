@@ -32,6 +32,7 @@ import {
 } from './registry-ranking';
 import {
   getNetworkRankingMetrics,
+  lineageKey,
   NetworkRankingMetrics,
 } from './registry-ranking-metrics';
 
@@ -154,7 +155,8 @@ function toRankingInput(
     tags: entry.tags,
     createdAt: entry.createdAt,
     uptimeEwma: entry.uptimeEwma,
-    distinctBuyers: metrics.distinctBuyers.get(entry.assetIdentifier) ?? 0,
+    distinctBuyers:
+      metrics.distinctBuyers.get(lineageKey(entry.assetIdentifier)) ?? 0,
     lineageStartedAt: isV2Policy(entry.RegistrySource.policyId)
       ? (metrics.lineageStarts.get(
           getAgentVersionRoot(entry.assetIdentifier)

@@ -1,12 +1,17 @@
 import { $Enums } from '@prisma/client';
 import { registryMetricsRepository } from '@/repositories/registry-entry/registry-metrics.repository';
-import { getAgentVersionRoot, isV2Policy } from '@/utils/agent-version';
+import {
+  getAgentVersionRoot,
+  getPolicyId,
+  isV2Policy,
+} from '@/utils/agent-version';
 
 // Network-wide ranking inputs change only with new purchases or registrations,
 // so ranked pages within this window share one load.
 const RANKING_METRICS_TTL_MS = 60 * 1000;
 
 export type NetworkRankingMetrics = {
+  // Keyed by lineageKey: all versions of a V2 agent share one count.
   distinctBuyers: Map<string, number>;
   // Earliest first-seen date per V2 version root.
   lineageStarts: Map<string, Date>;
@@ -16,6 +21,28 @@ const metricsCache = new Map<
   $Enums.Network,
   { expiresAt: number; metrics: Promise<NetworkRankingMetrics> }
 >();
+
+// Identity that reputation follows: the version root for a V2 agent (an
+// update mints a new version), the asset itself for V1.
+export function lineageKey(assetIdentifier: string): string {
+  return isV2Policy(getPolicyId(assetIdentifier))
+    ? getAgentVersionRoot(assetIdentifier)
+    : assetIdentifier;
+}
+
+// Distinct buyers per lineage: a buyer of several versions counts once.
+export function distinctBuyersByLineage(
+  pairs: readonly { agentIdentifier: string; buyerKeyHash: string }[]
+): Map<string, number> {
+  const buyers = new Map<string, Set<string>>();
+  for (const { agentIdentifier, buyerKeyHash } of pairs) {
+    const key = lineageKey(agentIdentifier);
+    const set = buyers.get(key) ?? new Set<string>();
+    set.add(buyerKeyHash);
+    buyers.set(key, set);
+  }
+  return new Map([...buyers].map(([key, set]) => [key, set.size]));
+}
 
 // Earliest createdAt per exact V2 version root; V1 entries have no lineage.
 export function lineageStartsByRoot(
@@ -40,11 +67,14 @@ export function lineageStartsByRoot(
 async function loadNetworkRankingMetrics(
   network: $Enums.Network
 ): Promise<NetworkRankingMetrics> {
-  const [distinctBuyers, entries] = await Promise.all([
-    registryMetricsRepository.countDistinctBuyers(network),
+  const [buyerPairs, entries] = await Promise.all([
+    registryMetricsRepository.findBuyerPairs(network),
     registryMetricsRepository.findEntryCreatedAts(network),
   ]);
-  return { distinctBuyers, lineageStarts: lineageStartsByRoot(entries) };
+  return {
+    distinctBuyers: distinctBuyersByLineage(buyerPairs),
+    lineageStarts: lineageStartsByRoot(entries),
+  };
 }
 
 export function getNetworkRankingMetrics(

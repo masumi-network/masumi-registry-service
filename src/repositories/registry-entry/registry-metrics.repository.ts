@@ -32,11 +32,11 @@ async function findRankingCandidates(where: Prisma.RegistryEntryWhereInput) {
   });
 }
 
-// Distinct funded buyers per agent across the network (unattributed
-// withdrawals and unverified buyers excluded).
-async function countDistinctBuyers(
+// Distinct (agent, funded buyer) pairs across the network (unattributed
+// withdrawals and unverified buyers excluded). The caller groups agents.
+async function findBuyerPairs(
   network: Network
-): Promise<Map<string, number>> {
+): Promise<{ agentIdentifier: string; buyerKeyHash: string }[]> {
   const pairs = await prisma.agentSuccessfulPurchase.groupBy({
     by: ['agentIdentifier', 'buyerKeyHash'],
     where: {
@@ -45,12 +45,11 @@ async function countDistinctBuyers(
       buyerKeyHash: { not: null },
     },
   });
-  const counts = new Map<string, number>();
-  for (const { agentIdentifier } of pairs) {
-    if (agentIdentifier == null) continue;
-    counts.set(agentIdentifier, (counts.get(agentIdentifier) ?? 0) + 1);
-  }
-  return counts;
+  return pairs.flatMap(({ agentIdentifier, buyerKeyHash }) =>
+    agentIdentifier == null || buyerKeyHash == null
+      ? []
+      : [{ agentIdentifier, buyerKeyHash }]
+  );
 }
 
 // First-seen date and policy of every entry on the network, so the caller can
@@ -68,6 +67,6 @@ async function findEntryCreatedAts(network: Network) {
 
 export const registryMetricsRepository = {
   findRankingCandidates,
-  countDistinctBuyers,
+  findBuyerPairs,
   findEntryCreatedAts,
 };

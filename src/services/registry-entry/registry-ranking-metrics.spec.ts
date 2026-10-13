@@ -3,13 +3,14 @@ import { DEFAULTS } from '@/utils/config';
 import { registryMetricsRepository } from '@/repositories/registry-entry/registry-metrics.repository';
 import {
   clearRankingMetricsCache,
+  distinctBuyersByLineage,
   getNetworkRankingMetrics,
   lineageStartsByRoot,
 } from './registry-ranking-metrics';
 
 jest.mock('@/repositories/registry-entry/registry-metrics.repository', () => ({
   registryMetricsRepository: {
-    countDistinctBuyers: jest.fn(),
+    findBuyerPairs: jest.fn(),
     findEntryCreatedAts: jest.fn(),
   },
 }));
@@ -54,13 +55,37 @@ describe('lineageStartsByRoot', () => {
   });
 });
 
+describe('distinctBuyersByLineage', () => {
+  it('counts a buyer once across all versions of a V2 agent', () => {
+    const root = `${V2_POLICY}aa`;
+    const v1Asset = `${V1_POLICY}cc000001`;
+    const counts = distinctBuyersByLineage([
+      { agentIdentifier: `${root}000001`, buyerKeyHash: 'buyer-1' },
+      { agentIdentifier: `${root}000001`, buyerKeyHash: 'buyer-2' },
+      // Same buyer on the next version: still one buyer.
+      { agentIdentifier: `${root}000002`, buyerKeyHash: 'buyer-1' },
+      { agentIdentifier: `${root}000002`, buyerKeyHash: 'buyer-3' },
+      // V1 assets have no version postfix: keyed by the full asset.
+      { agentIdentifier: v1Asset, buyerKeyHash: 'buyer-1' },
+    ]);
+
+    expect(counts).toEqual(
+      new Map([
+        [root, 3],
+        [v1Asset, 1],
+      ])
+    );
+  });
+});
+
 describe('getNetworkRankingMetrics', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     clearRankingMetricsCache();
-    (
-      registryMetricsRepository.countDistinctBuyers as jest.Mock
-    ).mockResolvedValue(new Map([['asset', 2]]));
+    (registryMetricsRepository.findBuyerPairs as jest.Mock).mockResolvedValue([
+      { agentIdentifier: 'asset', buyerKeyHash: 'buyer-1' },
+      { agentIdentifier: 'asset', buyerKeyHash: 'buyer-2' },
+    ]);
     (
       registryMetricsRepository.findEntryCreatedAts as jest.Mock
     ).mockResolvedValue([]);
@@ -69,19 +94,15 @@ describe('getNetworkRankingMetrics', () => {
   it('reuses a load within 60 seconds and reloads after', async () => {
     await getNetworkRankingMetrics(Network.Preprod, 0);
     await getNetworkRankingMetrics(Network.Preprod, 59_000);
-    expect(registryMetricsRepository.countDistinctBuyers).toHaveBeenCalledTimes(
-      1
-    );
+    expect(registryMetricsRepository.findBuyerPairs).toHaveBeenCalledTimes(1);
 
     await getNetworkRankingMetrics(Network.Preprod, 60_000);
-    expect(registryMetricsRepository.countDistinctBuyers).toHaveBeenCalledTimes(
-      2
-    );
+    expect(registryMetricsRepository.findBuyerPairs).toHaveBeenCalledTimes(2);
   });
 
   it('does not cache a failed load', async () => {
     (
-      registryMetricsRepository.countDistinctBuyers as jest.Mock
+      registryMetricsRepository.findBuyerPairs as jest.Mock
     ).mockRejectedValueOnce(new Error('db down'));
 
     await expect(getNetworkRankingMetrics(Network.Preprod, 0)).rejects.toThrow(
