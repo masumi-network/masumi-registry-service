@@ -24,6 +24,7 @@ const registryEntryInclude = {
     orderBy: { sourceIndex: 'asc' },
   },
   Verifications: true,
+  A2A: true,
 } satisfies Prisma.RegistryEntryInclude;
 
 async function findRegistryEntries(params: RegistryEntryQueryParams) {
@@ -95,6 +96,7 @@ async function getRegistryEntryByIdentifier(params: {
         orderBy: { sourceIndex: 'asc' },
       },
       Verifications: true,
+      A2A: true,
     },
   });
 }
@@ -174,6 +176,7 @@ async function getRegistryDiffEntries(
         orderBy: { sourceIndex: 'asc' },
       },
       Verifications: true,
+      A2A: true,
     },
     orderBy: [
       {

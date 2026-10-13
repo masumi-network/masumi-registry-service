@@ -1,1 +1,1 @@
-export { apiKeyRepository } from "./api-key.repository"
+export { apiKeyRepository } from './api-key.repository';

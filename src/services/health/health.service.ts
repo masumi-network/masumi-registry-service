@@ -1,5 +1,5 @@
-import { healthRepository } from "@/repositories/health";
+import { healthRepository } from '@/repositories/health';
 function getHealthConfiguration() {
-    return healthRepository.getHealthConfiguration();
+  return healthRepository.getHealthConfiguration();
 }
-export const healthService = { getHealthConfiguration }
+export const healthService = { getHealthConfiguration };

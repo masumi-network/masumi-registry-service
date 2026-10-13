@@ -235,14 +235,22 @@ export function normalizePublicUrl(
   };
 }
 
-export async function validatePublicUrl(
+export type ResolvedPublicUrl = NormalizedPublicUrl & {
+  addresses: { address: string; family: 4 | 6 }[];
+};
+
+export async function resolvePublicUrl(
   value: string,
   options: NormalizePublicUrlOptions = {}
-): Promise<NormalizedPublicUrl> {
+): Promise<ResolvedPublicUrl> {
   const normalized = normalizePublicUrl(value, options);
 
-  if (isIP(normalized.hostname)) {
-    return normalized;
+  const literalFamily = isIP(normalized.hostname);
+  if (literalFamily === 4 || literalFamily === 6) {
+    return {
+      ...normalized,
+      addresses: [{ address: normalized.hostname, family: literalFamily }],
+    };
   }
 
   let addresses: { address: string; family: number }[];
@@ -274,5 +282,27 @@ export async function validatePublicUrl(
     }
   }
 
-  return normalized;
+  const resolvedAddresses = addresses.filter(
+    (entry): entry is { address: string; family: 4 | 6 } =>
+      entry.family === 4 || entry.family === 6
+  );
+  if (resolvedAddresses.length !== addresses.length) {
+    throw new PublicUrlValidationError(
+      'unresolvable_hostname',
+      'URL hostname returned an unsupported address family'
+    );
+  }
+  return { ...normalized, addresses: resolvedAddresses };
+}
+
+export async function validatePublicUrl(
+  value: string,
+  options: NormalizePublicUrlOptions = {}
+): Promise<NormalizedPublicUrl> {
+  const resolved = await resolvePublicUrl(value, options);
+  return {
+    hostname: resolved.hostname,
+    normalizedUrl: resolved.normalizedUrl,
+    url: resolved.url,
+  };
 }

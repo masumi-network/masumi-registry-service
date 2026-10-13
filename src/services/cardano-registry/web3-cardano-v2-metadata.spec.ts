@@ -61,6 +61,45 @@ const sampleV2Metadata = {
 };
 
 describe('web3CardanoV2 metadata', () => {
+  it.each([
+    ['name', { name: '  ' }],
+    ['image', { image: ['', ' '] }],
+    [
+      'example_output url',
+      { example_output: [{ name: 'out', mime_type: 'text/plain', url: '' }] },
+    ],
+  ])('rejects a blank required %s', (_field, override) => {
+    expect(
+      web3CardanoV2MetadataSchema.safeParse({
+        ...sampleV2Metadata,
+        ...override,
+      }).success
+    ).toBe(false);
+  });
+
+  it('rejects blank decimals on Cardano fixed pricing', () => {
+    const metadata = web3CardanoV2MetadataSchema.parse({
+      ...sampleV2Metadata,
+      supported_payment_sources: [
+        {
+          ...sampleV2Metadata.supported_payment_sources[0],
+          pricing: {
+            pricingType: 'Fixed',
+            fixed: [{ asset: '', amount: '5000000', decimals: '' }],
+          },
+        },
+      ],
+    });
+    expect(() => buildV2SupportedPaymentSourceRows(metadata)).toThrow(
+      'decimals is not valid for Cardano'
+    );
+  });
+
+  it('keeps the empty lovelace asset in fixed Cardano pricing', () => {
+    const metadata = web3CardanoV2MetadataSchema.parse(sampleV2Metadata);
+    expect(() => buildV2SupportedPaymentSourceRows(metadata)).not.toThrow();
+  });
+
   it('accepts the type/openapi_spec_url/x402_resources_url keys (strict schema)', () => {
     // The schema is .strict(); these keys must be allowed or every OpenApi/X402
     // entry the indexer sees would be rejected as invalid.
@@ -70,6 +109,68 @@ describe('web3CardanoV2 metadata', () => {
         type: 'OpenAPI',
         openapi_spec_url: 'https://agent.example/openapi.json',
         x402_resources_url: 'https://agent.example/.well-known/x402.json',
+      }).success
+    ).toBe(true);
+  });
+
+  it('accepts MIP-002 api_url with numeric metadata_version', () => {
+    const metadata = { ...sampleV2Metadata, api_base_url: undefined };
+    expect(
+      web3CardanoV2MetadataSchema.safeParse({
+        ...metadata,
+        type: 'a2aV1',
+        api_url: 'https://agent.example/a2a',
+        agent_card_url: 'https://agent.example/card.json',
+        a2a_protocol_versions: ['1.0'],
+        metadata_version: 2,
+      }).success
+    ).toBe(true);
+  });
+
+  it('rejects conflicting A2A endpoint aliases', () => {
+    expect(
+      web3CardanoV2MetadataSchema.safeParse({
+        ...sampleV2Metadata,
+        type: 'a2aV1',
+        api_url: 'https://agent.example/other',
+        agent_card_url: 'https://agent.example/card.json',
+        a2a_protocol_versions: ['1.0'],
+      }).success
+    ).toBe(false);
+  });
+
+  it('accepts an A2A entry carrying api_base_url AND the a2a keys together', () => {
+    const parsed = web3CardanoV2MetadataSchema.safeParse({
+      ...sampleV2Metadata,
+      type: 'a2aV1',
+      agent_card_url: 'https://agent.example/.well-known/agent-card.json',
+      a2a_protocol_versions: ['1.0', '1.1'],
+    });
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.api_base_url).toBe('https://agent.example/mip');
+      expect(parsed.data.agent_card_url).toBe(
+        'https://agent.example/.well-known/agent-card.json'
+      );
+      expect(parsed.data.a2a_protocol_versions).toEqual(['1.0', '1.1']);
+    }
+  });
+
+  it('accepts a chunked agent_card_url (CIP-25 64-char splitting)', () => {
+    const parsed = web3CardanoV2MetadataSchema.safeParse({
+      ...sampleV2Metadata,
+      type: 'a2aV1',
+      agent_card_url: ['https://agent.example/.well-kn', 'own/agent-card.json'],
+      a2a_protocol_versions: ['1.0'],
+    });
+    expect(parsed.success).toBe(true);
+  });
+
+  it('tolerates an empty a2a_protocol_versions on a non-A2A entry', () => {
+    expect(
+      web3CardanoV2MetadataSchema.safeParse({
+        ...sampleV2Metadata,
+        a2a_protocol_versions: [],
       }).success
     ).toBe(true);
   });
