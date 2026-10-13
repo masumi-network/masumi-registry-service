@@ -45,6 +45,7 @@ describe('decodeEscrowDatum', () => {
         escrowDatum(16, {
           0: keyAddress(BUYER),
           1: keyAddress(SELLER),
+          3: byteString('5a'),
           4: byteString(NONCE + AGENT),
           5: byteString('b1'),
           6: integer(2_000_000),
@@ -55,7 +56,7 @@ describe('decodeEscrowDatum', () => {
       sellerKeyHash: SELLER,
       buyerKeyHash: BUYER,
       collateralReturnLovelace: 2_000_000n,
-      escrowKey: `${NONCE + AGENT}:b1`,
+      escrowKey: `5a:${NONCE + AGENT}:b1`,
     });
   });
 
@@ -65,6 +66,7 @@ describe('decodeEscrowDatum', () => {
         escrowDatum(19, {
           0: keyAddress(BUYER),
           2: keyAddress(SELLER),
+          5: byteString('5b'),
           6: byteString(NONCE),
           7: byteString('b2'),
           8: byteString(AGENT),
@@ -76,7 +78,7 @@ describe('decodeEscrowDatum', () => {
       sellerKeyHash: SELLER,
       buyerKeyHash: BUYER,
       collateralReturnLovelace: 1_500_000n,
-      escrowKey: `${NONCE}:b2`,
+      escrowKey: `5b:${NONCE}:b2`,
     });
   });
 

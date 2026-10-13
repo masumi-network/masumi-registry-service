@@ -60,7 +60,7 @@ async function inputKeyHashes(blockfrost: BlockFrostAPI, txHash: string) {
   const utxos = await blockfrost.txsUtxos(txHash);
   return addressKeyHashes(
     utxos.inputs
-      .filter((input) => !input.reference)
+      .filter((input) => !input.reference && !input.collateral)
       .map((input) => input.address)
   );
 }
@@ -91,8 +91,8 @@ async function agentMinterKeyHashes(
 // Payment key hashes that funded the buyer's original escrow lock. The
 // withdrawn escrow output usually comes from a continuation tx (the seller's
 // SubmitResult), so walk back through the same escrow (matched by its
-// nonces, not the buyer, which a seller could copy into another escrow) at
-// the same contract to the first lock.
+// reference signature and nonces, not the buyer, which a seller could copy
+// into another escrow) at the same contract to the first lock.
 async function escrowLockFunderKeyHashes(params: {
   blockfrost: BlockFrostAPI;
   scriptHash: string;

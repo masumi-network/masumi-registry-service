@@ -52,10 +52,12 @@ function v1EscrowDatum(params: {
   seller?: string;
   buyer?: string;
   buyerNonce?: string;
+  referenceSignature?: string;
 }) {
   const fields = Array.from({ length: 16 }, () => integer(0)) as unknown[];
   fields[0] = keyAddress(params.buyer ?? BUYER);
   fields[1] = keyAddress(params.seller ?? SELLER);
+  fields[3] = byteString(params.referenceSignature ?? '5a');
   fields[4] = byteString(NONCE + params.agentIdentifier);
   fields[5] = byteString(params.buyerNonce ?? 'b1');
   fields[6] = integer(2_000_000);
@@ -265,6 +267,59 @@ describe('updateSuccessfulPurchaseIndex', () => {
       agentIdentifier: AGENT,
       buyerKeyHash: null,
     });
+  });
+
+  it('drops a buyer copied into an output injected next to the real escrow', async () => {
+    // The seller's SubmitResult spends BUYER's real escrow and adds a second
+    // output with the same nonces; the contract forces it to carry another
+    // reference signature, so it has no predecessor escrow.
+    withdrawalDatum = v1EscrowDatum({
+      agentIdentifier: AGENT,
+      referenceSignature: 'ee',
+    });
+    const realEscrow = escrowInput(
+      v1EscrowDatum({ agentIdentifier: AGENT }),
+      'lock-tx'
+    );
+    const txsUtxos = blockfrost.txsUtxos.getMockImplementation()!;
+    blockfrost.txsUtxos.mockImplementation((txHash: string) =>
+      txHash === 'submit-result-tx'
+        ? { inputs: [realEscrow, { address: bech32(SELLER) }] }
+        : txsUtxos(txHash)
+    );
+
+    await updateSuccessfulPurchaseIndex();
+
+    expect(upsertedPurchases()[0]).toMatchObject({
+      agentIdentifier: AGENT,
+      buyerKeyHash: null,
+    });
+  });
+
+  it('ignores collateral inputs of the mint tx when finding the minter', async () => {
+    // A fresh agent id: minters are cached for the process lifetime.
+    const collateralAgent = `${'7e'.repeat(28)}${'c0'.repeat(32)}`;
+    withdrawalDatum = v1EscrowDatum({ agentIdentifier: collateralAgent });
+    blockfrost.assetsById.mockResolvedValueOnce({
+      initial_mint_tx_hash: 'collateral-mint-tx',
+    });
+    const txsUtxos = blockfrost.txsUtxos.getMockImplementation()!;
+    blockfrost.txsUtxos.mockImplementation((txHash: string) =>
+      txHash === 'collateral-mint-tx'
+        ? {
+            inputs: [
+              { address: bech32(STRANGER) },
+              { address: bech32(SELLER), collateral: true },
+            ],
+          }
+        : txsUtxos(txHash)
+    );
+
+    await updateSuccessfulPurchaseIndex();
+
+    expect(upsertedPurchases()).toEqual([
+      { network: Network.Preprod, txHash: 'tx-withdraw', redeemerIndex: 0 },
+    ]);
   });
 
   it('drops a buyer that is the seller', async () => {

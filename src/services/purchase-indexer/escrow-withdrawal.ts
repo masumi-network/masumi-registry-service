@@ -12,6 +12,7 @@ const V1_DATUM_FIELDS = {
   count: 16,
   buyer: 0,
   seller: 1,
+  referenceSignature: 3,
   sellerNonce: 4,
   buyerNonce: 5,
   collateralReturnLovelace: 6,
@@ -21,6 +22,7 @@ const V2_DATUM_FIELDS = {
   count: 19,
   buyer: 0,
   seller: 2,
+  referenceSignature: 5,
   sellerNonce: 6,
   buyerNonce: 7,
   collateralReturnLovelace: 9,
@@ -78,8 +80,10 @@ export type EscrowDatum = {
   sellerKeyHash: string | null;
   buyerKeyHash: string | null;
   collateralReturnLovelace: bigint;
-  // Seller and buyer nonces: fixed for the life of one escrow, so they
-  // identify it across continuation txs.
+  // Reference signature plus seller and buyer nonces: fixed for the life of
+  // one escrow, so they identify it across continuation txs. The contract
+  // rejects two escrows with the same reference signature in one tx, so a
+  // seller cannot inject a copy next to the real escrow.
   escrowKey: string;
 };
 
@@ -115,9 +119,13 @@ export function decodeEscrowDatum(datum: unknown): EscrowDatum | null {
     buyerKeyHash: addressKeyHash(fields[layout.buyer]),
     collateralReturnLovelace:
       intField(fields, layout.collateralReturnLovelace) ?? 0n,
-    escrowKey: `${bytesField(fields, layout.sellerNonce) ?? ''}:${
-      bytesField(fields, layout.buyerNonce) ?? ''
-    }`,
+    escrowKey: [
+      layout.referenceSignature,
+      layout.sellerNonce,
+      layout.buyerNonce,
+    ]
+      .map((index) => bytesField(fields, index) ?? '')
+      .join(':'),
   };
 }
 
