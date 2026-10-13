@@ -79,6 +79,10 @@ const allValues = (value: unknown) =>
 // Each field falls back on its own, so one bad parameter never wipes the rest of a view.
 const boundedText = (maxLength: number) =>
   z.preprocess(firstValue, z.string().trim().max(maxLength)).catch('');
+// Capability names come from on-chain metadata and the API matches them exactly, so a
+// name with surrounding spaces must survive the URL round trip untouched.
+const verbatimText = (maxLength: number) =>
+  z.preprocess(firstValue, z.string().max(maxLength)).catch('');
 
 // Keeps the allowed values in their canonical order, so one view always has one URL.
 const enumValues = <T extends string>(allowed: readonly T[]) =>
@@ -101,8 +105,8 @@ const agentFiltersQuerySchema = z.object({
     });
     return [...new Set(valid)].slice(0, MAX_TAGS);
   }),
-  capability: boundedText(MAX_CAPABILITY_LENGTH),
-  capabilityVersion: boundedText(MAX_CAPABILITY_LENGTH),
+  capability: verbatimText(MAX_CAPABILITY_LENGTH),
+  capabilityVersion: verbatimText(MAX_CAPABILITY_LENGTH),
   minHealthCheckDate: z
     .preprocess(firstValue, z.string())
     // A real day, and not a future one: that would re-check every agent, which the picker
