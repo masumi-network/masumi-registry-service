@@ -1,6 +1,6 @@
 export default {
-  // Backend: same auto-fix + format as before, with staged paths appended.
-  'src/**/*.{js,ts}': ['pnpm run lint:backend:fix', 'pnpm run format:backend'],
+  // Backend: lint auto-fix, then format only the staged paths lint-staged appends.
+  'src/**/*.{js,ts}': ['pnpm run lint:backend:fix', 'prettier --log-level silent --write'],
   // Frontend: run the workspace's own tools once; staged paths would be root-relative.
   'frontend/**/*.{js,jsx,mjs,ts,tsx,css,json,md}': () => [
     'pnpm -C frontend run lint:fix',
