@@ -261,8 +261,8 @@ Agents are verified by:
 | `Admin_KEY` | Yes | Admin API key for bootstrapping |
 | `Blockfrost_API_KEY` | Yes | Blockfrost API key |
 | `PORT` | No | Server port (default: 3000) |
-| `UPDATE_CARDANO_REGISTRY_INTERVAL` | No | Sync interval in seconds (default: 50) |
-| `UPDATE_HEALTH_CHECK_INTERVAL` | No | Health check interval (default: 100) |
+| `UPDATE_CARDANO_REGISTRY_INTERVAL` | No | Sync interval in seconds (default: 50, min: 20) |
+| `UPDATE_HEALTH_CHECK_INTERVAL` | No | Health check interval in seconds (default: 100, min: 20) |
 
 ## Key Files Reference
 
