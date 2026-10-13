@@ -81,9 +81,8 @@ export type EscrowDatum = {
   buyerKeyHash: string | null;
   collateralReturnLovelace: bigint;
   // Reference signature plus seller and buyer nonces: fixed for the life of
-  // one escrow, so they identify it across continuation txs. The contract
-  // rejects two escrows with the same reference signature in one tx, so a
-  // seller cannot inject a copy next to the real escrow.
+  // one escrow, so they identify it across continuation txs (see the walk in
+  // purchase-indexer.service.ts for what the contracts allow a seller to copy).
   escrowKey: string;
 };
 

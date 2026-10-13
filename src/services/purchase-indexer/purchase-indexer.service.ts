@@ -93,9 +93,12 @@ async function agentMinterKeyHashes(
 // withdrawn escrow output usually comes from a continuation tx (the seller's
 // SubmitResult), so walk back through the same escrow (matched by its
 // reference signature and nonces, not the buyer, which a seller could copy
-// into another escrow) to the first lock. The match must be at the same full
-// address: the contract only rejects a duplicate reference signature at the
-// escrow's own address, so a copy under another stake credential is allowed.
+// into another escrow) to the first lock. Continuations stay at the escrow's
+// full address, so the match must be at that address: V2 rejects a duplicate
+// reference signature only there, and a copy under another stake credential
+// could carry another agent. V1 allows one copy in a Withdraw tx, but its
+// agent is part of the key (seller nonce suffix), so the agent and buyer stay
+// the same and distinct-buyer counts are unaffected.
 async function escrowLockFunderKeyHashes(params: {
   blockfrost: BlockFrostAPI;
   escrowAddress: string;

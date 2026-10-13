@@ -327,6 +327,37 @@ describe('updateSuccessfulPurchaseIndex', () => {
     });
   });
 
+  it('resolves an honest buyer chain at a staked contract address', async () => {
+    const stakedContract = serializeAddressObj(
+      scriptAddress(V1_SCRIPT_HASH, STRANGER),
+      0
+    );
+    const txsUtxos = blockfrost.txsUtxos.getMockImplementation()!;
+    blockfrost.txsUtxos.mockImplementation((txHash: string) =>
+      txHash === 'tx-withdraw'
+        ? {
+            inputs: [
+              escrowInput(withdrawalDatum, 'submit-result-tx', stakedContract),
+            ],
+          }
+        : txHash === 'submit-result-tx'
+          ? {
+              inputs: [
+                escrowInput(withdrawalDatum, 'lock-tx', stakedContract),
+                { address: bech32(SELLER) },
+              ],
+            }
+          : txsUtxos(txHash)
+    );
+
+    await updateSuccessfulPurchaseIndex();
+
+    expect(upsertedPurchases()[0]).toMatchObject({
+      agentIdentifier: AGENT,
+      buyerKeyHash: BUYER,
+    });
+  });
+
   it('re-reads the last full page in case a rollback shifted redeemers into it', async () => {
     (prisma.paymentContractSyncState.upsert as jest.Mock).mockResolvedValue({
       id: V1_SCRIPT_HASH,
