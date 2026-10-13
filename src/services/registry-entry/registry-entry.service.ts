@@ -7,7 +7,7 @@ import {
   RegistryEntrySortBy,
   searchRegistrySchemaInput,
 } from '@/routes/api/registry-entry/schemas';
-import { $Enums, Prisma, Status } from '@prisma/client';
+import { $Enums, HealthCheckTrigger, Prisma, Status } from '@prisma/client';
 import { CONFIG } from '@/utils/config';
 import { z } from '@/utils/zod-openapi';
 import { cardanoRegistryService } from '@/services/cardano-registry';
@@ -237,6 +237,7 @@ async function getRankedRegistryEntries(params: {
       ...(await healthCheckService.checkVerifyAndUpdateRegistryEntries({
         registryEntries,
         minHealthCheckDate: params.minHealthCheckDate,
+        trigger: HealthCheckTrigger.Request,
       }))
     );
   }
@@ -310,6 +311,7 @@ async function getHealthCheckedRegistryEntries(
           meetsMinUptimePercent(entry, minUptimePercent)
         ),
         minHealthCheckDate,
+        trigger: HealthCheckTrigger.Request,
       }
     );
 
@@ -360,6 +362,7 @@ async function refreshRegistryEntry(
     await healthCheckService.checkVerifyAndUpdateRegistryEntries({
       registryEntries: [registryEntry],
       minHealthCheckDate: new Date(),
+      trigger: HealthCheckTrigger.Request,
     });
 
   const [withLinks] = await attachVersionLinks(

@@ -721,8 +721,8 @@ describe('checkVerifyAndUpdateRegistryEntries', () => {
     const updateSpy = jest
       .spyOn(prisma.registryEntry, 'update')
       .mockResolvedValue({} as never);
-    jest
-      .spyOn(prisma.registryEntry, 'updateMany')
+    const createEventsSpy = jest
+      .spyOn(prisma.healthCheckEvent, 'createMany')
       .mockResolvedValue({ count: 0 });
     const deregistered = {
       id: 'entry-1',
@@ -737,11 +737,75 @@ describe('checkVerifyAndUpdateRegistryEntries', () => {
       {
         registryEntries: [deregistered] as never,
         minHealthCheckDate: new Date(),
+        trigger: 'Request',
       }
     );
 
     expect(result).toEqual([deregistered]);
+    expect(createEventsSpy).not.toHaveBeenCalled();
     expect(global.fetch).not.toHaveBeenCalled();
     expect(updateSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe('checkVerifyAndUpdateRegistryEntries uptime tracking', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (lookup as jest.Mock).mockResolvedValue([
+      { address: '93.184.216.34', family: 4 },
+    ]);
+  });
+
+  it('records one event per check and weighs the held status by time', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({ type: 'masumi-agent', agentIdentifier: 'asset-1' }),
+    });
+    const lastUptimeCheck = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const updateSpy = jest
+      .spyOn(prisma.registryEntry, 'update')
+      .mockImplementation(
+        (args) =>
+          ({
+            id: 'entry-1',
+            status: (args as { data: { status: string } }).data.status,
+          }) as never
+      );
+    const createEventsSpy = jest
+      .spyOn(prisma.healthCheckEvent, 'createMany')
+      .mockResolvedValue({ count: 1 });
+
+    await healthCheckService.checkVerifyAndUpdateRegistryEntries({
+      registryEntries: [
+        {
+          id: 'entry-1',
+          status: $Enums.Status.Offline,
+          lastUptimeCheck,
+          uptimeEwma: 1,
+          apiBaseUrl: 'https://agent.example.com',
+          type: 'Standard',
+          assetIdentifier: 'asset-1',
+          RegistrySource: { policyId: 'policy-id' },
+        },
+      ] as never,
+      minHealthCheckDate: new Date(),
+      trigger: 'Job',
+    });
+
+    const data = (
+      updateSpy.mock.calls[0][0] as { data: { uptimeEwma: number } }
+    ).data;
+    // Offline held for one half-life: 1 decays to ~0.5.
+    expect(data.uptimeEwma).toBeCloseTo(0.5, 3);
+    expect(createEventsSpy).toHaveBeenCalledWith({
+      data: [
+        expect.objectContaining({
+          registryEntryId: 'entry-1',
+          status: $Enums.Status.Online,
+          trigger: 'Job',
+        }),
+      ],
+    });
   });
 });

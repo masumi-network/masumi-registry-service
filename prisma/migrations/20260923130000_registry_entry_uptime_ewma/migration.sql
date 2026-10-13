@@ -1,5 +1,5 @@
--- Rolling uptime for ranking (MAS-607 slice 2): an exponentially weighted
--- moving average of health checks, updated alongside uptimeCount.
+-- Rolling uptime for ranking (MAS-607 slice 2): a time-weighted exponential
+-- moving average of health check outcomes, updated alongside uptimeCount.
 
 -- AlterTable
 ALTER TABLE "RegistryEntry" ADD COLUMN "uptimeEwma" DOUBLE PRECISION;

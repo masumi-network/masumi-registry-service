@@ -1,10 +1,10 @@
 import { prisma } from '@/utils/db';
 import { logger } from '@/utils/logger';
-import { nextUptimeEwma } from '@/utils/uptime-ewma';
 import {
   $Enums,
   AgentVerification,
   Capability,
+  HealthCheckTrigger,
   InboxAgentRegistration,
   InboxAgentRegistrationStatus,
   PricingType,
@@ -26,6 +26,7 @@ import {
   getEmptyInboxAgentVerificationData,
   type InboxAgentVerificationData,
 } from './inbox-verification';
+import { uptimeCheckUpdate, uptimeTracking } from './uptime-tracking';
 
 const INBOX_AGENT_PUBLIC_BASE_URLS: Partial<Record<$Enums.Network, string>> = {
   [$Enums.Network.Preprod]:
@@ -167,6 +168,7 @@ async function checkAndVerifyRegistryEntry({
 async function checkVerifyAndUpdateRegistryEntries({
   registryEntries,
   minHealthCheckDate,
+  trigger,
 }: {
   registryEntries: (RegistryEntry & {
     RegistrySource: RegistrySource;
@@ -190,6 +192,7 @@ async function checkVerifyAndUpdateRegistryEntries({
     Verifications: AgentVerification[];
   })[];
   minHealthCheckDate: Date | undefined;
+  trigger: HealthCheckTrigger;
 }) {
   if (minHealthCheckDate == null) return registryEntries;
   // Burned agents stay Deregistered: a still-live endpoint must not revive them.
@@ -295,21 +298,22 @@ async function checkVerifyAndUpdateRegistryEntries({
     .filter((r) => r.status === 'fulfilled')
     .map((r) => r.value);
 
-  const failedIds = entriesToCheck
-    .map((r) => r.id)
-    .filter((r) => !successful.find((s) => s.id === r));
+  const checkedAt = new Date();
+  const entriesById = new Map(entriesToCheck.map((entry) => [entry.id, entry]));
+  const failedEntries = entriesToCheck.filter(
+    (entry) => !successful.find((s) => s.id === entry.id)
+  );
 
-  for (const f of failedIds) {
+  // A check that threw counts as Offline, so its interval still feeds uptime.
+  for (const entry of failedEntries) {
     await prisma.registryEntry.update({
-      where: { id: f },
-      data: { status: $Enums.Status.Invalid },
+      where: { id: entry.id },
+      data: {
+        status: $Enums.Status.Offline,
+        ...uptimeCheckUpdate(entry, $Enums.Status.Offline, checkedAt),
+      },
     });
   }
-
-  await prisma.registryEntry.updateMany({
-    where: { id: { in: failedIds } },
-    data: { lastUptimeCheck: new Date(), status: $Enums.Status.Offline },
-  });
   const updatedEntries = [];
   for (const s of successful) {
     try {
@@ -337,16 +341,7 @@ async function checkVerifyAndUpdateRegistryEntries({
           },
           data: {
             status: s.status,
-            uptimeCount: {
-              increment: s.status == $Enums.Status.Online ? 1 : 0,
-            },
-            uptimeCheckCount: { increment: 1 },
-            uptimeEwma: nextUptimeEwma(
-              registryEntries.find((entry) => entry.id === s.id)?.uptimeEwma ??
-                null,
-              s.status == $Enums.Status.Online
-            ),
-            lastUptimeCheck: new Date(),
+            ...uptimeCheckUpdate(entriesById.get(s.id)!, s.status, checkedAt),
             ...specCachePatch(s), // caches a just-validated spec snapshot
           },
         })
@@ -358,6 +353,20 @@ async function checkVerifyAndUpdateRegistryEntries({
       });
     }
   }
+  await uptimeTracking.recordHealthCheckEvents([
+    ...failedEntries.map((entry) => ({
+      registryEntryId: entry.id,
+      status: $Enums.Status.Offline,
+      trigger,
+      checkedAt,
+    })),
+    ...updatedEntries.map((entry) => ({
+      registryEntryId: entry.id,
+      status: entry.status,
+      trigger,
+      checkedAt,
+    })),
+  ]);
   logger.info(
     'updated the following registry entries successfully ' +
       successful.length +

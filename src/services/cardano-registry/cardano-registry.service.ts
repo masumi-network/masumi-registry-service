@@ -1,5 +1,6 @@
 import {
   $Enums,
+  HealthCheckTrigger,
   InboxAgentRegistrationStatus,
   PricingType,
 } from '@prisma/client';
@@ -7,7 +8,7 @@ import { Mutex, tryAcquire, MutexInterface } from 'async-mutex';
 import { prisma } from '@/utils/db';
 import { z } from '@/utils/zod-openapi';
 import { metadataStringConvert } from '@/utils/metadata-string-convert';
-import { healthCheckService } from '@/services/health-check';
+import { healthCheckService, uptimeTracking } from '@/services/health-check';
 import { logger } from '@/utils/logger';
 import { DEFAULTS } from '@/utils/config';
 import { getBlockfrostInstance } from '@/utils/blockfrost';
@@ -314,6 +315,7 @@ export async function updateHealthCheck(onlyEntriesAfter?: Date | undefined) {
         await healthCheckService.checkVerifyAndUpdateRegistryEntries({
           registryEntries: combinedEntries,
           minHealthCheckDate: onlyEntriesAfter,
+          trigger: HealthCheckTrigger.Job,
         });
 
         const inboxAgentRegistrations =
@@ -552,27 +554,13 @@ async function syncWeb3CardanoRegistryEntry(params: {
           },
   };
 
-  const updateData = {
-    ...sharedQuery,
-    lastUptimeCheck: new Date(),
-    uptimeCount: {
-      increment: status == $Enums.Status.Online ? 1 : 0,
-    },
-    uptimeCheckCount: { increment: 1 },
-  };
-
-  const createData = {
-    ...sharedQuery,
-    lastUptimeCheck: new Date(),
-    uptimeCount: status == $Enums.Status.Online ? 1 : 0,
-    uptimeCheckCount: 1,
-  };
-
-  await prisma.registryEntry.upsert({
+  const uptime = await uptimeTracking.syncUptimeFields(params.asset, status);
+  const entry = await prisma.registryEntry.upsert({
     where: { assetIdentifier: params.asset },
-    update: updateData,
-    create: createData,
+    update: { ...sharedQuery, ...uptime.update },
+    create: { ...sharedQuery, ...uptime.create },
   });
+  await uptimeTracking.recordSyncCheck(entry.id, status, uptime.checkedAt);
 
   return true;
 }
@@ -692,13 +680,12 @@ async function syncWeb3CardanoV2RegistryEntry(params: {
           },
   };
 
-  await prisma.registryEntry.upsert({
+  const uptime = await uptimeTracking.syncUptimeFields(params.asset, status);
+  const entry = await prisma.registryEntry.upsert({
     where: { assetIdentifier: params.asset },
     update: {
       ...sharedQuery,
-      lastUptimeCheck: new Date(),
-      uptimeCount: { increment: status == $Enums.Status.Online ? 1 : 0 },
-      uptimeCheckCount: { increment: 1 },
+      ...uptime.update,
       ExampleOutput: { deleteMany: {}, ...(exampleOutputCreate ?? {}) },
       SupportedPaymentSources: {
         deleteMany: {},
@@ -715,9 +702,7 @@ async function syncWeb3CardanoV2RegistryEntry(params: {
     },
     create: {
       ...sharedQuery,
-      lastUptimeCheck: new Date(),
-      uptimeCount: status == $Enums.Status.Online ? 1 : 0,
-      uptimeCheckCount: 1,
+      ...uptime.create,
       ExampleOutput: exampleOutputCreate,
       SupportedPaymentSources:
         supportedPaymentSourceRows.length > 0
@@ -729,6 +714,7 @@ async function syncWeb3CardanoV2RegistryEntry(params: {
           : undefined,
     },
   });
+  await uptimeTracking.recordSyncCheck(entry.id, status, uptime.checkedAt);
 
   return true;
 }
@@ -793,7 +779,10 @@ async function syncMintedAsset(params: {
 }) {
   const metadataType = getRegistryMetadataType(params.onchainMetadata);
 
-  if (metadataType != null && INBOX_REGISTRY_METADATA_TYPES.includes(metadataType)) {
+  if (
+    metadataType != null &&
+    INBOX_REGISTRY_METADATA_TYPES.includes(metadataType)
+  ) {
     await syncInboxAgentRegistration(params);
     return;
   }

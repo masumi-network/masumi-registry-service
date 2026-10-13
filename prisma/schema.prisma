@@ -85,8 +85,9 @@ model RegistryEntry {
   lastUptimeCheck  DateTime
   uptimeCount      Int            @default(0)
   uptimeCheckCount Int            @default(0)
-  // Rolling uptime: exponentially weighted moving average of health checks
-  // (1 = online). Null until the first check. Feeds ranking.
+  // Rolling uptime (0-1): each interval between health checks is weighted by
+  // its length with exponential decay (7-day half-life), so the check rate
+  // does not move it. Null until the first check. Feeds ranking.
   uptimeEwma       Float?
   status           Status
   statusUpdatedAt  DateTime       @default(now())
@@ -106,6 +107,7 @@ model RegistryEntry {
 
   SupportedPaymentSources SupportedPaymentSource[]
   Verifications           AgentVerification[]
+  HealthCheckEvents       HealthCheckEvent[]
 
   metadataVersion Int
 
@@ -365,4 +367,24 @@ model PaymentContractSyncState {
   lastCheckedPage Int      @default(1)
 
   @@unique([network, scriptHash])
+}
+
+enum HealthCheckTrigger {
+  Job
+  Request
+  Sync
+}
+
+// One row per health check outcome, the time series behind uptimeEwma.
+// Pruned after 90 days.
+model HealthCheckEvent {
+  id              String             @id @default(cuid())
+  checkedAt       DateTime
+  status          Status
+  trigger         HealthCheckTrigger
+  RegistryEntry   RegistryEntry      @relation(fields: [registryEntryId], references: [id], onDelete: Cascade)
+  registryEntryId String
+
+  @@index([registryEntryId, checkedAt])
+  @@index([checkedAt])
 }

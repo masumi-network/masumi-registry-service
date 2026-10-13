@@ -90,6 +90,7 @@ describe('registryEntryService.searchRegistryEntries', () => {
     expect(checkVerifyAndUpdateRegistryEntries).toHaveBeenCalledWith({
       registryEntries: [{ id: 'entry-1' }],
       minHealthCheckDate: undefined,
+      trigger: 'Request',
     });
   });
 
@@ -133,6 +134,7 @@ describe('registryEntryService.searchRegistryEntries', () => {
     expect(checkVerifyAndUpdateRegistryEntries).toHaveBeenCalledWith({
       registryEntries: [{ id: 'entry-1' }],
       minHealthCheckDate,
+      trigger: 'Request',
     });
   });
 
@@ -168,6 +170,7 @@ describe('registryEntryService.searchRegistryEntries', () => {
     expect(checkVerifyAndUpdateRegistryEntries).toHaveBeenCalledWith({
       registryEntries: [reliable],
       minHealthCheckDate: undefined,
+      trigger: 'Request',
     });
   });
 
@@ -235,6 +238,7 @@ describe('registryEntryService.refreshRegistryEntry', () => {
     expect(checkVerifyAndUpdateRegistryEntries).toHaveBeenCalledWith({
       registryEntries: [registryEntry],
       minHealthCheckDate: expect.any(Date),
+      trigger: 'Request',
     });
     expect(result).toMatchObject({ id: 'entry-1', status: Status.Online });
   });
