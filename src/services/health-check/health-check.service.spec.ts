@@ -998,6 +998,10 @@ describe('checkVerifyAndUpdateRegistryEntries uptime tracking', () => {
       lastUptimeCheck: new Date(0),
       uptimeEwma: 1,
     } as never);
+    const stored = { id: 'entry-1', status: $Enums.Status.Deregistered };
+    jest
+      .spyOn(prisma.registryEntry, 'findUnique')
+      .mockResolvedValue(stored as never);
     const updateManySpy = jest.spyOn(prisma.registryEntry, 'updateMany');
     const createEventsSpy = jest
       .spyOn(prisma.healthCheckEvent, 'createMany')
@@ -1013,6 +1017,41 @@ describe('checkVerifyAndUpdateRegistryEntries uptime tracking', () => {
 
     expect(updateManySpy).not.toHaveBeenCalled();
     expect(createEventsSpy).not.toHaveBeenCalled();
-    expect(result).toEqual([]);
+    // The stored burn is returned, not the probe's Online.
+    expect(result).toEqual([stored]);
+  });
+
+  it('returns the stored row when a newer check wrote first', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({ type: 'masumi-agent', agentIdentifier: 'asset-1' }),
+    });
+    jest.spyOn(prisma.registryEntry, 'findFirst').mockResolvedValue({
+      status: $Enums.Status.Offline,
+      lastUptimeCheck: new Date(Date.now() + 60_000),
+      uptimeEwma: 1,
+    } as never);
+    const stored = { id: 'entry-1', status: $Enums.Status.Offline };
+    jest
+      .spyOn(prisma.registryEntry, 'findUnique')
+      .mockResolvedValue(stored as never);
+    const updateManySpy = jest.spyOn(prisma.registryEntry, 'updateMany');
+    const createEventsSpy = jest
+      .spyOn(prisma.healthCheckEvent, 'createMany')
+      .mockResolvedValue({ count: 0 });
+
+    const result = await healthCheckService.checkVerifyAndUpdateRegistryEntries(
+      {
+        registryEntries: [recentlyChecked(90)] as never,
+        minHealthCheckDate: new Date(),
+        trigger: 'Request',
+      }
+    );
+
+    // Still listed, with the newer stored state; no write, no event.
+    expect(result).toEqual([stored]);
+    expect(updateManySpy).not.toHaveBeenCalled();
+    expect(createEventsSpy).not.toHaveBeenCalled();
   });
 });

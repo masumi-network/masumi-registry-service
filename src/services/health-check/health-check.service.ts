@@ -400,8 +400,9 @@ async function checkVerifyAndUpdateRegistryEntries({
         checkedAt,
         specCachePatch(s) // caches a just-validated spec snapshot
       );
-      if (result !== 'applied') continue;
-      recorded.push({ id: s.id, status: s.status });
+      if (result === 'applied') recorded.push({ id: s.id, status: s.status });
+      // Return the stored row either way: when this write was skipped it holds
+      // the newer check or the burn that won.
       const row = await prisma.registryEntry.findUnique({
         where: { id: s.id },
         include: checkedEntryInclude,
