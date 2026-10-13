@@ -1234,7 +1234,7 @@
                                 "format": "date-time"
                             }
                         ],
-                        "description": "Entries last health-checked before this date are re-checked live before being returned. Replaces minHealthCheckDate."
+                        "description": "Entries last health-checked before this date are re-checked live before being returned. An entry checked within the last minute is never re-checked by a request. Replaces minHealthCheckDate."
                     },
                     "onlyOnline": {
                         "type": "boolean",
@@ -2275,7 +2275,7 @@
         },
         "/registry-entry-refresh/": {
             "post": {
-                "description": "Refresh one registry entry by agent identifier. The service first syncs the blockchain cursor, then immediately re-runs the health check for the requested agent and returns the refreshed entry.",
+                "description": "Refresh one registry entry by agent identifier. The service first syncs the blockchain cursor, then re-runs the health check for the requested agent (unless it was checked within the last minute) and returns the refreshed entry.",
                 "summary": "REQUIRES API KEY Authentication (+user)",
                 "tags": [
                     "registry-entry"

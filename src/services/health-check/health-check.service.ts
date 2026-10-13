@@ -165,6 +165,26 @@ async function checkAndVerifyRegistryEntry({
   return result.status;
 }
 
+// Request-triggered checks re-probe an entry at most once per this window, so
+// API callers cannot force a probe and a history write on every request.
+export const MIN_REQUEST_RECHECK_AGE_MS = 60 * 1000;
+
+// Entries checked after this date keep their cached status. For a request the
+// date is capped at MIN_REQUEST_RECHECK_AGE_MS ago.
+function effectiveRecheckDate(
+  minHealthCheckDate: Date,
+  trigger: HealthCheckTrigger,
+  now: Date
+): Date {
+  if (trigger !== HealthCheckTrigger.Request) return minHealthCheckDate;
+  return new Date(
+    Math.min(
+      minHealthCheckDate.getTime(),
+      now.getTime() - MIN_REQUEST_RECHECK_AGE_MS
+    )
+  );
+}
+
 async function checkVerifyAndUpdateRegistryEntries({
   registryEntries,
   minHealthCheckDate,
@@ -197,6 +217,13 @@ async function checkVerifyAndUpdateRegistryEntries({
   trigger: HealthCheckTrigger;
 }) {
   if (minHealthCheckDate == null) return registryEntries;
+  const recheckDate = effectiveRecheckDate(
+    minHealthCheckDate,
+    trigger,
+    new Date()
+  );
+  const isRecentlyChecked = (entry: { lastUptimeCheck: Date }) =>
+    entry.lastUptimeCheck.getTime() > recheckDate.getTime();
   // Burned agents stay Deregistered: a still-live endpoint must not revive them.
   const entriesToCheck = registryEntries.filter(
     (entry) => entry.status !== $Enums.Status.Deregistered
@@ -208,7 +235,12 @@ async function checkVerifyAndUpdateRegistryEntries({
   const neededLookups = new Set<string>();
   for (const entry of entriesToCheck) {
     // Spec-type entries are validated per-entry below, not via this lookup.
-    if (specKindForType(entry.type) == null && entry.apiBaseUrl != null) {
+    // Recently checked entries keep their cached status: no probe.
+    if (
+      specKindForType(entry.type) == null &&
+      entry.apiBaseUrl != null &&
+      !isRecentlyChecked(entry)
+    ) {
       neededLookups.add(entry.apiBaseUrl);
     }
   }
@@ -250,6 +282,14 @@ async function checkVerifyAndUpdateRegistryEntries({
         uncheckedIds.add(entry.id);
         return entry;
       }
+      if (isRecentlyChecked(entry)) {
+        uncheckedIds.add(entry.id); // cached status only
+        return {
+          id: entry.id,
+          status: entry.status,
+          assetIdentifier: entry.assetIdentifier,
+        };
+      }
       if (specKindForType(entry.type) != null) {
         const check = await checkSpecEntry(entry);
         return {
@@ -279,14 +319,9 @@ async function checkVerifyAndUpdateRegistryEntries({
       }
       // Reachable only for Standard entries (spec types returned early), which
       // always carry a non-null apiBaseUrl.
-      if (
-        entry.lastUptimeCheck.getTime() > (minHealthCheckDate?.getTime() ?? 0)
-      ) {
-        uncheckedIds.add(entry.id); // recently checked: cached status only
-      }
       const status = await checkAndVerifyRegistryEntry({
         registryEntry: { ...entry, apiBaseUrl: entry.apiBaseUrl! },
-        minHealthCheckDate,
+        minHealthCheckDate: recheckDate,
       });
       lookupMap.set(entry.apiBaseUrl!, {
         status: status,

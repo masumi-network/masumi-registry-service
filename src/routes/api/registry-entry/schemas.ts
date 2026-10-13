@@ -70,7 +70,8 @@ const registryEntryHealthFilterSchema = z
       .dateIn()
       .optional()
       .describe(
-        'Entries last health-checked before this date are re-checked live before being returned. Replaces minHealthCheckDate.'
+        'Entries last health-checked before this date are re-checked live before being returned. ' +
+          'An entry checked within the last minute is never re-checked by a request. Replaces minHealthCheckDate.'
       ),
     onlyOnline: z
       .boolean()
