@@ -26,7 +26,7 @@ import {
   getEmptyInboxAgentVerificationData,
   type InboxAgentVerificationData,
 } from './inbox-verification';
-import { uptimeCheckUpdate, uptimeTracking } from './uptime-tracking';
+import { uptimeTracking } from './uptime-tracking';
 
 const INBOX_AGENT_PUBLIC_BASE_URLS: Partial<Record<$Enums.Network, string>> = {
   [$Enums.Network.Preprod]:
@@ -311,24 +311,32 @@ async function checkVerifyAndUpdateRegistryEntries({
     .map((r) => r.value);
 
   const checkedAt = new Date();
-  const entriesById = new Map(entriesToCheck.map((entry) => [entry.id, entry]));
   const failedEntries = entriesToCheck.filter(
     (entry) => !successful.find((s) => s.id === entry.id)
   );
 
   // A check that threw counts as Offline, so its interval still feeds uptime.
   for (const entry of failedEntries) {
-    await prisma.registryEntry.update({
-      where: { id: entry.id },
-      data: {
-        status: $Enums.Status.Offline,
-        ...uptimeCheckUpdate(entry, $Enums.Status.Offline, checkedAt),
-      },
-    });
+    await uptimeTracking.applyUptimeCheck(
+      prisma,
+      { id: entry.id },
+      $Enums.Status.Offline,
+      checkedAt
+    );
   }
   const updatedEntries = [];
   for (const s of successful) {
     try {
+      // Rolling uptime is computed from the stored state, not the snapshot
+      // loaded before the probes, so concurrent checks do not overwrite it.
+      if (!uncheckedIds.has(s.id)) {
+        await uptimeTracking.applyUptimeCheck(
+          prisma,
+          { id: s.id },
+          s.status,
+          checkedAt
+        );
+      }
       updatedEntries.push(
         await prisma.registryEntry.update({
           where: { id: s.id },
@@ -354,9 +362,6 @@ async function checkVerifyAndUpdateRegistryEntries({
           },
           data: {
             status: s.status,
-            ...(uncheckedIds.has(s.id)
-              ? {}
-              : uptimeCheckUpdate(entriesById.get(s.id)!, s.status, checkedAt)),
             ...specCachePatch(s), // caches a just-validated spec snapshot
           },
         })

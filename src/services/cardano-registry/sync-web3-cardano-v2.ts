@@ -159,13 +159,20 @@ export async function syncWeb3CardanoV2RegistryEntry(params: {
           },
   };
 
-  const uptime = await uptimeTracking.syncUptimeFields(params.asset, status);
+  const checkedAt = new Date();
   const entryId = await prisma.$transaction(async (tx) => {
+    // An existing entry gets the check applied first (compare-and-set); the
+    // upsert then only creates the uptime fields for a new entry.
+    await uptimeTracking.applyUptimeCheck(
+      tx,
+      { assetIdentifier: params.asset },
+      status,
+      checkedAt
+    );
     const entry = await tx.registryEntry.upsert({
       where: { assetIdentifier: params.asset },
       update: {
         ...sharedQuery,
-        ...uptime.update,
         ExampleOutput: { deleteMany: {}, ...(exampleOutputCreate ?? {}) },
         SupportedPaymentSources: {
           deleteMany: {},
@@ -182,7 +189,7 @@ export async function syncWeb3CardanoV2RegistryEntry(params: {
       },
       create: {
         ...sharedQuery,
-        ...uptime.create,
+        ...uptimeTracking.uptimeCheckCreate(status, checkedAt),
         ExampleOutput: exampleOutputCreate,
         SupportedPaymentSources:
           supportedPaymentSourceRows.length > 0
@@ -209,7 +216,7 @@ export async function syncWeb3CardanoV2RegistryEntry(params: {
     }
     return entry.id;
   });
-  await uptimeTracking.recordSyncCheck(entryId, status, uptime.checkedAt);
+  await uptimeTracking.recordSyncCheck(entryId, status, checkedAt);
 
   return true;
 }

@@ -16,11 +16,8 @@ jest.mock('@/utils/db', () => {
 jest.mock('@/services/health-check', () => ({
   healthCheckService: { checkAndVerifyEndpoint: jest.fn() },
   uptimeTracking: {
-    syncUptimeFields: jest.fn().mockResolvedValue({
-      checkedAt: new Date(0),
-      update: { uptimeCheckCount: { increment: 1 } },
-      create: { uptimeCheckCount: 1 },
-    }),
+    applyUptimeCheck: jest.fn().mockResolvedValue(true),
+    uptimeCheckCreate: jest.fn().mockReturnValue({ uptimeCheckCount: 1 }),
     recordSyncCheck: jest.fn(),
   },
 }));
@@ -139,25 +136,31 @@ describe('syncWeb3CardanoV2RegistryEntry', () => {
     );
   });
 
-  it('applies the uptime patch and records the sync check after commit', async () => {
+  it('applies the uptime check in the transaction and records it after commit', async () => {
     (checkSpecEntry as jest.Mock).mockResolvedValue({
       status: $Enums.Status.Online,
     });
 
     await syncWeb3CardanoV2RegistryEntry(params);
 
-    expect(prisma.registryEntry.upsert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        update: expect.objectContaining({
-          uptimeCheckCount: { increment: 1 },
-        }),
-        create: expect.objectContaining({ uptimeCheckCount: 1 }),
-      })
+    const [tx, entry, status, checkedAt] = (
+      uptimeTracking.applyUptimeCheck as jest.Mock
+    ).mock.calls[0];
+    // The transaction client, not the global one.
+    expect(tx).not.toBe(prisma);
+    expect(tx.registryEntry).toBe(prisma.registryEntry);
+    expect(entry).toEqual({ assetIdentifier: params.asset });
+    expect(status).toBe($Enums.Status.Online);
+    // Uptime fields come from the compare-and-set, not the upsert update.
+    const upsert = (prisma.registryEntry.upsert as jest.Mock).mock.calls[0][0];
+    expect(upsert.update).not.toHaveProperty('uptimeCheckCount');
+    expect(upsert.create).toEqual(
+      expect.objectContaining({ uptimeCheckCount: 1 })
     );
     expect(uptimeTracking.recordSyncCheck).toHaveBeenCalledWith(
       'entry',
       $Enums.Status.Online,
-      new Date(0)
+      checkedAt
     );
   });
 });

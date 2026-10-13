@@ -1,4 +1,4 @@
-import { $Enums, HealthCheckTrigger } from '@prisma/client';
+import { $Enums, HealthCheckTrigger, Prisma } from '@prisma/client';
 import { prisma } from '@/utils/db';
 import { logger } from '@/utils/logger';
 
@@ -61,30 +61,37 @@ export function uptimeCheckCreate(status: $Enums.Status, now: Date) {
   };
 }
 
-async function findUptimeState(
-  assetIdentifier: string
-): Promise<UptimeState | null> {
-  return prisma.registryEntry.findUnique({
-    where: { assetIdentifier },
-    select: { status: true, lastUptimeCheck: true, uptimeEwma: true },
-  });
-}
+type UptimeClient = Pick<Prisma.TransactionClient, 'registryEntry'>;
+type EntryKey = { id: string } | { assetIdentifier: string };
 
-// Uptime fields for an upsert after a check during registry sync.
-async function syncUptimeFields(
-  assetIdentifier: string,
-  status: $Enums.Status
-) {
-  const checkedAt = new Date();
-  const previous = await findUptimeState(assetIdentifier);
-  return {
-    checkedAt,
-    update:
-      previous == null
-        ? uptimeCheckCreate(status, checkedAt)
-        : uptimeCheckUpdate(previous, status, checkedAt),
-    create: uptimeCheckCreate(status, checkedAt),
-  };
+// Concurrent checks of one entry retry at most this often before giving up.
+const MAX_UPTIME_WRITE_ATTEMPTS = 3;
+
+// Applies one check outcome to an existing entry: status, check counters and
+// rolling uptime. The rolling uptime depends on the stored state, so the write
+// is a compare-and-set on lastUptimeCheck: when a concurrent check (job,
+// request or sync) wrote first, re-read and recompute instead of overwriting
+// its interval. Returns false when the entry does not exist yet.
+async function applyUptimeCheck(
+  db: UptimeClient,
+  entry: EntryKey,
+  status: $Enums.Status,
+  checkedAt: Date
+): Promise<boolean> {
+  for (let attempt = 0; attempt < MAX_UPTIME_WRITE_ATTEMPTS; attempt++) {
+    const previous = await db.registryEntry.findFirst({
+      where: entry,
+      select: { status: true, lastUptimeCheck: true, uptimeEwma: true },
+    });
+    if (previous == null) return false;
+    const { count } = await db.registryEntry.updateMany({
+      where: { ...entry, lastUptimeCheck: previous.lastUptimeCheck },
+      data: { status, ...uptimeCheckUpdate(previous, status, checkedAt) },
+    });
+    if (count > 0) return true;
+  }
+  logger.warn('uptime check not applied after concurrent writes', { entry });
+  return true;
 }
 
 // One row per check outcome: the time series behind the rolling uptime.
@@ -123,7 +130,8 @@ async function pruneHealthCheckEvents(now: Date) {
 }
 
 export const uptimeTracking = {
-  syncUptimeFields,
+  applyUptimeCheck,
+  uptimeCheckCreate,
   recordHealthCheckEvents,
   recordSyncCheck,
   pruneHealthCheckEvents,

@@ -59,7 +59,8 @@ jest.mock('@/services/health-check', () => ({
     checkVerifyAndUpdateInboxAgentRegistrations: jest.fn(),
   },
   uptimeTracking: {
-    syncUptimeFields: jest.fn().mockResolvedValue({ update: {}, create: {} }),
+    applyUptimeCheck: jest.fn().mockResolvedValue(true),
+    uptimeCheckCreate: jest.fn().mockReturnValue({}),
     recordSyncCheck: jest.fn(),
   },
 }));

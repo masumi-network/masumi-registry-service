@@ -3,6 +3,7 @@ import {
   nextTimeWeightedUptime,
   uptimeCheckCreate,
   uptimeCheckUpdate,
+  uptimeTracking,
 } from './uptime-tracking';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -106,5 +107,101 @@ describe('uptime check patches', () => {
       uptimeCheckCount: 1,
       uptimeEwma: 1,
     });
+  });
+});
+
+describe('applyUptimeCheck', () => {
+  const fakeDb = (
+    states: ({
+      status: $Enums.Status;
+      lastUptimeCheck: Date;
+      uptimeEwma: number | null;
+    } | null)[],
+    counts: number[]
+  ) => {
+    const findFirst = jest.fn();
+    for (const state of states) findFirst.mockResolvedValueOnce(state);
+    const updateMany = jest.fn();
+    for (const count of counts) updateMany.mockResolvedValueOnce({ count });
+    return { registryEntry: { findFirst, updateMany } };
+  };
+
+  it('writes status and uptime guarded by the state it read', async () => {
+    const db = fakeDb(
+      [{ status: $Enums.Status.Online, lastUptimeCheck: start, uptimeEwma: 0 }],
+      [1]
+    );
+    const applied = await uptimeTracking.applyUptimeCheck(
+      db as never,
+      { id: 'entry-1' },
+      $Enums.Status.Offline,
+      after(7 * DAY_MS)
+    );
+    expect(applied).toBe(true);
+    expect(db.registryEntry.updateMany).toHaveBeenCalledWith({
+      where: { id: 'entry-1', lastUptimeCheck: start },
+      data: {
+        status: $Enums.Status.Offline,
+        ...uptimeCheckUpdate(
+          {
+            status: $Enums.Status.Online,
+            lastUptimeCheck: start,
+            uptimeEwma: 0,
+          },
+          $Enums.Status.Offline,
+          after(7 * DAY_MS)
+        ),
+      },
+    });
+  });
+
+  it('recomputes from the newer state when a concurrent check wrote first', async () => {
+    const concurrent = {
+      status: $Enums.Status.Online,
+      lastUptimeCheck: after(DAY_MS),
+      uptimeEwma: 0.4,
+    };
+    const db = fakeDb(
+      [
+        {
+          status: $Enums.Status.Offline,
+          lastUptimeCheck: start,
+          uptimeEwma: 0.5,
+        },
+        concurrent,
+      ],
+      [0, 1]
+    );
+    await uptimeTracking.applyUptimeCheck(
+      db as never,
+      { assetIdentifier: 'asset-1' },
+      $Enums.Status.Online,
+      after(2 * DAY_MS)
+    );
+    expect(db.registryEntry.updateMany).toHaveBeenCalledTimes(2);
+    expect(db.registryEntry.updateMany).toHaveBeenLastCalledWith({
+      where: { assetIdentifier: 'asset-1', lastUptimeCheck: after(DAY_MS) },
+      data: {
+        status: $Enums.Status.Online,
+        ...uptimeCheckUpdate(
+          concurrent,
+          $Enums.Status.Online,
+          after(2 * DAY_MS)
+        ),
+      },
+    });
+  });
+
+  it('reports a missing entry so the caller can create it', async () => {
+    const db = fakeDb([null], []);
+    expect(
+      await uptimeTracking.applyUptimeCheck(
+        db as never,
+        { assetIdentifier: 'new-asset' },
+        $Enums.Status.Online,
+        start
+      )
+    ).toBe(false);
+    expect(db.registryEntry.updateMany).not.toHaveBeenCalled();
   });
 });
