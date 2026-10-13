@@ -1,3 +1,3 @@
-import { defaultEndpointsFactory } from "express-zod-api";
+import { defaultEndpointsFactory } from 'express-zod-api';
 
-export const unauthenticatedEndpointFactory = defaultEndpointsFactory
+export const unauthenticatedEndpointFactory = defaultEndpointsFactory;

@@ -1,1 +1,1 @@
-export { registrySourceRepository } from "./registry-source.repository"
+export { registrySourceRepository } from './registry-source.repository';
