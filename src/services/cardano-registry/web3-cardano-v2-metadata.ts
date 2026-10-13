@@ -337,7 +337,7 @@ function buildPricingCreate(
         `${optionLabel}.pricing.fixed[${priceIndex}] requires a valid asset and positive atomic amount`
       );
     }
-    if (chain === CARDANO_CHAIN && decimalsRaw != null) {
+    if (chain === CARDANO_CHAIN && entry.decimals != null) {
       throw new Error(
         `${optionLabel}.pricing.fixed[${priceIndex}].decimals is not valid for Cardano`
       );

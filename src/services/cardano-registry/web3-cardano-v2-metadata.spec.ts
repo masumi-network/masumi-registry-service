@@ -77,6 +77,24 @@ describe('web3CardanoV2 metadata', () => {
     ).toBe(false);
   });
 
+  it('rejects blank decimals on Cardano fixed pricing', () => {
+    const metadata = web3CardanoV2MetadataSchema.parse({
+      ...sampleV2Metadata,
+      supported_payment_sources: [
+        {
+          ...sampleV2Metadata.supported_payment_sources[0],
+          pricing: {
+            pricingType: 'Fixed',
+            fixed: [{ asset: '', amount: '5000000', decimals: '' }],
+          },
+        },
+      ],
+    });
+    expect(() => buildV2SupportedPaymentSourceRows(metadata)).toThrow(
+      'decimals is not valid for Cardano'
+    );
+  });
+
   it('keeps the empty lovelace asset in fixed Cardano pricing', () => {
     const metadata = web3CardanoV2MetadataSchema.parse(sampleV2Metadata);
     expect(() => buildV2SupportedPaymentSourceRows(metadata)).not.toThrow();
