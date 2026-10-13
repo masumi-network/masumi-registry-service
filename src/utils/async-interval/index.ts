@@ -6,6 +6,7 @@ import { logger } from '../logger';
  */
 export class AsyncInterval {
   private timeoutId: NodeJS.Timeout | null = null;
+  private wakeUp: (() => void) | null = null;
   private isRunning = false;
   private shouldStop = false;
 
@@ -13,12 +14,19 @@ export class AsyncInterval {
    * Creates an async interval that waits for the previous execution to complete
    * @param callback The async function to execute
    * @param intervalMs The interval in milliseconds between executions
-   * @returns A function to stop the interval
+   * @returns A function that stops the interval and resolves once the
+   * in-flight execution (if any) has finished
    */
-  static start(callback: () => Promise<void>, intervalMs: number): () => void {
+  static start(
+    callback: () => Promise<void>,
+    intervalMs: number
+  ): () => Promise<void> {
     const instance = new AsyncInterval();
-    instance.run(callback, intervalMs);
-    return () => instance.stop();
+    const done = instance.run(callback, intervalMs);
+    return () => {
+      instance.stop();
+      return done;
+    };
   }
 
   private async run(
@@ -44,12 +52,14 @@ export class AsyncInterval {
       }
 
       await new Promise<void>((resolve) => {
+        this.wakeUp = resolve;
         this.timeoutId = setTimeout(() => resolve(), intervalMs);
       });
     }
 
     this.isRunning = false;
     this.timeoutId = null;
+    this.wakeUp = null;
   }
 
   private stop(): void {
@@ -58,5 +68,7 @@ export class AsyncInterval {
       clearTimeout(this.timeoutId);
       this.timeoutId = null;
     }
+    // Clearing the timer alone would leave run() awaiting forever.
+    this.wakeUp?.();
   }
 }
