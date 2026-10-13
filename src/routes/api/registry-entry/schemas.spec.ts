@@ -208,8 +208,8 @@ describe('sortBy input', () => {
 describe('ranking output', () => {
   const ranking = {
     score: 0.5,
-    components: { successfulPurchases: 1, uptime: 0.5, lineageAge: 0 },
-    weights: { successfulPurchases: 0.6, uptime: 0.3, lineageAge: 0.1 },
+    components: { distinctBuyers: 1, uptime: 0.5, lineageAge: 0 },
+    weights: { distinctBuyers: 0.6, uptime: 0.3, lineageAge: 0.1 },
   };
 
   it('passes the score components through to the response', () => {

@@ -4,7 +4,7 @@
 import type { RegistryEntrySortBy as SortBy } from '@/routes/api/registry-entry/schemas';
 
 export type RankingWeights = {
-  successfulPurchases: number;
+  distinctBuyers: number;
   uptime: number;
   lineageAge: number;
 };
@@ -16,8 +16,9 @@ export type RankingInput = {
   createdAt: Date;
   // Rolling uptime (0-1), null until the first health check.
   uptimeEwma: number | null;
-  // Seller withdrawals counted from the payment contracts on chain.
-  successfulPurchases: number;
+  // Distinct buyers that funded a successful purchase (seller withdrawal on
+  // the payment contracts) of this agent.
+  distinctBuyers: number;
   // First-seen date of the V2 version root (own createdAt for V1).
   lineageStartedAt: Date;
   // Lowest fixed price in the requested unit, null without one (sortBy=price).
@@ -37,22 +38,24 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 // Lineage age stops adding to the score after this many days.
 const LINEAGE_AGE_CAP_DAYS = 90;
 
-// Scores every candidate relative to the candidate set. Successful purchases
-// are normalized by the set maximum (thesis §6.1.3, "Total Successful
-// Purchases ... then normalized"), so reputation split across clones scores
-// lower than the same purchases on one agent.
+// Scores every candidate relative to the candidate set. Distinct buyers are
+// normalized by the set maximum (thesis §6.1.3, "Total Successful Purchases
+// ... then normalized"), so reputation split across clones scores lower than
+// the same buyers on one agent. `scaleInputs` scores an entry outside the set
+// (a stale cursor) on the set's scale without changing it.
 export function computeRankings(params: {
   inputs: readonly RankingInput[];
   weights: RankingWeights;
   now: Date;
+  scaleInputs?: readonly RankingInput[];
 }): Map<string, Ranking> {
   const { inputs, weights } = params;
-  const maxPurchases = Math.max(
+  const maxDistinctBuyers = Math.max(
     0,
-    ...inputs.map((input) => input.successfulPurchases)
+    ...(params.scaleInputs ?? inputs).map((input) => input.distinctBuyers)
   );
   const weightSum =
-    weights.successfulPurchases + weights.uptime + weights.lineageAge;
+    weights.distinctBuyers + weights.uptime + weights.lineageAge;
 
   return new Map(
     inputs.map((input) => {
@@ -61,13 +64,15 @@ export function computeRankings(params: {
         (params.now.getTime() - input.lineageStartedAt.getTime()) / DAY_MS
       );
       const components: ScoreComponents = {
-        successfulPurchases:
-          maxPurchases > 0 ? input.successfulPurchases / maxPurchases : 0,
+        distinctBuyers:
+          maxDistinctBuyers > 0
+            ? Math.min(input.distinctBuyers / maxDistinctBuyers, 1)
+            : 0,
         uptime: input.uptimeEwma ?? 0,
         lineageAge: Math.min(lineageAgeDays / LINEAGE_AGE_CAP_DAYS, 1),
       };
       const score =
-        (weights.successfulPurchases * components.successfulPurchases +
+        (weights.distinctBuyers * components.distinctBuyers +
           weights.uptime * components.uptime +
           weights.lineageAge * components.lineageAge) /
         weightSum;
@@ -141,7 +146,8 @@ export function sortRankingInputs<T extends RankingInput>(params: {
 }
 
 // Continues a ranked listing at the cursor entry (inclusive, like the Prisma
-// cursor of the unsorted listing). An unknown cursor yields an empty page.
+// cursor of the unsorted listing). An unknown cursor yields an empty page;
+// the service places a cursor that left the set back into the order first.
 export function sliceFromCursor<T extends { id: string }>(
   sorted: readonly T[],
   cursorId: string | undefined

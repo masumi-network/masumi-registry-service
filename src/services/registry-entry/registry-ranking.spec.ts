@@ -13,7 +13,7 @@ const NOW = new Date('2026-09-23T00:00:00.000Z');
 const DAY_MS = 24 * 60 * 60 * 1000;
 const daysAgo = (days: number) => new Date(NOW.getTime() - days * DAY_MS);
 const WEIGHTS: RankingWeights = {
-  successfulPurchases: 0.6,
+  distinctBuyers: 0.6,
   uptime: 0.3,
   lineageAge: 0.1,
 };
@@ -28,7 +28,7 @@ function agent(
     tags: [],
     createdAt: daysAgo(30),
     uptimeEwma: 0.9,
-    successfulPurchases: 0,
+    distinctBuyers: 0,
     lineageStartedAt: daysAgo(30),
     priceAmount: null,
     ...overrides,
@@ -59,12 +59,12 @@ describe('computeRankings', () => {
     const { rankings } = rank(
       [
         agent('a', {
-          successfulPurchases: 10,
+          distinctBuyers: 10,
           uptimeEwma: 1,
           lineageStartedAt: daysAgo(90),
         }),
         agent('b', {
-          successfulPurchases: 5,
+          distinctBuyers: 5,
           uptimeEwma: 0.5,
           lineageStartedAt: daysAgo(45),
         }),
@@ -76,7 +76,7 @@ describe('computeRankings', () => {
     expect(rankings.get('b')).toEqual({
       score: expect.any(Number),
       components: {
-        successfulPurchases: 0.5,
+        distinctBuyers: 0.5,
         uptime: 0.5,
         lineageAge: 0.5,
       },
@@ -95,8 +95,8 @@ describe('computeRankings', () => {
 
   it('respects configured weights', () => {
     const inputs = [
-      agent('buyers-favourite', { successfulPurchases: 50, uptimeEwma: 0.5 }),
-      agent('always-up', { successfulPurchases: 0, uptimeEwma: 1 }),
+      agent('buyers-favourite', { distinctBuyers: 50, uptimeEwma: 0.5 }),
+      agent('always-up', { distinctBuyers: 0, uptimeEwma: 1 }),
     ];
 
     expect(rank(inputs, 'score').order).toEqual([
@@ -105,7 +105,7 @@ describe('computeRankings', () => {
     ]);
     expect(
       rank(inputs, 'score', {
-        weights: { successfulPurchases: 0, uptime: 1, lineageAge: 0 },
+        weights: { distinctBuyers: 0, uptime: 1, lineageAge: 0 },
       }).order
     ).toEqual(['always-up', 'buyers-favourite']);
   });
@@ -116,7 +116,7 @@ describe('sortBy score: sybil resistance (thesis §3.1.4, §6.1.3)', () => {
     const clones = Array.from({ length: 20 }, (_, index) =>
       agent(`clone-${index}`, {
         uptimeEwma: 1,
-        successfulPurchases: 0,
+        distinctBuyers: 0,
         createdAt: NOW,
         lineageStartedAt: NOW,
       })
@@ -124,7 +124,7 @@ describe('sortBy score: sybil resistance (thesis §3.1.4, §6.1.3)', () => {
     const { order } = rank(
       [
         ...clones,
-        agent('established', { successfulPurchases: 40, uptimeEwma: 0.8 }),
+        agent('established', { distinctBuyers: 40, uptimeEwma: 0.8 }),
       ],
       'score'
     );
@@ -136,10 +136,10 @@ describe('sortBy score: sybil resistance (thesis §3.1.4, §6.1.3)', () => {
     // Same 30 purchases: all on one agent vs spread over three clones.
     const { rankings } = rank(
       [
-        agent('single', { successfulPurchases: 30 }),
-        agent('split-1', { successfulPurchases: 10 }),
-        agent('split-2', { successfulPurchases: 10 }),
-        agent('split-3', { successfulPurchases: 10 }),
+        agent('single', { distinctBuyers: 30 }),
+        agent('split-1', { distinctBuyers: 10 }),
+        agent('split-2', { distinctBuyers: 10 }),
+        agent('split-3', { distinctBuyers: 10 }),
       ],
       'score'
     );
@@ -167,7 +167,7 @@ describe('sortBy score: sybil resistance (thesis §3.1.4, §6.1.3)', () => {
       [
         agent('undercutter', { priceAmount: BigInt(1) }),
         agent('trusted', {
-          successfulPurchases: 20,
+          distinctBuyers: 20,
           priceAmount: BigInt(5_000_000),
         }),
       ],
@@ -194,8 +194,8 @@ describe('sortBy uptime', () => {
   it('is gameable by clones on its own, which is why score weights purchases', () => {
     const { order } = rank(
       [
-        agent('established', { uptimeEwma: 0.95, successfulPurchases: 100 }),
-        agent('clone', { uptimeEwma: 1, successfulPurchases: 0 }),
+        agent('established', { uptimeEwma: 0.95, distinctBuyers: 100 }),
+        agent('clone', { uptimeEwma: 1, distinctBuyers: 0 }),
       ],
       'uptime'
     );

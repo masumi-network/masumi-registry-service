@@ -34,12 +34,10 @@ const updatePurchaseIndexInterval = Number(
 if (!(updatePurchaseIndexInterval >= 60))
   throw new Error('Invalid UPDATE_PURCHASE_INDEX_INTERVAL ENV variables');
 
-// Weights of the ranking score. Successful purchases dominate: they are the
-// only input that costs an attacker real on-chain transactions (thesis §4.1).
+// Weights of the ranking score. Distinct buyers dominate: they are the only
+// input that costs an attacker real on-chain transactions (thesis §4.1).
 const rankingWeights = {
-  successfulPurchases: Number(
-    process.env.RANKING_WEIGHT_SUCCESSFUL_PURCHASES ?? '0.6'
-  ),
+  distinctBuyers: Number(process.env.RANKING_WEIGHT_DISTINCT_BUYERS ?? '0.6'),
   uptime: Number(process.env.RANKING_WEIGHT_UPTIME ?? '0.3'),
   lineageAge: Number(process.env.RANKING_WEIGHT_LINEAGE_AGE ?? '0.1'),
 };

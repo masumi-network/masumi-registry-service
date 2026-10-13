@@ -19,8 +19,8 @@ const updateLatestCardanoRegistryEntries = jest.fn();
 const checkVerifyAndUpdateRegistryEntries = jest.fn();
 const getRegistryEntriesByIds = jest.fn();
 const findRankingCandidates = jest.fn();
-const countSuccessfulPurchases = jest.fn();
-const findVersionCreatedAts = jest.fn();
+const countDistinctBuyers = jest.fn();
+const findEntryCreatedAts = jest.fn();
 
 jest.mock('@/repositories/registry-entry', () => ({
   registryEntryRepository: {
@@ -36,8 +36,8 @@ jest.mock('@/repositories/registry-entry', () => ({
 jest.mock('@/repositories/registry-entry/registry-metrics.repository', () => ({
   registryMetricsRepository: {
     findRankingCandidates,
-    countSuccessfulPurchases,
-    findVersionCreatedAts,
+    countDistinctBuyers,
+    findEntryCreatedAts,
   },
 }));
 
@@ -54,6 +54,7 @@ jest.mock('@/services/health-check', () => ({
 }));
 
 import { registryEntryService } from './registry-entry.service';
+import { clearRankingMetricsCache } from './registry-ranking-metrics';
 
 describe('registryEntryService.searchRegistryEntries', () => {
   beforeEach(() => {
@@ -393,8 +394,9 @@ describe('registryEntryService ranked listing (sortBy)', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    clearRankingMetricsCache();
     updateLatestCardanoRegistryEntries.mockResolvedValue(undefined);
-    findVersionCreatedAts.mockResolvedValue([]);
+    findEntryCreatedAts.mockResolvedValue([]);
     findVersionSiblingAssetIdentifiers.mockResolvedValue([]);
     checkVerifyAndUpdateRegistryEntries.mockImplementation(
       async ({ registryEntries }: { registryEntries: unknown[] }) =>
@@ -412,7 +414,7 @@ describe('registryEntryService ranked listing (sortBy)', () => {
       candidate('top'),
       candidate('mid'),
     ]);
-    countSuccessfulPurchases.mockResolvedValue(
+    countDistinctBuyers.mockResolvedValue(
       new Map([
         ['asset-top', 30],
         ['asset-mid', 10],
@@ -431,7 +433,7 @@ describe('registryEntryService ranked listing (sortBy)', () => {
     expect(getRegistryEntriesByIds).toHaveBeenCalledWith(['top', 'mid', 'low']);
     expect(entries[0]).toMatchObject({
       ranking: {
-        components: { successfulPurchases: 1 },
+        components: { distinctBuyers: 1 },
       },
     });
     expect(getRegistryEntry).not.toHaveBeenCalled();
@@ -446,6 +448,45 @@ describe('registryEntryService ranked listing (sortBy)', () => {
     });
 
     expect(entries.map((entry) => entry.id)).toEqual(['mid', 'low']);
+  });
+
+  it('continues after a cursor entry that left the filtered set', async () => {
+    // 'mid' went Offline on the previous page and no longer matches.
+    findRankingCandidates.mockImplementation(async (where: { id?: string }) =>
+      where.id === 'mid'
+        ? [candidate('mid')]
+        : [candidate('low'), candidate('top')]
+    );
+
+    const entries = await registryEntryService.getRegistryEntries({
+      network: Network.Preprod,
+      limit: 10,
+      sortBy: 'score',
+      cursorId: 'mid',
+    });
+
+    expect(entries.map((entry) => entry.id)).toEqual(['low']);
+    expect(findRankingCandidates).toHaveBeenCalledWith({
+      id: 'mid',
+      RegistrySource: { network: Network.Preprod },
+    });
+  });
+
+  it('loads network ranking metrics once within the cache window', async () => {
+    await registryEntryService.getRegistryEntries({
+      network: Network.Preprod,
+      limit: 10,
+      sortBy: 'score',
+    });
+    await registryEntryService.getRegistryEntries({
+      network: Network.Preprod,
+      limit: 10,
+      sortBy: 'score',
+      cursorId: 'mid',
+    });
+
+    expect(countDistinctBuyers).toHaveBeenCalledTimes(1);
+    expect(findEntryCreatedAts).toHaveBeenCalledTimes(1);
   });
 
   it('keeps the default order and skips ranking without sortBy', async () => {

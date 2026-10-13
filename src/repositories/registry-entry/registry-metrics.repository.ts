@@ -32,48 +32,42 @@ async function findRankingCandidates(where: Prisma.RegistryEntryWhereInput) {
   });
 }
 
-async function countSuccessfulPurchases(params: {
-  network: Network;
-  agentIdentifiers: string[];
-}): Promise<Map<string, number>> {
-  if (params.agentIdentifiers.length === 0) return new Map();
-  const rows = await prisma.agentSuccessfulPurchase.groupBy({
-    by: ['agentIdentifier'],
+// Distinct funded buyers per agent across the network (unattributed
+// withdrawals and unverified buyers excluded).
+async function countDistinctBuyers(
+  network: Network
+): Promise<Map<string, number>> {
+  const pairs = await prisma.agentSuccessfulPurchase.groupBy({
+    by: ['agentIdentifier', 'buyerKeyHash'],
     where: {
-      network: params.network,
-      agentIdentifier: { in: params.agentIdentifiers },
+      network,
+      agentIdentifier: { not: null },
+      buyerKeyHash: { not: null },
     },
-    _count: { _all: true },
   });
-  return new Map(
-    rows.flatMap((row) =>
-      row.agentIdentifier == null
-        ? []
-        : [[row.agentIdentifier, row._count._all] as const]
-    )
-  );
+  const counts = new Map<string, number>();
+  for (const { agentIdentifier } of pairs) {
+    if (agentIdentifier == null) continue;
+    counts.set(agentIdentifier, (counts.get(agentIdentifier) ?? 0) + 1);
+  }
+  return counts;
 }
 
-// createdAt of every stored version under the given V2 version roots, so the
-// caller can take the earliest per root as the lineage start.
-async function findVersionCreatedAts(params: {
-  roots: string[];
-  network: Network;
-}): Promise<{ assetIdentifier: string; createdAt: Date }[]> {
-  if (params.roots.length === 0) return [];
+// First-seen date and policy of every entry on the network, so the caller can
+// group V2 versions by their exact version root.
+async function findEntryCreatedAts(network: Network) {
   return prisma.registryEntry.findMany({
-    where: {
-      OR: params.roots.map((root) => ({
-        assetIdentifier: { startsWith: root },
-      })),
-      RegistrySource: { network: params.network },
+    where: { RegistrySource: { network } },
+    select: {
+      assetIdentifier: true,
+      createdAt: true,
+      RegistrySource: { select: { policyId: true } },
     },
-    select: { assetIdentifier: true, createdAt: true },
   });
 }
 
 export const registryMetricsRepository = {
   findRankingCandidates,
-  countSuccessfulPurchases,
-  findVersionCreatedAts,
+  countDistinctBuyers,
+  findEntryCreatedAts,
 };

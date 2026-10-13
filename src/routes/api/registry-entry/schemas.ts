@@ -217,7 +217,7 @@ export const registryDiffSchemaInput = z.object({
 });
 
 const rankingWeightsSchema = z.object({
-  successfulPurchases: z.number(),
+  distinctBuyers: z.number(),
   uptime: z.number(),
   lineageAge: z.number(),
 });
@@ -228,9 +228,10 @@ const registryEntryRankingSchema = z
       .number()
       .describe('Weighted sum of the components divided by the weight sum.'),
     components: rankingWeightsSchema.describe(
-      'Each input normalized to 0-1 within the ranked result set: ' +
-        'successfulPurchases (seller withdrawals on chain, relative to the ' +
-        'top agent), uptime (rolling), lineageAge (V2 version root age).'
+      'Each component is 0-1: ' +
+        'distinctBuyers (buyers that funded a seller-withdrawn escrow on ' +
+        'chain, relative to the top agent), uptime (time-weighted rolling, ' +
+        'not relative), lineageAge (V2 version root age, capped at 90 days).'
     ),
     weights: rankingWeightsSchema,
   })

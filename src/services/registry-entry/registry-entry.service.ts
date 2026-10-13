@@ -26,9 +26,14 @@ import {
 import {
   computeRankings,
   lowestPriceInUnit,
+  RankingInput,
   sliceFromCursor,
   sortRankingInputs,
 } from './registry-ranking';
+import {
+  getNetworkRankingMetrics,
+  NetworkRankingMetrics,
+} from './registry-ranking-metrics';
 
 type VersionedEntry = {
   assetIdentifier: string;
@@ -128,31 +133,35 @@ async function attachVersionLinks<T extends VersionedEntry>(
   });
 }
 
-// Earliest first-seen date per V2 version root, for lineage age.
-async function getLineageStarts(
-  assetIdentifiers: { assetIdentifier: string; policyId: string | null }[],
-  network: $Enums.Network
-): Promise<Map<string, Date>> {
-  const roots = [
-    ...new Set(
-      assetIdentifiers
-        .filter((entry) => isV2Policy(entry.policyId))
-        .map((entry) => getAgentVersionRoot(entry.assetIdentifier))
+type RankingCandidate = Awaited<
+  ReturnType<typeof registryMetricsRepository.findRankingCandidates>
+>[number];
+
+function toRankingInput(
+  entry: RankingCandidate,
+  metrics: NetworkRankingMetrics,
+  priceUnit: string | undefined
+): RankingInput {
+  return {
+    id: entry.id,
+    name: entry.name,
+    tags: entry.tags,
+    createdAt: entry.createdAt,
+    uptimeEwma: entry.uptimeEwma,
+    distinctBuyers: metrics.distinctBuyers.get(entry.assetIdentifier) ?? 0,
+    lineageStartedAt: isV2Policy(entry.RegistrySource.policyId)
+      ? (metrics.lineageStarts.get(
+          getAgentVersionRoot(entry.assetIdentifier)
+        ) ?? entry.createdAt)
+      : entry.createdAt,
+    priceAmount: lowestPriceInUnit(
+      [
+        entry.AgentPricing,
+        ...entry.SupportedPaymentSources.map((source) => source.Pricing),
+      ],
+      priceUnit
     ),
-  ];
-  const versions = await registryMetricsRepository.findVersionCreatedAts({
-    roots,
-    network,
-  });
-  const starts = new Map<string, Date>();
-  for (const version of versions) {
-    const root = getAgentVersionRoot(version.assetIdentifier);
-    const current = starts.get(root);
-    if (current == null || version.createdAt < current) {
-      starts.set(root, version.createdAt);
-    }
-  }
-  return starts;
+  };
 }
 
 // Explicit sortBy: rank the whole filtered set, then health-check pages in
@@ -167,58 +176,55 @@ async function getRankedRegistryEntries(params: {
   minHealthCheckDate: Date | undefined;
 }) {
   const { input } = params;
-  const candidates = (
-    await registryMetricsRepository.findRankingCandidates(params.where)
-  ).filter((entry) => meetsMinUptimePercent(entry, params.minUptimePercent));
-
-  const [purchases, lineageStarts] = await Promise.all([
-    registryMetricsRepository.countSuccessfulPurchases({
-      network: input.network,
-      agentIdentifiers: candidates.map((entry) => entry.assetIdentifier),
-    }),
-    getLineageStarts(
-      candidates.map((entry) => ({
-        assetIdentifier: entry.assetIdentifier,
-        policyId: entry.RegistrySource.policyId,
-      })),
-      input.network
-    ),
+  const [allCandidates, metrics] = await Promise.all([
+    registryMetricsRepository.findRankingCandidates(params.where),
+    getNetworkRankingMetrics(input.network),
   ]);
+  const candidates = allCandidates.filter((entry) =>
+    meetsMinUptimePercent(entry, params.minUptimePercent)
+  );
 
   const priceUnit = input.filter?.pricing?.unit;
-  const rankingInputs = candidates.map((entry) => ({
-    id: entry.id,
-    name: entry.name,
-    tags: entry.tags,
-    createdAt: entry.createdAt,
-    uptimeEwma: entry.uptimeEwma,
-    successfulPurchases: purchases.get(entry.assetIdentifier) ?? 0,
-    lineageStartedAt: isV2Policy(entry.RegistrySource.policyId)
-      ? (lineageStarts.get(getAgentVersionRoot(entry.assetIdentifier)) ??
-        entry.createdAt)
-      : entry.createdAt,
-    priceAmount: lowestPriceInUnit(
-      [
-        entry.AgentPricing,
-        ...entry.SupportedPaymentSources.map((source) => source.Pricing),
-      ],
-      priceUnit
-    ),
-  }));
+  const now = new Date();
+  const rankingInputs = candidates.map((entry) =>
+    toRankingInput(entry, metrics, priceUnit)
+  );
   const rankings = computeRankings({
     inputs: rankingInputs,
     weights: CONFIG.RANKING_WEIGHTS,
-    now: new Date(),
+    now,
   });
+
+  // The cursor entry can leave the filtered set between pages (e.g. the
+  // previous page's health check took it Offline). Place it back by its
+  // current sort key, scored on this set's scale, and continue after it.
+  const cursorId = input.cursorId;
+  let staleCursor: RankingInput | undefined;
+  if (cursorId != null && !rankings.has(cursorId)) {
+    const [cursorEntry] = await registryMetricsRepository.findRankingCandidates(
+      { id: cursorId, RegistrySource: { network: input.network } }
+    );
+    if (cursorEntry != null) {
+      staleCursor = toRankingInput(cursorEntry, metrics, priceUnit);
+      const cursorRanking = computeRankings({
+        inputs: [staleCursor],
+        weights: CONFIG.RANKING_WEIGHTS,
+        now,
+        scaleInputs: rankingInputs,
+      }).get(cursorId);
+      if (cursorRanking != null) rankings.set(cursorId, cursorRanking);
+    }
+  }
+
   const ordered = sliceFromCursor(
     sortRankingInputs({
-      inputs: rankingInputs,
+      inputs: staleCursor ? [...rankingInputs, staleCursor] : rankingInputs,
       rankings,
       sortBy: params.sortBy,
       searchQuery: 'query' in input ? input.query : undefined,
     }),
-    input.cursorId
-  );
+    cursorId
+  ).filter((entry) => entry !== staleCursor);
 
   const healthCheckedEntries: Awaited<
     ReturnType<typeof healthCheckService.checkVerifyAndUpdateRegistryEntries>
