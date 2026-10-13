@@ -1,5 +1,9 @@
 import { lookup } from 'node:dns/promises';
-import { normalizePublicUrl, validatePublicUrl } from '@/utils/public-url';
+import {
+  normalizePublicUrl,
+  resolvePublicUrl,
+  validatePublicUrl,
+} from '@/utils/public-url';
 
 jest.mock('node:dns/promises', () => ({
   lookup: jest.fn(),
@@ -11,6 +15,21 @@ describe('public url helpers', () => {
     (lookup as jest.Mock).mockResolvedValue([
       { address: '93.184.216.34', family: 4 },
     ]);
+  });
+
+  it('returns the exact validated addresses without a second DNS lookup', async () => {
+    const destination = await resolvePublicUrl('https://example.com/card');
+    expect(destination.addresses).toEqual([
+      { address: '93.184.216.34', family: 4 },
+    ]);
+    expect(lookup).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns public literal addresses without resolving DNS', async () => {
+    expect(
+      (await resolvePublicUrl('https://93.184.216.34/card')).addresses
+    ).toEqual([{ address: '93.184.216.34', family: 4 }]);
+    expect(lookup).not.toHaveBeenCalled();
   });
 
   it('normalizes a valid public url and trims a trailing slash', () => {

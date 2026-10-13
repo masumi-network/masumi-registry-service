@@ -1,4 +1,9 @@
 {
   "ignore": [".remember/**", "prisma/**"],
-  "ignoreDependencies": ["@babel/plugin-transform-modules-commonjs"]
+  "ignoreDependencies": ["@babel/plugin-transform-modules-commonjs"],
+  "ignoreIssues": {
+    "frontend/src/components/ui/**": ["exports", "types"],
+    "frontend/src/lib/api/generated/**": ["exports", "types"],
+    "frontend/src/lib/api/generated/schemas.gen.ts": ["files"]
+  }
 }

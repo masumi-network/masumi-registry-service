@@ -25,7 +25,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'pnpm'
 
       - name: Install Backend Dependencies
@@ -39,9 +39,26 @@ jobs:
 
       - name: Run Build
         run: pnpm run build
+        env:
+          NEXT_TELEMETRY_DISABLED: 1
 
-      - name: Run Open API Generator
-        run: pnpm run swagger-json
+      - name: Run Frontend ESLint
+        run: pnpm -C frontend run lint
+
+      - name: Run Frontend TypeScript Check
+        run: pnpm run typecheck:frontend
+
+      - name: Run Frontend Format Check
+        run: pnpm -C frontend run format:check
+
+      - name: Run Frontend Tests
+        run: pnpm run test:frontend
+
+      # Regenerates the OpenAPI spec and the frontend client from it, then fails
+      # if that changes any committed file. Fix: run `pnpm check:api-client`
+      # locally and commit the result.
+      - name: Check Generated API Client Is Up To Date
+        run: pnpm run check:api-client
 
       - name: Run ESLint for issues
         id: lint_fix_remaining

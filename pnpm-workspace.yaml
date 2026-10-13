@@ -1,3 +1,6 @@
+packages:
+  - frontend
+
 onlyBuiltDependencies:
   - '@prisma/client'
   - '@prisma/engines'
@@ -5,3 +8,6 @@ onlyBuiltDependencies:
   - prisma
   - ssh2
   - cpu-features
+
+ignoredBuiltDependencies:
+  - unrs-resolver

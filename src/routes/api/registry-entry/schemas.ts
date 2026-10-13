@@ -132,6 +132,16 @@ const registryEntrySchemaOutput = z
         version: z.string().nullable(),
       })
       .nullable(),
+    A2A: z
+      .object({
+        agentCardUrl: z.string(),
+        protocolVersions: z.array(z.string()),
+      })
+      .nullable()
+      .describe(
+        'MIP-002 A2A descriptor. Non-null only for A2A-type entries. The Agent ' +
+          'Card document itself is served by the registry-entry-spec endpoint.'
+      ),
     AgentPricing: z
       .object({
         pricingType: z.literal($Enums.PricingType.Fixed),
@@ -271,6 +281,7 @@ export type RegistryEntrySerializable = {
     name: string | null;
     version: string | null;
   } | null;
+  A2A: { agentCardUrl: string; protocolVersions: string[] } | null;
   AgentPricing: {
     pricingType: $Enums.PricingType;
     FixedPricing?: {
@@ -348,6 +359,13 @@ export function serializeRegistryEntries(
                 // Free or Dynamic — no FixedPricing
                 pricingType: entry.AgentPricing.pricingType,
               },
+      A2A:
+        entry.A2A == null
+          ? null
+          : {
+              agentCardUrl: entry.A2A.agentCardUrl,
+              protocolVersions: entry.A2A.protocolVersions,
+            },
       ExampleOutput: (entry.ExampleOutput ?? []).map((output) => ({
         name: output.name,
         mimeType: output.mimeType,
