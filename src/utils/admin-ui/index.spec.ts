@@ -48,7 +48,7 @@ describe('serveAdminUi', () => {
   });
 
   afterAll(async () => {
-    await stopServer(server);
+    if (server) await stopServer(server);
     rmSync(rootDir, { recursive: true, force: true });
   });
 
@@ -95,7 +95,19 @@ describe('serveAdminUi', () => {
   it('caches hashed assets as immutable', async () => {
     const response = await fetch(`${baseUrl}/admin/_next/static/chunks/app.js`);
     expect(response.status).toBe(200);
-    expect(response.headers.get('cache-control')).toContain('immutable');
+    const cacheControl = response.headers.get('cache-control');
+    expect(cacheControl).toContain('immutable');
+    expect(cacheControl).toContain('max-age=31536000');
+  });
+
+  it('does not cache pages or root files as immutable', async () => {
+    for (const path of ['/admin', '/admin/index.html', '/admin/about']) {
+      const response = await fetch(`${baseUrl}${path}`);
+      expect(response.status).toBe(200);
+      expect(response.headers.get('cache-control') ?? '').not.toContain(
+        'immutable'
+      );
+    }
   });
 
   it('lets the API answer a missing asset', async () => {
