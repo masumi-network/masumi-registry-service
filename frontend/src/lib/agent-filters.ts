@@ -109,8 +109,8 @@ const agentFiltersQuerySchema = z.object({
   capabilityVersion: verbatimText(MAX_CAPABILITY_LENGTH),
   minHealthCheckDate: z
     .preprocess(firstValue, z.string())
-    // A real day, and not a future one: that would re-check every agent, which the picker
-    // (max today) never offers, so a link must not either.
+    // A real day, and not a future one, which the picker (max today) never offers. Any
+    // date makes the API live-check every listed agent, so the panel copy says so.
     .refine((value) => parseDay(value) !== null && value <= today())
     .catch(''),
   limit: z

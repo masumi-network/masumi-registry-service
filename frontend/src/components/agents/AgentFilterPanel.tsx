@@ -240,8 +240,8 @@ export function AgentFilterPanel({ id, filters, onChange, className }: AgentFilt
           )}
         </div>
         <p className="text-xs text-muted-foreground">
-          Runs a live health check on listed agents last checked before this day, so results load
-          slower. Empty shows the stored status.
+          Any date makes the registry run a live health check on every listed agent, on each load
+          and each page, so results load slower. Empty shows the stored status.
         </p>
       </div>
     </section>
