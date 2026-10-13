@@ -138,7 +138,10 @@ describe('updateSuccessfulPurchaseIndex', () => {
       if (asset === AGENT) return { initial_mint_tx_hash: 'mint-tx' };
       throw Object.assign(new Error('Not Found'), { status_code: 404 });
     });
-    blockfrost.txs.mockResolvedValue({ block_time: BLOCK_TIME });
+    blockfrost.txs.mockResolvedValue({
+      block_time: BLOCK_TIME,
+      valid_contract: true,
+    });
     blockfrost.txsUtxos.mockImplementation((txHash: string) => {
       if (txHash === 'mint-tx') {
         return { inputs: [{ address: bech32(SELLER) }] };
@@ -182,6 +185,19 @@ describe('updateSuccessfulPurchaseIndex', () => {
     ]);
     // SubmitResult is not a purchase outcome, so its tx is never fetched.
     expect(blockfrost.txsUtxos).not.toHaveBeenCalledWith('tx-submit');
+  });
+
+  it('keeps a withdrawal that failed script validation unattributed', async () => {
+    blockfrost.txs.mockResolvedValue({
+      block_time: BLOCK_TIME,
+      valid_contract: false,
+    });
+
+    await updateSuccessfulPurchaseIndex();
+
+    expect(upsertedPurchases()).toEqual([
+      { network: Network.Preprod, txHash: 'tx-withdraw', redeemerIndex: 0 },
+    ]);
   });
 
   it('keeps a withdrawal by a seller that did not mint the agent unattributed', async () => {

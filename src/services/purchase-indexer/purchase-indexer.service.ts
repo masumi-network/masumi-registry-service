@@ -165,6 +165,9 @@ async function describeWithdrawal(params: {
         }).then((funders) => funders.has(buyerKeyHash))
       : false,
   ]);
+  // A tx that failed phase-2 validation only took the collateral: the escrow
+  // stayed locked, so it is not a purchase.
+  if (!transaction.valid_contract) return unattributed;
   return {
     ...unattributed,
     agentIdentifier: escrow.agentIdentifier,
