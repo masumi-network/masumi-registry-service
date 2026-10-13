@@ -59,6 +59,26 @@ describe('createBeforeExit', () => {
     expect(disconnectDatabase).toHaveBeenCalledTimes(1);
   });
 
+  it('resolves when disconnecting outlasts its timeout', async () => {
+    jest.useFakeTimers();
+    const beforeExit = createBeforeExit({
+      drainJobs: () => Promise.resolve(),
+      disconnectDatabase: () => new Promise<void>(() => {}),
+    });
+
+    let isDone = false;
+    const exiting = beforeExit().then(() => {
+      isDone = true;
+    });
+    await jest.advanceTimersByTimeAsync(1_499);
+    expect(isDone).toBe(false);
+
+    await jest.advanceTimersByTimeAsync(1);
+    await exiting;
+    expect(isDone).toBe(true);
+    expect(process.exitCode).toBe(initialExitCode);
+  });
+
   it('resolves and sets exit code 1 when disconnecting fails', async () => {
     const beforeExit = createBeforeExit({
       drainJobs: () => Promise.resolve(),

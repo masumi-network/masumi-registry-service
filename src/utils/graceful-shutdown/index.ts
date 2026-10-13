@@ -1,9 +1,11 @@
 import { logger } from '@/utils/logger';
 
 export const SHUTDOWN_SIGNALS = ['SIGINT', 'SIGTERM'];
-// HTTP drain + job drain stay under Docker's default 10s stop timeout.
+// HTTP drain + job drain + database disconnect stay under Docker's default
+// 10s stop timeout.
 export const HTTP_DRAIN_TIMEOUT_MS = 5_000;
 const JOB_DRAIN_TIMEOUT_MS = 3_000;
+const DB_DISCONNECT_TIMEOUT_MS = 1_500;
 
 type BeforeExitOptions = {
   drainJobs: () => Promise<void>;
@@ -24,16 +26,23 @@ export function createBeforeExit({
 
   const run = async () => {
     try {
-      // Jobs resume from their saved progress on the next start, so a slow
-      // one is abandoned rather than holding up the exit.
+      // Registry sync saves its cursor after each transaction and health
+      // checks rerun every interval, so an abandoned run only repeats work.
       if (!(await settlesWithin(drainJobs(), JOB_DRAIN_TIMEOUT_MS))) {
         logger.warn(
           `Scheduled jobs still running after ${JOB_DRAIN_TIMEOUT_MS}ms, disconnecting database anyway`
         );
       }
-      // Not raced: once the pool is ending it hands out no new clients, so
-      // this only waits for queries already in flight.
-      await disconnectDatabase();
+      // Raced too: the pool's end() waits for checked-out clients, and a query
+      // from an abandoned job can run up to the statement timeout.
+      if (
+        !(await settlesWithin(disconnectDatabase(), DB_DISCONNECT_TIMEOUT_MS))
+      ) {
+        logger.warn(
+          `Database still disconnecting after ${DB_DISCONNECT_TIMEOUT_MS}ms, exiting anyway`
+        );
+        return;
+      }
       logger.info('Shutdown complete');
     } catch (error) {
       logger.error('Error during shutdown', { error });
