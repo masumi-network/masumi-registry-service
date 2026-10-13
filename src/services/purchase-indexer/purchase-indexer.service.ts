@@ -1,4 +1,4 @@
-import { $Enums } from '@prisma/client';
+import { $Enums, Prisma } from '@prisma/client';
 import { Mutex, tryAcquire, MutexInterface } from 'async-mutex';
 import { BlockFrostAPI } from '@blockfrost/blockfrost-js';
 import { deserializeAddress, deserializeDatum } from '@meshsdk/core';
@@ -8,7 +8,9 @@ import { logger } from '@/utils/logger';
 import { getBlockfrostInstance } from '@/utils/blockfrost';
 import {
   WITHDRAW_REDEEMER_CONSTRUCTOR,
-  agentIdentifierFromEscrowDatum,
+  addressKeyHashes,
+  decodeEscrowDatum,
+  purchaseAmounts,
   spentInputForRedeemer,
 } from './escrow-withdrawal';
 
@@ -34,15 +36,88 @@ async function redeemerConstructor(
   return value;
 }
 
-async function withdrawnAgentIdentifier(
+const HTTP_NOT_FOUND = 404;
+
+// Payment key hashes that funded an agent's registry NFT mint: the payment
+// service mints from the agent's selling wallet. A mint never changes, so the
+// result is cached for the process lifetime.
+const agentMinterKeyHashCache = new Map<string, Set<string>>();
+
+async function inputKeyHashes(blockfrost: BlockFrostAPI, txHash: string) {
+  const utxos = await blockfrost.txsUtxos(txHash);
+  return addressKeyHashes(
+    utxos.inputs
+      .filter((input) => !input.reference)
+      .map((input) => input.address)
+  );
+}
+
+async function agentMinterKeyHashes(
   blockfrost: BlockFrostAPI,
-  txHash: string,
-  redeemerIndex: number
-): Promise<string | null> {
+  network: $Enums.Network,
+  agentIdentifier: string
+): Promise<Set<string>> {
+  const cacheKey = `${network}:${agentIdentifier}`;
+  const cached = agentMinterKeyHashCache.get(cacheKey);
+  if (cached !== undefined) return cached;
+  let keyHashes: Set<string>;
+  try {
+    const asset = await blockfrost.assetsById(agentIdentifier);
+    keyHashes = await inputKeyHashes(blockfrost, asset.initial_mint_tx_hash);
+  } catch (error) {
+    // An identifier that was never minted cannot be attributed.
+    if ((error as { status_code?: number }).status_code !== HTTP_NOT_FOUND) {
+      throw error;
+    }
+    keyHashes = new Set();
+  }
+  agentMinterKeyHashCache.set(cacheKey, keyHashes);
+  return keyHashes;
+}
+
+// A withdrawal counts for an agent only when the seller that signed it (the
+// contract requires the seller signature) also minted the agent. The buyer is
+// kept only when it funded the escrow and is not the seller, so a seller
+// cannot invent buyers by writing arbitrary keys into the datum.
+async function describeWithdrawal(params: {
+  blockfrost: BlockFrostAPI;
+  network: $Enums.Network;
+  txHash: string;
+  redeemerIndex: number;
+}): Promise<Prisma.AgentSuccessfulPurchaseCreateInput> {
+  const { blockfrost, network, txHash, redeemerIndex } = params;
+  const unattributed = { network, txHash, redeemerIndex };
   const utxos = await blockfrost.txsUtxos(txHash);
   const input = spentInputForRedeemer(utxos.inputs, redeemerIndex);
-  if (input?.inline_datum == null) return null;
-  return agentIdentifierFromEscrowDatum(deserializeDatum(input.inline_datum));
+  if (input?.inline_datum == null) return unattributed;
+  const escrow = decodeEscrowDatum(deserializeDatum(input.inline_datum));
+  if (escrow?.agentIdentifier == null || escrow.sellerKeyHash == null) {
+    return unattributed;
+  }
+  const minterKeyHashes = await agentMinterKeyHashes(
+    blockfrost,
+    network,
+    escrow.agentIdentifier
+  );
+  if (!minterKeyHashes.has(escrow.sellerKeyHash)) return unattributed;
+
+  const [transaction, escrowFunderKeyHashes] = await Promise.all([
+    blockfrost.txs(txHash),
+    inputKeyHashes(blockfrost, input.tx_hash),
+  ]);
+  const buyerFundedEscrow =
+    escrow.buyerKeyHash != null &&
+    escrow.buyerKeyHash !== escrow.sellerKeyHash &&
+    escrowFunderKeyHashes.has(escrow.buyerKeyHash);
+  return {
+    ...unattributed,
+    agentIdentifier: escrow.agentIdentifier,
+    buyerKeyHash: buyerFundedEscrow ? escrow.buyerKeyHash : null,
+    blockTime: new Date(transaction.block_time * 1000),
+    Amounts: {
+      create: purchaseAmounts(input.amount, escrow.collateralReturnLovelace),
+    },
+  };
 }
 
 async function indexContractPage(params: {
@@ -71,7 +146,7 @@ async function indexContractPage(params: {
   }
 
   // The last page is re-read every run until it fills up; skip the tx lookups
-  // for withdrawals indexed on an earlier pass.
+  // for withdrawals recorded on an earlier pass (attributed or not).
   const alreadyIndexed = await prisma.agentSuccessfulPurchase.findMany({
     where: {
       network: params.network,
@@ -83,23 +158,25 @@ async function indexContractPage(params: {
     alreadyIndexed.map((row) => `${row.txHash}#${row.redeemerIndex}`)
   );
 
-  const rows = [];
   for (const withdrawal of withdrawals) {
     if (indexedKeys.has(`${withdrawal.txHash}#${withdrawal.redeemerIndex}`)) {
       continue;
     }
-    const agentIdentifier = await withdrawnAgentIdentifier(
-      params.blockfrost,
-      withdrawal.txHash,
-      withdrawal.redeemerIndex
-    );
-    if (agentIdentifier == null) continue;
-    rows.push({ network: params.network, agentIdentifier, ...withdrawal });
-  }
-  if (rows.length > 0) {
-    await prisma.agentSuccessfulPurchase.createMany({
-      data: rows,
-      skipDuplicates: true,
+    const purchase = await describeWithdrawal({
+      blockfrost: params.blockfrost,
+      network: params.network,
+      ...withdrawal,
+    });
+    await prisma.agentSuccessfulPurchase.upsert({
+      where: {
+        network_txHash_redeemerIndex: {
+          network: params.network,
+          txHash: withdrawal.txHash,
+          redeemerIndex: withdrawal.redeemerIndex,
+        },
+      },
+      update: {},
+      create: purchase,
     });
   }
   return redeemers.length;
@@ -135,6 +212,14 @@ async function indexContract(params: {
 }
 
 async function indexNetwork(network: $Enums.Network) {
+  try {
+    await indexNetworkContracts(network);
+  } catch (error) {
+    logger.error('Error indexing network purchases', { error, network });
+  }
+}
+
+async function indexNetworkContracts(network: $Enums.Network) {
   const source = await prisma.registrySource.findFirst({
     where: { network },
     include: { RegistrySourceConfig: true },

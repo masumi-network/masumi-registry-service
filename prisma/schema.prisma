@@ -343,18 +343,38 @@ model UpdatedRegistryEntriesLog {
 }
 
 // One row per seller withdrawal (successful purchase) indexed from the payment
-// smart contracts on chain. Ranking counts rows per agentIdentifier; the unique
-// key makes re-indexing a page idempotent.
+// smart contracts on chain; the time series behind purchase-based ranking. The
+// unique key makes re-indexing a page idempotent.
 model AgentSuccessfulPurchase {
-  id              String   @id @default(cuid())
-  createdAt       DateTime @default(now())
+  id              String                @id @default(cuid())
+  createdAt       DateTime              @default(now())
   network         Network
-  agentIdentifier String
   txHash          String
   redeemerIndex   Int
+  // Null when the withdrawal is not attributable to a registered agent (no
+  // agent identifier, or the seller did not mint the agent). Kept so later
+  // runs skip it.
+  agentIdentifier String?
+  // Payment key hash of the buyer, set only when the buyer funded the escrow
+  // and is not the seller. Ranking counts distinct buyers.
+  buyerKeyHash    String?
+  blockTime       DateTime?
+  Amounts         AgentPurchaseAmount[]
 
   @@unique([network, txHash, redeemerIndex])
-  @@index([network, agentIdentifier])
+  @@index([network, agentIdentifier, blockTime])
+}
+
+// Value paid for one purchase per asset (escrow value minus the buyer's
+// collateral return): lovelace or a token unit (policy id + asset name hex).
+model AgentPurchaseAmount {
+  id         String                  @id @default(cuid())
+  unit       String
+  quantity   BigInt
+  Purchase   AgentSuccessfulPurchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  purchaseId String
+
+  @@index([purchaseId])
 }
 
 // Resume cursor for the purchase indexer, one row per payment contract script.

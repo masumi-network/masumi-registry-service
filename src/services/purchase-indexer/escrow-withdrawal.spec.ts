@@ -1,57 +1,156 @@
 import {
-  agentIdentifierFromEscrowDatum,
+  byteString,
+  conStr0,
+  conStr1,
+  deserializeDatum,
+  integer,
+  pubKeyAddress,
+  scriptAddress,
+  serializeAddressObj,
+  serializeData,
+} from '@meshsdk/core';
+import {
+  addressKeyHashes,
+  decodeEscrowDatum,
+  purchaseAmounts,
   spentInputForRedeemer,
 } from './escrow-withdrawal';
 
 const NONCE = 'ab'.repeat(32);
 const AGENT = `${'7e'.repeat(28)}${'cd'.repeat(32)}`;
+const SELLER = '5e'.repeat(28);
+const BUYER = 'b0'.repeat(28);
 
-function datum(fieldCount: number, overrides: Record<number, unknown>) {
-  return {
-    constructor: 0n,
-    fields: Array.from(
-      { length: fieldCount },
-      (_, index) => overrides[index] ?? { int: 0n }
-    ),
-  };
+const keyAddress = (keyHash: string) =>
+  conStr0([conStr0([byteString(keyHash)]), conStr1([])]);
+const scriptCredentialAddress = (scriptHash: string) =>
+  conStr0([conStr1([byteString(scriptHash)]), conStr1([])]);
+
+// Builds an escrow datum and round-trips it through CBOR, so the decoder sees
+// exactly what @meshsdk/core hands the indexer (bigint constructors and ints).
+function escrowDatum(fieldCount: 16 | 19, overrides: Record<number, unknown>) {
+  const fields = Array.from(
+    { length: fieldCount },
+    (_, index) => overrides[index] ?? integer(0)
+  );
+  return deserializeDatum(
+    serializeData(conStr0(fields as never[]), 'JSON')
+  ) as unknown;
 }
 
-describe('agentIdentifierFromEscrowDatum', () => {
-  it('reads a V1 agent identifier appended to the seller nonce', () => {
+describe('decodeEscrowDatum', () => {
+  it('reads a V1 datum: agent identifier appended to the seller nonce', () => {
     expect(
-      agentIdentifierFromEscrowDatum(datum(16, { 4: { bytes: NONCE + AGENT } }))
-    ).toBe(AGENT);
+      decodeEscrowDatum(
+        escrowDatum(16, {
+          0: keyAddress(BUYER),
+          1: keyAddress(SELLER),
+          4: byteString(NONCE + AGENT),
+          6: integer(2_000_000),
+        })
+      )
+    ).toEqual({
+      agentIdentifier: AGENT,
+      sellerKeyHash: SELLER,
+      buyerKeyHash: BUYER,
+      collateralReturnLovelace: 2_000_000n,
+    });
   });
 
-  it('reads the dedicated V2 agent identifier field', () => {
+  it('reads the dedicated V2 agent identifier field and V2 positions', () => {
     expect(
-      agentIdentifierFromEscrowDatum(
-        datum(19, { 6: { bytes: NONCE }, 8: { bytes: AGENT } })
+      decodeEscrowDatum(
+        escrowDatum(19, {
+          0: keyAddress(BUYER),
+          2: keyAddress(SELLER),
+          6: byteString(NONCE),
+          8: byteString(AGENT),
+          9: integer(1_500_000),
+        })
       )
-    ).toBe(AGENT);
+    ).toEqual({
+      agentIdentifier: AGENT,
+      sellerKeyHash: SELLER,
+      buyerKeyHash: BUYER,
+      collateralReturnLovelace: 1_500_000n,
+    });
   });
 
   it('falls back to the V2 seller nonce suffix for older V2 datums', () => {
     expect(
-      agentIdentifierFromEscrowDatum(
-        datum(19, { 6: { bytes: NONCE + AGENT }, 8: { bytes: '' } })
-      )
+      decodeEscrowDatum(
+        escrowDatum(19, { 6: byteString(NONCE + AGENT), 8: byteString('') })
+      )?.agentIdentifier
     ).toBe(AGENT);
   });
 
-  it('returns null for purchases that predate agent identifiers', () => {
+  it('has no agent identifier for purchases that predate them', () => {
     expect(
-      agentIdentifierFromEscrowDatum(datum(16, { 4: { bytes: NONCE } }))
+      decodeEscrowDatum(escrowDatum(16, { 4: byteString(NONCE) }))
+        ?.agentIdentifier
+    ).toBeNull();
+  });
+
+  it('has no key hash for a script credential buyer', () => {
+    expect(
+      decodeEscrowDatum(escrowDatum(16, { 0: scriptCredentialAddress(BUYER) }))
+        ?.buyerKeyHash
     ).toBeNull();
   });
 
   it.each([
-    ['a non-escrow datum', datum(3, { 0: { bytes: AGENT } })],
+    ['a non-escrow datum', { fields: [{ bytes: AGENT }] }],
     ['a missing datum', null],
-    ['a non-bytes nonce', datum(16, { 4: { int: 1n } })],
-    ['a non-hex agent identifier', datum(16, { 4: { bytes: NONCE + 'zz' } })],
   ])('rejects %s', (_label, value) => {
-    expect(agentIdentifierFromEscrowDatum(value)).toBeNull();
+    expect(decodeEscrowDatum(value)).toBeNull();
+  });
+
+  it('rejects a non-hex agent identifier', () => {
+    // Not valid CBOR bytes, so built as the decoded shape directly.
+    const fields = Array.from({ length: 16 }, (_, index) =>
+      index === 4 ? { bytes: NONCE + 'zz' } : { int: 0n }
+    );
+    expect(decodeEscrowDatum({ fields })?.agentIdentifier).toBeNull();
+  });
+});
+
+describe('addressKeyHashes', () => {
+  it('collects payment key hashes and skips script and invalid addresses', () => {
+    const keyAddressBech32 = serializeAddressObj(pubKeyAddress(SELLER), 0);
+    const scriptAddressBech32 = serializeAddressObj(scriptAddress(BUYER), 0);
+
+    expect(
+      addressKeyHashes([keyAddressBech32, scriptAddressBech32, 'not-an-addr'])
+    ).toEqual(new Set([SELLER]));
+  });
+});
+
+describe('purchaseAmounts', () => {
+  it('subtracts the collateral return from lovelace and keeps tokens', () => {
+    expect(
+      purchaseAmounts(
+        [
+          { unit: 'lovelace', quantity: '7000000' },
+          { unit: 'usdm-unit', quantity: '25000000' },
+        ],
+        2_000_000n
+      )
+    ).toEqual([
+      { unit: 'lovelace', quantity: 5_000_000n },
+      { unit: 'usdm-unit', quantity: 25_000_000n },
+    ]);
+  });
+
+  it('drops lovelace that only covers the collateral return', () => {
+    expect(
+      purchaseAmounts(
+        [
+          { unit: 'lovelace', quantity: '2000000' },
+          { unit: 'usdc-unit', quantity: '10' },
+        ],
+        2_000_000n
+      )
+    ).toEqual([{ unit: 'usdc-unit', quantity: 10n }]);
   });
 });
 

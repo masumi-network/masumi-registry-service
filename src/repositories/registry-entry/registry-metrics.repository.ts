@@ -45,7 +45,13 @@ async function countSuccessfulPurchases(params: {
     },
     _count: { _all: true },
   });
-  return new Map(rows.map((row) => [row.agentIdentifier, row._count._all]));
+  return new Map(
+    rows.flatMap((row) =>
+      row.agentIdentifier == null
+        ? []
+        : [[row.agentIdentifier, row._count._all] as const]
+    )
+  );
 }
 
 // createdAt of every stored version under the given V2 version roots, so the
