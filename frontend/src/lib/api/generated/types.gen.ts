@@ -729,11 +729,11 @@ export type GetRegistryEntryPurchasesData = {
          */
         interval?: 'Day' | 'Week' | 'Month';
         /**
-         * Series start (inclusive). Defaults to 90 days before `to`.
+         * Series start (inclusive), moved back to the start of its bucket. Defaults to 90 days before `to`.
          */
         from?: Date;
         /**
-         * Series end (exclusive). Defaults to now. Max range 366 days.
+         * Series end (exclusive); the last bucket can be partial. Defaults to now. Max range 366 days.
          */
         to?: Date;
     };

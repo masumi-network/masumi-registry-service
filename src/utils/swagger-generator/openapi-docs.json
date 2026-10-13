@@ -2839,10 +2839,10 @@
                                     "format": "date-time"
                                 }
                             ],
-                            "description": "Series start (inclusive). Defaults to 90 days before `to`."
+                            "description": "Series start (inclusive), moved back to the start of its bucket. Defaults to 90 days before `to`."
                         },
                         "required": false,
-                        "description": "Series start (inclusive). Defaults to 90 days before `to`.",
+                        "description": "Series start (inclusive), moved back to the start of its bucket. Defaults to 90 days before `to`.",
                         "name": "from",
                         "in": "query"
                     },
@@ -2862,10 +2862,10 @@
                                     "format": "date-time"
                                 }
                             ],
-                            "description": "Series end (exclusive). Defaults to now. Max range 366 days."
+                            "description": "Series end (exclusive); the last bucket can be partial. Defaults to now. Max range 366 days."
                         },
                         "required": false,
-                        "description": "Series end (exclusive). Defaults to now. Max range 366 days.",
+                        "description": "Series end (exclusive); the last bucket can be partial. Defaults to now. Max range 366 days.",
                         "name": "to",
                         "in": "query"
                     }
