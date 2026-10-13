@@ -158,18 +158,24 @@ export function sliceFromCursor<T extends { id: string }>(
 }
 
 // Lowest fixed price in `unit` across the entry's own pricing (V1) and its
-// payment sources (V2).
+// payment sources (V2). Prices outside [minAmount, maxAmount] are ignored, so
+// the sort key is a price that matched the amount filter.
 export function lowestPriceInUnit(
   pricings: readonly ({
     FixedPricing: { Amounts: { unit: string; amount: bigint }[] } | null;
   } | null)[],
-  unit: string | undefined
+  unit: string | undefined,
+  range: { minAmount?: bigint; maxAmount?: bigint } = {}
 ): bigint | null {
   if (unit == null) return null;
   const amounts = pricings.flatMap(
     (pricing) =>
-      pricing?.FixedPricing?.Amounts.filter((amount) => amount.unit === unit) ??
-      []
+      pricing?.FixedPricing?.Amounts.filter(
+        (amount) =>
+          amount.unit === unit &&
+          (range.minAmount == null || amount.amount >= range.minAmount) &&
+          (range.maxAmount == null || amount.amount <= range.maxAmount)
+      ) ?? []
   );
   if (amounts.length === 0) return null;
   return amounts

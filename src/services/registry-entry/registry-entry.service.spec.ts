@@ -175,6 +175,36 @@ describe('registryEntryService.searchRegistryEntries', () => {
     });
   });
 
+  it('does not repeat the last row of a page when fetching the next one', async () => {
+    const entry = (id: string, uptimeCount: number) => ({
+      id,
+      uptimeCount,
+      uptimeCheckCount: 10,
+    });
+    // limit 2 -> pages of 4. Page 1 yields 1 match (its last row); the next
+    // page starts again at that row because the Prisma cursor is inclusive.
+    searchRegistryEntries
+      .mockResolvedValueOnce([
+        entry('a', 1),
+        entry('b', 1),
+        entry('c', 1),
+        entry('d', 10),
+      ])
+      .mockResolvedValueOnce([entry('d', 10), entry('e', 10)]);
+
+    const result = await registryEntryService.searchRegistryEntries({
+      network: Network.Preprod,
+      limit: 2,
+      query: 'agent',
+      filter: { health: { minUptimePercent: 90 } },
+    });
+
+    expect(result.map((row: { id: string }) => row.id)).toEqual(['d', 'e']);
+    expect(searchRegistryEntries).toHaveBeenLastCalledWith(
+      expect.objectContaining({ cursorId: 'd' })
+    );
+  });
+
   it('prefers health.lastCheckedAfter over the deprecated minHealthCheckDate', async () => {
     const lastCheckedAfter = new Date('2026-09-01T00:00:00.000Z');
 

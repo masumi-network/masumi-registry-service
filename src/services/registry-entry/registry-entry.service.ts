@@ -137,10 +137,16 @@ type RankingCandidate = Awaited<
   ReturnType<typeof registryMetricsRepository.findRankingCandidates>
 >[number];
 
+type PriceSortFilter = {
+  unit?: string;
+  minAmount?: string;
+  maxAmount?: string;
+};
+
 function toRankingInput(
   entry: RankingCandidate,
   metrics: NetworkRankingMetrics,
-  priceUnit: string | undefined
+  priceFilter: PriceSortFilter | undefined
 ): RankingInput {
   return {
     id: entry.id,
@@ -159,7 +165,17 @@ function toRankingInput(
         entry.AgentPricing,
         ...entry.SupportedPaymentSources.map((source) => source.Pricing),
       ],
-      priceUnit
+      priceFilter?.unit,
+      {
+        minAmount:
+          priceFilter?.minAmount != null
+            ? BigInt(priceFilter.minAmount)
+            : undefined,
+        maxAmount:
+          priceFilter?.maxAmount != null
+            ? BigInt(priceFilter.maxAmount)
+            : undefined,
+      }
     ),
   };
 }
@@ -184,10 +200,10 @@ async function getRankedRegistryEntries(params: {
     meetsMinUptimePercent(entry, params.minUptimePercent)
   );
 
-  const priceUnit = input.filter?.pricing?.unit;
+  const priceFilter = input.filter?.pricing;
   const now = new Date();
   const rankingInputs = candidates.map((entry) =>
-    toRankingInput(entry, metrics, priceUnit)
+    toRankingInput(entry, metrics, priceFilter)
   );
   const rankings = computeRankings({
     inputs: rankingInputs,
@@ -205,7 +221,7 @@ async function getRankedRegistryEntries(params: {
       { id: cursorId, RegistrySource: { network: input.network } }
     );
     if (cursorEntry != null) {
-      staleCursor = toRankingInput(cursorEntry, metrics, priceUnit);
+      staleCursor = toRankingInput(cursorEntry, metrics, priceFilter);
       const cursorRanking = computeRankings({
         inputs: [staleCursor],
         weights: CONFIG.RANKING_WEIGHTS,
@@ -306,9 +322,15 @@ async function getHealthCheckedRegistryEntries(
       limit: input.limit * 2,
       network: input.network,
     };
-    const registryEntries = searchQuery
+    const page = searchQuery
       ? await registryEntryRepository.searchRegistryEntries(queryParams)
       : await registryEntryRepository.getRegistryEntry(queryParams);
+    // The Prisma cursor is inclusive: after the first page, the first row is
+    // the previous page's last row, which was already handled.
+    const registryEntries =
+      currentCursorId !== input.cursorId && page[0]?.id === currentCursorId
+        ? page.slice(1)
+        : page;
 
     // Filter before the live health check so excluded entries cost no requests.
     const result = await healthCheckService.checkVerifyAndUpdateRegistryEntries(
@@ -323,8 +345,8 @@ async function getHealthCheckedRegistryEntries(
 
     healthCheckedEntries.push(...result);
 
-    if (registryEntries.length < input.limit * 2) break;
-    currentCursorId = registryEntries[registryEntries.length - 1].id;
+    if (page.length < input.limit * 2) break;
+    currentCursorId = page[page.length - 1].id;
   }
 
   return attachVersionLinks(healthCheckedEntries, input.network);

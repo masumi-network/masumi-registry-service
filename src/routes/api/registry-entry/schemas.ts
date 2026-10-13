@@ -136,7 +136,9 @@ const SORT_BY_DESCRIPTION =
   'first). uptime = rolling uptime, price = lowest fixed price in ' +
   'filter.pricing.unit (required), recency = first seen, score = weighted ' +
   'rank (see ranking on each entry). Ranked results carry their score ' +
-  'components in `ranking`.';
+  'components in `ranking`. Ranked pages are re-sorted on every request: ' +
+  'an entry whose sort key rises past the cursor between pages (e.g. after ' +
+  'a health check) can be missed, and one whose key falls can repeat.';
 
 // sortBy=price compares amounts, which is only meaningful within one unit.
 function hasPriceUnitWhenSortingByPrice(input: {

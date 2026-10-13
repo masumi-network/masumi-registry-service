@@ -320,4 +320,20 @@ describe('lowestPriceInUnit', () => {
       lowestPriceInUnit([fixed(['usdm', 5]), null], 'lovelace')
     ).toBeNull();
   });
+  it('ignores prices outside the requested amount range', () => {
+    expect(
+      lowestPriceInUnit(
+        [fixed(['lovelace', 1]), fixed(['lovelace', 10])],
+        'lovelace',
+        {
+          minAmount: BigInt(5),
+        }
+      )
+    ).toBe(BigInt(10));
+    expect(
+      lowestPriceInUnit([fixed(['lovelace', 10])], 'lovelace', {
+        maxAmount: BigInt(5),
+      })
+    ).toBeNull();
+  });
 });
