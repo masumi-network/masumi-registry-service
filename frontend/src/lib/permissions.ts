@@ -3,7 +3,7 @@ import type { ApiKey } from './api/generated';
 // Pages a non-admin key may open. Everything else is admin-only, so a page added without
 // being listed here is blocked (a visible redirect) rather than silently exposed. Read
 // surfaces register their path here; sub-routes such as `/agents/[id]` are covered too.
-const USER_PATHS = ['/', '/404'];
+const USER_PATHS = ['/', '/agent', '/404'];
 
 export function isAdminKey(key: ApiKey | undefined): boolean {
   return key?.permission === 'Admin' && key.status === 'Active';
