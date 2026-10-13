@@ -21,4 +21,7 @@ export const createClientConfig: CreateClientConfig = (config) => ({
   // Called per request for operations the spec marks as secured. hey-api puts the
   // result in the header the spec's security scheme names (`token`).
   auth: () => apiKey,
+  // Without this the client hands failures back as a returned `error` value. A 401 would
+  // then never reach TanStack Query, so a revoked or demoted key would go unnoticed.
+  throwOnError: true,
 });

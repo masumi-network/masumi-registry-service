@@ -1,3 +1,4 @@
+import { KeyStatusCard } from '@/components/auth/KeyStatusCard';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { useHealth } from '@/lib/queries/useHealth';
 import { cn } from '@/lib/utils';
@@ -44,6 +45,7 @@ export default function Dashboard() {
           </p>
         </div>
         <ApiStatus />
+        <KeyStatusCard />
       </section>
     </MainLayout>
   );

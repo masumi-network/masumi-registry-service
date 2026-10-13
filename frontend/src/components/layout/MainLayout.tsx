@@ -5,6 +5,7 @@ import {
   BookOpen,
   FileCode,
   LayoutDashboard,
+  LogOut,
   MessageSquare,
   Moon,
   PanelLeft,
@@ -16,6 +17,9 @@ import MasumiLogo from '@/components/MasumiLogo';
 import MasumiIconFlat from '@/components/MasumiIconFlat';
 import { useTheme } from '@/lib/contexts/ThemeContext';
 import { useSidebar } from '@/lib/contexts/SidebarContext';
+import { useAuth } from '@/lib/contexts/AuthContext';
+import { canAccessPath, isAdminKey } from '@/lib/permissions';
+import { useApiKeyStatus } from '@/lib/queries/useApiKeyStatus';
 import { cn } from '@/lib/utils';
 
 interface MainLayoutProps {
@@ -28,7 +32,8 @@ type NavItem = {
   icon: LucideIcon;
 };
 
-// Feature slices append their pages here.
+// Feature slices append their pages here. Non-admin keys only see the ones whose path is
+// listed in lib/permissions.ts, so a new read page must be registered there as well.
 const navItems: NavItem[] = [{ href: '/', name: 'Dashboard', icon: LayoutDashboard }];
 
 type HeaderLink = {
@@ -71,6 +76,11 @@ const THEME_BLUR_MS = 200;
 
 export function MainLayout({ children }: MainLayoutProps) {
   const router = useRouter();
+  const { signOut } = useAuth();
+  const { data: keyStatus } = useApiKeyStatus();
+  const visibleNavItems = navItems.filter((item) =>
+    canAccessPath(item.href, isAdminKey(keyStatus)),
+  );
   const { theme, setThemePreference, isChangingTheme } = useTheme();
   const {
     collapsed,
@@ -103,7 +113,9 @@ export function MainLayout({ children }: MainLayoutProps) {
     const timer = setTimeout(() => {
       app.style.filter = '';
       app.style.pointerEvents = 'auto';
-      app.style.scale = '1';
+      // Cleared, not '1': any scale other than `none` makes #__next the containing
+      // block for the fixed app shell, which collapses it and blocks every click.
+      app.style.scale = '';
     }, THEME_BLUR_MS);
 
     return () => {
@@ -111,7 +123,7 @@ export function MainLayout({ children }: MainLayoutProps) {
       app.style.filter = '';
       app.style.transition = '';
       app.style.pointerEvents = 'auto';
-      app.style.scale = '1';
+      app.style.scale = '';
     };
   }, []);
 
@@ -180,7 +192,7 @@ export function MainLayout({ children }: MainLayoutProps) {
           aria-label="Main navigation"
           className={cn('flex flex-col gap-1 p-2', isRail ? 'items-center px-0' : 'px-2')}
         >
-          {navItems.map((item, index) => {
+          {visibleNavItems.map((item, index) => {
             const isActive = router.pathname === item.href;
             const Icon = item.icon;
             return (
@@ -276,6 +288,10 @@ export function MainLayout({ children }: MainLayoutProps) {
                 </Button>
               );
             })}
+            <Button variant="outline" size="sm" aria-label="Log out" onClick={() => signOut()}>
+              <LogOut className="h-4 w-4" aria-hidden="true" />
+              <span className="hidden sm:inline">Log out</span>
+            </Button>
           </div>
         </header>
 
