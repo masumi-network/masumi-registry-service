@@ -3,7 +3,7 @@ import { classifyAuthError } from '@/lib/auth/errors';
 import { queryKeys } from './query-keys';
 
 // A rejected key will not improve by asking again; an unreachable API might.
-function shouldRetry(failureCount: number, error: unknown): boolean {
+export function shouldRetry(failureCount: number, error: unknown): boolean {
   return classifyAuthError(error).kind === 'unavailable' && failureCount < 1;
 }
 
