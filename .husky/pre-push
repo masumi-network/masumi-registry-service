@@ -99,7 +99,7 @@ fi
 
 # Regenerate the admin API client from the fresh spec (CI rejects a stale client)
 echo "${BLUE}🔍 Generating admin API client...${NC}"
-if ! pnpm -C frontend run openapi-ts-latest; then
+if ! pnpm -C frontend run openapi-ts; then
     echo "${RED}❌ Admin API client generation failed.${NC}"
     exit 7
 fi
@@ -107,7 +107,8 @@ fi
 
 # Check for changes in generated files
 echo "${BLUE}🔍 Checking for generated file changes...${NC}"
-if git diff --quiet; then
+# git diff ignores untracked files, so also look for new files in the generated client
+if git diff --quiet && [ -z "$(git ls-files --others --exclude-standard -- frontend/src/lib/api/generated)" ]; then
     echo "${GREEN}✅ No changes in generated files${NC}"
 else
     echo "${BLUE}📝 Committing generated file changes...${NC}"
