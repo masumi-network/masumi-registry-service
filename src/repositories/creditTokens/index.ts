@@ -1,1 +1,1 @@
-export { creditTokenRepository } from "./credit.repository"
+export { creditTokenRepository } from './credit.repository';

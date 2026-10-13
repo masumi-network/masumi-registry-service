@@ -1,4 +1,5 @@
-import { defaultEndpointsFactory } from "express-zod-api";
-import { authMiddleware } from "@/utils/middleware/auth-middleware";
+import { defaultEndpointsFactory } from 'express-zod-api';
+import { authMiddleware } from '@/utils/middleware/auth-middleware';
 
-export const authenticatedEndpointFactory = defaultEndpointsFactory.addMiddleware(authMiddleware(false))
+export const authenticatedEndpointFactory =
+  defaultEndpointsFactory.addMiddleware(authMiddleware(false));
