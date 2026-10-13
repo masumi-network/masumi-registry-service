@@ -456,7 +456,7 @@ export type PostRegistryEntryData = {
          */
         minHealthCheckDate?: Date | Date;
         /**
-         * Explicit result order; omit it to keep the default order (newest id first). uptime = rolling uptime, price = lowest fixed price in filter.pricing.unit (required), recency = first seen, score = weighted rank (see ranking on each entry). Ranked results carry their score components in `ranking`.
+         * Explicit result order; omit it to keep the default order (newest id first). uptime = rolling uptime, price = lowest fixed price in filter.pricing.unit (required), recency = first seen, score = weighted rank (see ranking on each entry). Ranked results carry their score components in `ranking`. Ranked pages are re-sorted on every request: an entry whose sort key rises past the cursor between pages (e.g. after a health check) can be missed, and one whose key falls can repeat.
          */
         sortBy?: 'uptime' | 'price' | 'recency' | 'score';
     };
@@ -511,7 +511,7 @@ export type PostRegistryEntrySearchData = {
          */
         minHealthCheckDate?: Date | Date;
         /**
-         * Explicit result order; omit it to keep the default order (newest id first). uptime = rolling uptime, price = lowest fixed price in filter.pricing.unit (required), recency = first seen, score = weighted rank (see ranking on each entry). Ranked results carry their score components in `ranking`. relevance = text match strength.
+         * Explicit result order; omit it to keep the default order (newest id first). uptime = rolling uptime, price = lowest fixed price in filter.pricing.unit (required), recency = first seen, score = weighted rank (see ranking on each entry). Ranked results carry their score components in `ranking`. Ranked pages are re-sorted on every request: an entry whose sort key rises past the cursor between pages (e.g. after a health check) can be missed, and one whose key falls can repeat. relevance = text match strength.
          */
         sortBy?: 'relevance' | 'uptime' | 'price' | 'recency' | 'score';
     };
