@@ -239,6 +239,8 @@ async function checkVerifyAndUpdateRegistryEntries({
   });
 
   // Entries returned without a probe: their uptime and history stay as is.
+  // A status decided without a request (e.g. Invalid for a missing URL) is
+  // still an evaluated check and is recorded.
   const uncheckedIds = new Set<string>();
   const data = await Promise.allSettled(
     entriesToCheck.map(async (entry) => {
