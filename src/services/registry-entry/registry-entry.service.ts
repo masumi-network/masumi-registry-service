@@ -266,7 +266,8 @@ async function getRankedRegistryEntries(params: {
     );
   }
 
-  const ranked = healthCheckedEntries.map((entry) => ({
+  // A batch can return more than the page needs: cap it at `limit`.
+  const ranked = healthCheckedEntries.slice(0, input.limit).map((entry) => ({
     ...entry,
     ranking: rankings.get(entry.id),
   }));

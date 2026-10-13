@@ -501,6 +501,16 @@ describe('registryEntryService ranked listing (sortBy)', () => {
     });
   });
 
+  it('returns at most limit entries per ranked page', async () => {
+    const entries = await registryEntryService.getRegistryEntries({
+      network: Network.Preprod,
+      limit: 2,
+      sortBy: 'score',
+    });
+
+    expect(entries.map((entry) => entry.id)).toEqual(['top', 'mid']);
+  });
+
   it('continues a ranked listing from the cursor entry', async () => {
     const entries = await registryEntryService.getRegistryEntries({
       network: Network.Preprod,
