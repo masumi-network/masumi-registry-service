@@ -13,6 +13,7 @@ const V1_DATUM_FIELDS = {
   buyer: 0,
   seller: 1,
   sellerNonce: 4,
+  buyerNonce: 5,
   collateralReturnLovelace: 6,
   agentIdentifier: null,
 } as const;
@@ -21,6 +22,7 @@ const V2_DATUM_FIELDS = {
   buyer: 0,
   seller: 2,
   sellerNonce: 6,
+  buyerNonce: 7,
   collateralReturnLovelace: 9,
   agentIdentifier: 8,
 } as const;
@@ -76,6 +78,9 @@ export type EscrowDatum = {
   sellerKeyHash: string | null;
   buyerKeyHash: string | null;
   collateralReturnLovelace: bigint;
+  // Seller and buyer nonces: fixed for the life of one escrow, so they
+  // identify it across continuation txs.
+  escrowKey: string;
 };
 
 // Reads a decoded escrow datum, or null when it is not a masumi escrow datum.
@@ -110,6 +115,9 @@ export function decodeEscrowDatum(datum: unknown): EscrowDatum | null {
     buyerKeyHash: addressKeyHash(fields[layout.buyer]),
     collateralReturnLovelace:
       intField(fields, layout.collateralReturnLovelace) ?? 0n,
+    escrowKey: `${bytesField(fields, layout.sellerNonce) ?? ''}:${
+      bytesField(fields, layout.buyerNonce) ?? ''
+    }`,
   };
 }
 

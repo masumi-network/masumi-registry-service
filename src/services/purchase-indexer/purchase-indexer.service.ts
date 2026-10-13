@@ -90,12 +90,13 @@ async function agentMinterKeyHashes(
 
 // Payment key hashes that funded the buyer's original escrow lock. The
 // withdrawn escrow output usually comes from a continuation tx (the seller's
-// SubmitResult), so walk back through this buyer's escrow inputs at the same
-// contract to the first lock.
+// SubmitResult), so walk back through the same escrow (matched by its
+// nonces, not the buyer, which a seller could copy into another escrow) at
+// the same contract to the first lock.
 async function escrowLockFunderKeyHashes(params: {
   blockfrost: BlockFrostAPI;
   scriptHash: string;
-  buyerKeyHash: string;
+  escrowKey: string;
   escrowCreatedByTxHash: string;
 }): Promise<Set<string>> {
   let txHash = params.escrowCreatedByTxHash;
@@ -108,8 +109,8 @@ async function escrowLockFunderKeyHashes(params: {
       (input) =>
         addressScriptHash(input.address) === params.scriptHash &&
         input.inline_datum != null &&
-        decodeEscrowDatum(deserializeDatum(input.inline_datum))
-          ?.buyerKeyHash === params.buyerKeyHash
+        decodeEscrowDatum(deserializeDatum(input.inline_datum))?.escrowKey ===
+          params.escrowKey
     );
     if (previousEscrow == null) {
       return addressKeyHashes(spent.map((input) => input.address));
@@ -153,7 +154,7 @@ async function describeWithdrawal(params: {
       ? escrowLockFunderKeyHashes({
           blockfrost,
           scriptHash: params.scriptHash,
-          buyerKeyHash,
+          escrowKey: escrow.escrowKey,
           escrowCreatedByTxHash: input.tx_hash,
         }).then((funders) => funders.has(buyerKeyHash))
       : false,

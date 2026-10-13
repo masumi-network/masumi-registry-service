@@ -51,11 +51,13 @@ function v1EscrowDatum(params: {
   agentIdentifier: string;
   seller?: string;
   buyer?: string;
+  buyerNonce?: string;
 }) {
   const fields = Array.from({ length: 16 }, () => integer(0)) as unknown[];
   fields[0] = keyAddress(params.buyer ?? BUYER);
   fields[1] = keyAddress(params.seller ?? SELLER);
   fields[4] = byteString(NONCE + params.agentIdentifier);
+  fields[5] = byteString(params.buyerNonce ?? 'b1');
   fields[6] = integer(2_000_000);
   return serializeData(conStr0(fields as never[]), 'JSON');
 }
@@ -146,6 +148,9 @@ describe('updateSuccessfulPurchaseIndex', () => {
       if (txHash === 'lock-tx') {
         return { inputs: [{ address: bech32(lockTxFunder) }] };
       }
+      if (txHash === 'decoy-lock-tx') {
+        return { inputs: [{ address: bech32(BUYER) }] };
+      }
       return { inputs: [escrowInput(withdrawalDatum)] };
     });
   });
@@ -224,6 +229,35 @@ describe('updateSuccessfulPurchaseIndex', () => {
 
   it('drops a buyer that did not fund the escrow', async () => {
     lockTxFunder = STRANGER;
+
+    await updateSuccessfulPurchaseIndex();
+
+    expect(upsertedPurchases()[0]).toMatchObject({
+      agentIdentifier: AGENT,
+      buyerKeyHash: null,
+    });
+  });
+
+  it('follows the withdrawn escrow, not another escrow of the same buyer', async () => {
+    // The seller batches a real escrow of BUYER (decoy) with a self-funded one
+    // naming BUYER, then withdraws the self-funded one.
+    lockTxFunder = SELLER;
+    const decoy = escrowInput(
+      v1EscrowDatum({ agentIdentifier: AGENT, buyerNonce: 'd0' }),
+      'decoy-lock-tx'
+    );
+    const txsUtxos = blockfrost.txsUtxos.getMockImplementation()!;
+    blockfrost.txsUtxos.mockImplementation((txHash: string) =>
+      txHash === 'submit-result-tx'
+        ? {
+            inputs: [
+              decoy,
+              escrowInput(withdrawalDatum, 'lock-tx'),
+              { address: bech32(SELLER) },
+            ],
+          }
+        : txsUtxos(txHash)
+    );
 
     await updateSuccessfulPurchaseIndex();
 
