@@ -192,12 +192,16 @@ async function checkVerifyAndUpdateRegistryEntries({
   minHealthCheckDate: Date | undefined;
 }) {
   if (minHealthCheckDate == null) return registryEntries;
+  // Burned agents stay Deregistered: a still-live endpoint must not revive them.
+  const entriesToCheck = registryEntries.filter(
+    (entry) => entry.status !== $Enums.Status.Deregistered
+  );
   const lookupMap = new Map<
     string,
     { status: $Enums.Status; agentIdentifier: string | null }
   >();
   const neededLookups = new Set<string>();
-  for (const entry of registryEntries) {
+  for (const entry of entriesToCheck) {
     // Spec-type entries are validated per-entry below, not via this lookup.
     if (specKindForType(entry.type) == null && entry.apiBaseUrl != null) {
       neededLookups.add(entry.apiBaseUrl);
@@ -230,7 +234,7 @@ async function checkVerifyAndUpdateRegistryEntries({
   });
 
   const data = await Promise.allSettled(
-    registryEntries.map(async (entry) => {
+    entriesToCheck.map(async (entry) => {
       const registrySource = entry.RegistrySource;
       if (registrySource == null || registrySource.policyId == null) {
         logger.error('registrySource is null', entry);
@@ -291,7 +295,7 @@ async function checkVerifyAndUpdateRegistryEntries({
     .filter((r) => r.status === 'fulfilled')
     .map((r) => r.value);
 
-  const failedIds = registryEntries
+  const failedIds = entriesToCheck
     .map((r) => r.id)
     .filter((r) => !successful.find((s) => s.id === r));
 
@@ -358,14 +362,20 @@ async function checkVerifyAndUpdateRegistryEntries({
     'updated the following registry entries successfully ' +
       successful.length +
       '/' +
-      registryEntries.length,
+      entriesToCheck.length,
     {
       successful: successful.length,
       failed: failed.length,
-      total: registryEntries.length,
+      total: entriesToCheck.length,
     }
   );
-  return updatedEntries;
+  // Input order is kept: ranked listings rely on it.
+  const updatedById = new Map(updatedEntries.map((entry) => [entry.id, entry]));
+  return registryEntries.flatMap((entry) =>
+    entry.status === $Enums.Status.Deregistered
+      ? [entry]
+      : (updatedById.get(entry.id) ?? [])
+  );
 }
 
 async function checkAndVerifyInboxAgentPublicEndpoint(params: {

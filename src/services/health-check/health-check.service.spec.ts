@@ -710,3 +710,38 @@ describe('checkVerifyAndUpdateInboxAgentRegistrations', () => {
     );
   });
 });
+
+describe('checkVerifyAndUpdateRegistryEntries', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    global.fetch = jest.fn();
+  });
+
+  it('leaves Deregistered entries untouched and keeps input order', async () => {
+    const updateSpy = jest
+      .spyOn(prisma.registryEntry, 'update')
+      .mockResolvedValue({} as never);
+    jest
+      .spyOn(prisma.registryEntry, 'updateMany')
+      .mockResolvedValue({ count: 0 });
+    const deregistered = {
+      id: 'entry-1',
+      status: $Enums.Status.Deregistered,
+      apiBaseUrl: 'https://agent.example.com',
+      type: 'Standard',
+      assetIdentifier: 'asset-1',
+      RegistrySource: { policyId: 'policy-id' },
+    };
+
+    const result = await healthCheckService.checkVerifyAndUpdateRegistryEntries(
+      {
+        registryEntries: [deregistered] as never,
+        minHealthCheckDate: new Date(),
+      }
+    );
+
+    expect(result).toEqual([deregistered]);
+    expect(global.fetch).not.toHaveBeenCalled();
+    expect(updateSpy).not.toHaveBeenCalled();
+  });
+});
