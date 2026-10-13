@@ -16,7 +16,7 @@ jest.mock('@/utils/db', () => {
 jest.mock('@/services/health-check', () => ({
   healthCheckService: { checkAndVerifyEndpoint: jest.fn() },
   uptimeTracking: {
-    applyUptimeCheck: jest.fn().mockResolvedValue(true),
+    applyUptimeCheck: jest.fn().mockResolvedValue('applied'),
     uptimeCheckCreate: jest.fn().mockReturnValue({ uptimeCheckCount: 1 }),
     recordSyncCheck: jest.fn(),
   },
@@ -162,5 +162,19 @@ describe('syncWeb3CardanoV2RegistryEntry', () => {
       $Enums.Status.Online,
       checkedAt
     );
+  });
+
+  it('records no sync check when the uptime check was skipped', async () => {
+    (checkSpecEntry as jest.Mock).mockResolvedValue({
+      status: $Enums.Status.Online,
+    });
+    (uptimeTracking.applyUptimeCheck as jest.Mock).mockResolvedValueOnce(
+      'skipped'
+    );
+
+    await syncWeb3CardanoV2RegistryEntry(params);
+
+    expect(prisma.registryEntry.upsert).toHaveBeenCalled();
+    expect(uptimeTracking.recordSyncCheck).not.toHaveBeenCalled();
   });
 });

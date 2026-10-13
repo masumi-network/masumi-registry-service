@@ -68,7 +68,8 @@ type EntryKey = { id: string } | { assetIdentifier: string };
 const MAX_UPTIME_WRITE_ATTEMPTS = 3;
 
 // applied: the check was written. missing: no entry yet (the caller creates
-// it). skipped: nothing written (Deregistered, or concurrent writes won).
+// it). skipped: nothing written (Deregistered, a newer check is stored, or
+// concurrent writes won).
 export type UptimeCheckResult = 'applied' | 'missing' | 'skipped';
 
 // Applies one check outcome to an existing entry: status, check counters,
@@ -92,11 +93,8 @@ async function applyUptimeCheck(
     // Burned agents stay Deregistered: a still-live endpoint must not revive
     // them, also when the burn lands while the probe runs.
     if (previous.status === $Enums.Status.Deregistered) return 'skipped';
-    // A concurrent check can store a later time; never move it backwards.
-    const at =
-      previous.lastUptimeCheck > checkedAt
-        ? previous.lastUptimeCheck
-        : checkedAt;
+    // A newer check is already stored: this probe result is outdated.
+    if (previous.lastUptimeCheck > checkedAt) return 'skipped';
     const { count } = await db.registryEntry.updateMany({
       where: {
         ...entry,
@@ -105,7 +103,7 @@ async function applyUptimeCheck(
       },
       data: {
         status,
-        ...uptimeCheckUpdate(previous, status, at),
+        ...uptimeCheckUpdate(previous, status, checkedAt),
         ...extraData,
       },
     });

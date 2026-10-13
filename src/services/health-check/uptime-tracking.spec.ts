@@ -235,23 +235,23 @@ describe('applyUptimeCheck', () => {
     expect(db.registryEntry.updateMany).not.toHaveBeenCalled();
   });
 
-  it('never moves lastUptimeCheck backwards', async () => {
-    const later = {
+  it('skips an outdated probe when a newer check is stored', async () => {
+    const newer = {
       status: $Enums.Status.Online,
       lastUptimeCheck: after(2 * DAY_MS),
       uptimeEwma: 0.5,
     };
-    const db = fakeDb([later], [1]);
-    await uptimeTracking.applyUptimeCheck(
-      db as never,
-      { id: 'entry-1' },
-      $Enums.Status.Offline,
-      after(DAY_MS)
-    );
-    const { data } = db.registryEntry.updateMany.mock.calls[0][0];
-    expect(data.lastUptimeCheck).toEqual(after(2 * DAY_MS));
-    // No elapsed time: the rolling uptime does not move.
-    expect(data.uptimeEwma).toBe(0.5);
+    const db = fakeDb([newer], []);
+    expect(
+      await uptimeTracking.applyUptimeCheck(
+        db as never,
+        { id: 'entry-1' },
+        $Enums.Status.Offline,
+        after(DAY_MS)
+      )
+    ).toBe('skipped');
+    // Neither the newer status nor its timestamp is overwritten.
+    expect(db.registryEntry.updateMany).not.toHaveBeenCalled();
   });
 
   it('gives up as skipped when concurrent writes keep winning', async () => {
