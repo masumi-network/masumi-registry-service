@@ -71,6 +71,31 @@ const dbPoolTimeout = readNumberEnv('DB_POOL_TIMEOUT', 25, {
   min: 5,
   max: MAX_TIMER_SECONDS,
 });
+const updatePurchaseIndexInterval = readNumberEnv(
+  'UPDATE_PURCHASE_INDEX_INTERVAL',
+  300,
+  { min: 60, max: MAX_TIMER_SECONDS }
+);
+
+// Weights of the ranking score. Distinct buyers dominate: they are the only
+// input that costs an attacker real on-chain transactions (thesis §4.1).
+const RANKING_WEIGHT_BOUNDS = { min: 0, max: Number.MAX_SAFE_INTEGER };
+const rankingWeights = {
+  distinctBuyers: readNumberEnv(
+    'RANKING_WEIGHT_DISTINCT_BUYERS',
+    0.6,
+    RANKING_WEIGHT_BOUNDS
+  ),
+  uptime: readNumberEnv('RANKING_WEIGHT_UPTIME', 0.3, RANKING_WEIGHT_BOUNDS),
+  lineageAge: readNumberEnv(
+    'RANKING_WEIGHT_LINEAGE_AGE',
+    0.1,
+    RANKING_WEIGHT_BOUNDS
+  ),
+};
+if (Object.values(rankingWeights).reduce((sum, weight) => sum + weight, 0) <= 0)
+  throw new Error('Invalid RANKING_WEIGHT_* ENV variables');
+
 const corsAllowedOrigins = parseCorsAllowedOrigins(
   process.env.CORS_ALLOWED_ORIGINS
 );
@@ -81,6 +106,8 @@ export const CONFIG = {
   CORS_ALLOWED_ORIGINS: corsAllowedOrigins,
   UPDATE_CARDANO_REGISTRY_INTERVAL: updateCardanoRegistryInterval,
   UPDATE_HEALTH_CHECK_INTERVAL: updateHealthCheckInterval,
+  UPDATE_PURCHASE_INDEX_INTERVAL: updatePurchaseIndexInterval,
+  RANKING_WEIGHTS: rankingWeights,
   VERSION: '0.1.2',
   DB_CONNECTION_TIMEOUT: dbConnectionTimeout,
   DB_CONNECTION_POOL_LIMIT: dbConnectionPoolLimit,
@@ -104,4 +131,15 @@ export const DEFAULTS = {
     '67ab0c92c4ac1610895a1c965ee50aba41a8f1513b15240723b3bd0b',
   METADATA_VERSION: 1,
   METADATA_VERSION_V2: 2,
+  // Default masumi payment escrow contracts (V1 and V2), mirrored from
+  // masumi-payment-service packages/payment-core/src/config.ts. Their
+  // withdrawals are indexed as successful purchases for ranking.
+  PAYMENT_CONTRACT_ADDRESSES_PREPROD: [
+    'addr_test1wz7j4kmg2cs7yf92uat3ed4a3u97kr7axxr4avaz0lhwdsqukgwfm',
+    'addr_test1wzs4e6wc95hkwezlccjw9mdvq0r0rsgx6zk34avptga3ftgn37w4g',
+  ],
+  PAYMENT_CONTRACT_ADDRESSES_MAINNET: [
+    'addr1wx7j4kmg2cs7yf92uat3ed4a3u97kr7axxr4avaz0lhwdsq87ujx7',
+    'addr1wxs4e6wc95hkwezlccjw9mdvq0r0rsgx6zk34avptga3ftgge2j6d',
+  ],
 };

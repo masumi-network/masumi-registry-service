@@ -2,6 +2,12 @@ jest.mock('@/services/cardano-registry/cardano-registry.service', () => ({
   updateLatestCardanoRegistryEntries: jest.fn(),
   updateHealthCheck: jest.fn(),
 }));
+jest.mock('@/services/purchase-indexer/purchase-indexer.service', () => ({
+  updateSuccessfulPurchaseIndex: jest.fn(),
+}));
+jest.mock('@/services/health-check', () => ({
+  uptimeTracking: { pruneHealthCheckEvents: jest.fn() },
+}));
 
 type Schedules = typeof import('./index');
 type RegistryService =

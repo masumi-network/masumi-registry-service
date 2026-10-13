@@ -2,9 +2,13 @@ import {
   updateLatestCardanoRegistryEntries,
   updateHealthCheck,
 } from '@/services/cardano-registry/cardano-registry.service';
+import { uptimeTracking } from '@/services/health-check';
+import { updateSuccessfulPurchaseIndex } from '@/services/purchase-indexer/purchase-indexer.service';
 import { CONFIG } from '@/utils/config';
 import { logger } from '@/utils/logger';
 import { AsyncInterval } from '@/utils/async-interval';
+
+const HEALTH_CHECK_EVENT_PRUNE_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
 let stopHandles: ReadonlyArray<() => Promise<void>> = [];
 let isStopping = false;
@@ -41,6 +45,15 @@ async function init() {
           's'
       );
     }, CONFIG.UPDATE_HEALTH_CHECK_INTERVAL * 1000),
+    AsyncInterval.start(async () => {
+      logger.info('Updating successful purchase index');
+      await updateSuccessfulPurchaseIndex();
+      logger.info('Finished updating successful purchase index');
+    }, CONFIG.UPDATE_PURCHASE_INDEX_INTERVAL * 1000),
+    AsyncInterval.start(async () => {
+      const { count } = await uptimeTracking.pruneHealthCheckEvents(new Date());
+      logger.info('Pruned old health check events', { count });
+    }, HEALTH_CHECK_EVENT_PRUNE_INTERVAL_MS),
   ];
 }
 

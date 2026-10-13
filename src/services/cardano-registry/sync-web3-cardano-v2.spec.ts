@@ -1,6 +1,6 @@
 import { $Enums } from '@prisma/client';
 import { prisma } from '@/utils/db';
-import { healthCheckService } from '@/services/health-check';
+import { healthCheckService, uptimeTracking } from '@/services/health-check';
 import { checkSpecEntry } from '@/services/health-check/spec-entry-check';
 import { syncWeb3CardanoV2RegistryEntry } from './sync-web3-cardano-v2';
 
@@ -15,6 +15,11 @@ jest.mock('@/utils/db', () => {
 });
 jest.mock('@/services/health-check', () => ({
   healthCheckService: { checkAndVerifyEndpoint: jest.fn() },
+  uptimeTracking: {
+    applyUptimeCheck: jest.fn().mockResolvedValue('applied'),
+    uptimeCheckCreate: jest.fn().mockReturnValue({ uptimeCheckCount: 1 }),
+    recordSyncCheck: jest.fn(),
+  },
 }));
 jest.mock('@/services/health-check/spec-entry-check', () => ({
   checkSpecEntry: jest.fn(),
@@ -129,5 +134,47 @@ describe('syncWeb3CardanoV2RegistryEntry', () => {
         data: expect.objectContaining({ status: $Enums.Status.Invalid }),
       })
     );
+  });
+
+  it('applies the uptime check in the transaction and records it after commit', async () => {
+    (checkSpecEntry as jest.Mock).mockResolvedValue({
+      status: $Enums.Status.Online,
+    });
+
+    await syncWeb3CardanoV2RegistryEntry(params);
+
+    const [tx, entry, status, checkedAt] = (
+      uptimeTracking.applyUptimeCheck as jest.Mock
+    ).mock.calls[0];
+    // The transaction client, not the global one.
+    expect(tx).not.toBe(prisma);
+    expect(tx.registryEntry).toBe(prisma.registryEntry);
+    expect(entry).toEqual({ assetIdentifier: params.asset });
+    expect(status).toBe($Enums.Status.Online);
+    // Uptime fields come from the compare-and-set, not the upsert update.
+    const upsert = (prisma.registryEntry.upsert as jest.Mock).mock.calls[0][0];
+    expect(upsert.update).not.toHaveProperty('uptimeCheckCount');
+    expect(upsert.create).toEqual(
+      expect.objectContaining({ uptimeCheckCount: 1 })
+    );
+    expect(uptimeTracking.recordSyncCheck).toHaveBeenCalledWith(
+      'entry',
+      $Enums.Status.Online,
+      checkedAt
+    );
+  });
+
+  it('records no sync check when the uptime check was skipped', async () => {
+    (checkSpecEntry as jest.Mock).mockResolvedValue({
+      status: $Enums.Status.Online,
+    });
+    (uptimeTracking.applyUptimeCheck as jest.Mock).mockResolvedValueOnce(
+      'skipped'
+    );
+
+    await syncWeb3CardanoV2RegistryEntry(params);
+
+    expect(prisma.registryEntry.upsert).toHaveBeenCalled();
+    expect(uptimeTracking.recordSyncCheck).not.toHaveBeenCalled();
   });
 });

@@ -4,9 +4,11 @@ import {
   $Enums,
   AgentVerification,
   Capability,
+  HealthCheckTrigger,
   InboxAgentRegistration,
   InboxAgentRegistrationStatus,
   PricingType,
+  Prisma,
   RegistryEntry,
   RegistrySource,
   SupportedPaymentSource,
@@ -25,6 +27,7 @@ import {
   getEmptyInboxAgentVerificationData,
   type InboxAgentVerificationData,
 } from './inbox-verification';
+import { uptimeTracking } from './uptime-tracking';
 
 const INBOX_AGENT_PUBLIC_BASE_URLS: Partial<Record<$Enums.Network, string>> = {
   [$Enums.Network.Preprod]:
@@ -163,9 +166,47 @@ async function checkAndVerifyRegistryEntry({
   return result.status;
 }
 
+const checkedEntryInclude = {
+  AgentPricing: {
+    include: { FixedPricing: { include: { Amounts: true } } },
+  },
+  Capability: true,
+  RegistrySource: true,
+  ExampleOutput: true,
+  SupportedPaymentSources: {
+    include: {
+      Pricing: { include: { FixedPricing: { include: { Amounts: true } } } },
+    },
+    orderBy: { sourceIndex: 'asc' },
+  },
+  Verifications: true,
+  A2A: true,
+} satisfies Prisma.RegistryEntryInclude;
+
+// Request-triggered checks re-probe an entry at most once per this window, so
+// API callers cannot force a probe and a history write on every request.
+export const MIN_REQUEST_RECHECK_AGE_MS = 60 * 1000;
+
+// Entries checked after this date keep their cached status. For a request the
+// date is capped at MIN_REQUEST_RECHECK_AGE_MS ago.
+function effectiveRecheckDate(
+  minHealthCheckDate: Date,
+  trigger: HealthCheckTrigger,
+  now: Date
+): Date {
+  if (trigger !== HealthCheckTrigger.Request) return minHealthCheckDate;
+  return new Date(
+    Math.min(
+      minHealthCheckDate.getTime(),
+      now.getTime() - MIN_REQUEST_RECHECK_AGE_MS
+    )
+  );
+}
+
 async function checkVerifyAndUpdateRegistryEntries({
   registryEntries,
   minHealthCheckDate,
+  trigger,
 }: {
   registryEntries: (RegistryEntry & {
     RegistrySource: RegistrySource;
@@ -191,16 +232,33 @@ async function checkVerifyAndUpdateRegistryEntries({
     A2A: { agentCardUrl: string; protocolVersions: string[] } | null;
   })[];
   minHealthCheckDate: Date | undefined;
+  trigger: HealthCheckTrigger;
 }) {
   if (minHealthCheckDate == null) return registryEntries;
+  const recheckDate = effectiveRecheckDate(
+    minHealthCheckDate,
+    trigger,
+    new Date()
+  );
+  const isRecentlyChecked = (entry: { lastUptimeCheck: Date }) =>
+    entry.lastUptimeCheck.getTime() > recheckDate.getTime();
+  // Burned agents stay Deregistered: a still-live endpoint must not revive them.
+  const entriesToCheck = registryEntries.filter(
+    (entry) => entry.status !== $Enums.Status.Deregistered
+  );
   const lookupMap = new Map<
     string,
     { status: $Enums.Status; agentIdentifier: string | null }
   >();
   const neededLookups = new Set<string>();
-  for (const entry of registryEntries) {
+  for (const entry of entriesToCheck) {
     // Spec-type entries are validated per-entry below, not via this lookup.
-    if (specKindForType(entry.type) == null && entry.apiBaseUrl != null) {
+    // Recently checked entries keep their cached status: no probe.
+    if (
+      specKindForType(entry.type) == null &&
+      entry.apiBaseUrl != null &&
+      !isRecentlyChecked(entry)
+    ) {
       neededLookups.add(entry.apiBaseUrl);
     }
   }
@@ -230,12 +288,25 @@ async function checkVerifyAndUpdateRegistryEntries({
     total: neededLookups.size,
   });
 
+  // Entries returned without a probe: their uptime and history stay as is.
+  // A status decided without a request (e.g. Invalid for a missing URL) is
+  // still an evaluated check and is recorded.
+  const uncheckedIds = new Set<string>();
   const data = await Promise.allSettled(
-    registryEntries.map(async (entry) => {
+    entriesToCheck.map(async (entry) => {
       const registrySource = entry.RegistrySource;
       if (registrySource == null || registrySource.policyId == null) {
         logger.error('registrySource is null', entry);
+        uncheckedIds.add(entry.id);
         return entry;
+      }
+      if (isRecentlyChecked(entry)) {
+        uncheckedIds.add(entry.id); // cached status only
+        return {
+          id: entry.id,
+          status: entry.status,
+          assetIdentifier: entry.assetIdentifier,
+        };
       }
       if (specKindForType(entry.type) != null) {
         const check = await checkSpecEntry(entry);
@@ -268,7 +339,7 @@ async function checkVerifyAndUpdateRegistryEntries({
       // always carry a non-null apiBaseUrl.
       const status = await checkAndVerifyRegistryEntry({
         registryEntry: { ...entry, apiBaseUrl: entry.apiBaseUrl! },
-        minHealthCheckDate,
+        minHealthCheckDate: recheckDate,
       });
       lookupMap.set(entry.apiBaseUrl!, {
         status: status,
@@ -292,58 +363,51 @@ async function checkVerifyAndUpdateRegistryEntries({
     .filter((r) => r.status === 'fulfilled')
     .map((r) => r.value);
 
-  const failedIds = registryEntries
-    .map((r) => r.id)
-    .filter((r) => !successful.find((s) => s.id === r));
+  const checkedAt = new Date();
+  const failedEntries = entriesToCheck.filter(
+    (entry) => !successful.find((s) => s.id === entry.id)
+  );
 
-  for (const f of failedIds) {
-    await prisma.registryEntry.update({
-      where: { id: f },
-      data: { status: $Enums.Status.Invalid },
-    });
+  // Entries whose check was written; only they get a history event.
+  const recorded: { id: string; status: $Enums.Status }[] = [];
+  // A check that threw counts as Offline, so its interval still feeds uptime.
+  for (const entry of failedEntries) {
+    const result = await uptimeTracking.applyUptimeCheck(
+      prisma,
+      { id: entry.id },
+      $Enums.Status.Offline,
+      checkedAt
+    );
+    if (result === 'applied') {
+      recorded.push({ id: entry.id, status: $Enums.Status.Offline });
+    }
   }
-
-  await prisma.registryEntry.updateMany({
-    where: { id: { in: failedIds } },
-    data: { lastUptimeCheck: new Date(), status: $Enums.Status.Offline },
-  });
-  const updatedEntries = [];
+  const entriesById = new Map(entriesToCheck.map((entry) => [entry.id, entry]));
+  const updatedEntries: (typeof registryEntries)[number][] = [];
   for (const s of successful) {
     try {
-      updatedEntries.push(
-        await prisma.registryEntry.update({
-          where: { id: s.id },
-          include: {
-            AgentPricing: {
-              include: { FixedPricing: { include: { Amounts: true } } },
-            },
-            Capability: true,
-            RegistrySource: true,
-            ExampleOutput: true,
-            SupportedPaymentSources: {
-              include: {
-                Pricing: {
-                  include: {
-                    FixedPricing: { include: { Amounts: true } },
-                  },
-                },
-              },
-              orderBy: { sourceIndex: 'asc' },
-            },
-            Verifications: true,
-            A2A: true,
-          },
-          data: {
-            status: s.status,
-            uptimeCount: {
-              increment: s.status == $Enums.Status.Online ? 1 : 0,
-            },
-            uptimeCheckCount: { increment: 1 },
-            lastUptimeCheck: new Date(),
-            ...specCachePatch(s), // caches a just-validated spec snapshot
-          },
-        })
+      // Cached status: no write, so a concurrent check or burn is kept.
+      if (uncheckedIds.has(s.id)) {
+        updatedEntries.push(entriesById.get(s.id)!);
+        continue;
+      }
+      // Rolling uptime is computed from the stored state, not the snapshot
+      // loaded before the probes, so concurrent checks do not overwrite it.
+      const result = await uptimeTracking.applyUptimeCheck(
+        prisma,
+        { id: s.id },
+        s.status,
+        checkedAt,
+        specCachePatch(s) // caches a just-validated spec snapshot
       );
+      if (result === 'applied') recorded.push({ id: s.id, status: s.status });
+      // Return the stored row either way: when this write was skipped it holds
+      // the newer check or the burn that won.
+      const row = await prisma.registryEntry.findUnique({
+        where: { id: s.id },
+        include: checkedEntryInclude,
+      });
+      if (row != null) updatedEntries.push(row);
     } catch (e) {
       logger.error('failed to update registry entry in db ', {
         error: e,
@@ -351,18 +415,37 @@ async function checkVerifyAndUpdateRegistryEntries({
       });
     }
   }
+  // Events are history only, so a failed write must not fail the check.
+  await uptimeTracking
+    .recordHealthCheckEvents(
+      recorded.map((entry) => ({
+        registryEntryId: entry.id,
+        status: entry.status,
+        trigger,
+        checkedAt,
+      }))
+    )
+    .catch((error) =>
+      logger.error('failed to record health check events', { error })
+    );
   logger.info(
     'updated the following registry entries successfully ' +
       successful.length +
       '/' +
-      registryEntries.length,
+      entriesToCheck.length,
     {
       successful: successful.length,
       failed: failed.length,
-      total: registryEntries.length,
+      total: entriesToCheck.length,
     }
   );
-  return updatedEntries;
+  // Input order is kept: ranked listings rely on it.
+  const updatedById = new Map(updatedEntries.map((entry) => [entry.id, entry]));
+  return registryEntries.flatMap((entry) =>
+    entry.status === $Enums.Status.Deregistered
+      ? [entry]
+      : (updatedById.get(entry.id) ?? [])
+  );
 }
 
 async function checkAndVerifyInboxAgentPublicEndpoint(params: {

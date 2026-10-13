@@ -941,6 +941,9 @@ export const RegistryEntrySchema = {
         updatedAt: {
             type: 'string',
             format: 'date-time'
+        },
+        ranking: {
+            $ref: '#/components/schemas/RegistryEntryRanking'
         }
     },
     required: [
@@ -980,6 +983,249 @@ export const RegistryEntrySchema = {
         'metadataVersion',
         'updatedAt'
     ]
+} as const;
+
+export const RegistryEntryRankingSchema = {
+    type: 'object',
+    properties: {
+        score: {
+            type: 'number',
+            description: 'Weighted sum of the components divided by the weight sum.'
+        },
+        components: {
+            type: 'object',
+            properties: {
+                distinctBuyers: {
+                    type: 'number'
+                },
+                uptime: {
+                    type: 'number'
+                },
+                lineageAge: {
+                    type: 'number'
+                }
+            },
+            required: [
+                'distinctBuyers',
+                'uptime',
+                'lineageAge'
+            ],
+            description: 'Each component is 0-1: distinctBuyers (buyers that funded a seller-withdrawn escrow on chain, counted once across all versions of a V2 agent, relative to the top agent), uptime (time-weighted rolling, not relative), lineageAge (V2 version root age, capped at 90 days).'
+        },
+        weights: {
+            type: 'object',
+            properties: {
+                distinctBuyers: {
+                    type: 'number'
+                },
+                uptime: {
+                    type: 'number'
+                },
+                lineageAge: {
+                    type: 'number'
+                }
+            },
+            required: [
+                'distinctBuyers',
+                'uptime',
+                'lineageAge'
+            ]
+        }
+    },
+    required: [
+        'score',
+        'components',
+        'weights'
+    ],
+    description: 'Present when sortBy is set: why the entry ranks where it does.'
+} as const;
+
+export const RegistryEntryFilterSchema = {
+    type: 'object',
+    properties: {
+        paymentTypes: {
+            type: 'array',
+            items: {
+                type: 'string',
+                enum: [
+                    'Web3CardanoV1',
+                    'Web3CardanoV2',
+                    'None'
+                ]
+            },
+            maxItems: 5
+        },
+        status: {
+            type: 'array',
+            items: {
+                type: 'string',
+                enum: [
+                    'Online',
+                    'Offline',
+                    'Deregistered',
+                    'Invalid'
+                ]
+            },
+            maxItems: 5
+        },
+        excludeStatus: {
+            type: 'array',
+            items: {
+                type: 'string',
+                enum: [
+                    'Online',
+                    'Offline',
+                    'Deregistered',
+                    'Invalid'
+                ]
+            },
+            maxItems: 5,
+            description: 'Statuses to exclude. Without `status`, all other statuses are included.'
+        },
+        pricing: {
+            $ref: '#/components/schemas/RegistryEntryPricingFilter'
+        },
+        health: {
+            $ref: '#/components/schemas/RegistryEntryHealthFilter'
+        },
+        registeredAfter: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date'
+                },
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'string',
+                    format: 'date-time'
+                }
+            ],
+            description: 'Only entries first seen by the registry at or after this date.'
+        },
+        registeredBefore: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date'
+                },
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'string',
+                    format: 'date-time'
+                }
+            ],
+            description: 'Only entries first seen by the registry at or before this date.'
+        },
+        policyId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 250
+        },
+        assetIdentifier: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 250
+        },
+        tags: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 150
+            }
+        },
+        capability: {
+            type: 'object',
+            properties: {
+                name: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 150
+                },
+                version: {
+                    type: 'string',
+                    maxLength: 150
+                }
+            },
+            required: [
+                'name'
+            ]
+        },
+        resolveToLatestVersion: {
+            type: 'boolean',
+            description: 'When true and an assetIdentifier filter is provided, the assetIdentifier is first resolved to the latest version of the same V2 agent (same root, highest version) before matching — so passing any older version returns the current one. No effect on V1 assets or when no assetIdentifier is given. The plain assetIdentifier filter always stays an exact match.'
+        }
+    }
+} as const;
+
+export const RegistryEntryPricingFilterSchema = {
+    type: 'object',
+    properties: {
+        pricingType: {
+            type: 'string',
+            enum: [
+                'Fixed',
+                'Free',
+                'Dynamic'
+            ],
+            description: 'Pricing model of the agent or of any of its payment sources.'
+        },
+        unit: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 250,
+            description: 'Only agents with a fixed price in this unit.'
+        },
+        minAmount: {
+            type: 'string',
+            pattern: '^\\d{1,19}$',
+            description: 'Minimum fixed price in `unit`, in base units. Needs `unit`.'
+        },
+        maxAmount: {
+            type: 'string',
+            pattern: '^\\d{1,19}$',
+            description: 'Maximum fixed price in `unit`, in base units. Needs `unit`.'
+        }
+    }
+} as const;
+
+export const RegistryEntryHealthFilterSchema = {
+    type: 'object',
+    properties: {
+        minUptimePercent: {
+            type: 'number',
+            minimum: 0,
+            maximum: 100,
+            description: 'Minimum uptimeCount / uptimeCheckCount in percent. Entries that were never checked are excluded.'
+        },
+        lastCheckedAfter: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date'
+                },
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'string',
+                    format: 'date-time'
+                }
+            ],
+            description: 'Entries last health-checked before this date are re-checked live before being returned. An entry checked within the last minute is never re-checked by a request. Replaces minHealthCheckDate.'
+        },
+        onlyOnline: {
+            type: 'boolean',
+            description: 'Only return entries whose status is Online.'
+        }
+    }
 } as const;
 
 export const RegistryEntrySpecSchema = {
@@ -1051,6 +1297,119 @@ export const CapabilitySchema = {
     },
     required: [
         'capabilities'
+    ]
+} as const;
+
+export const RegistryEntryPurchasesSchema = {
+    type: 'object',
+    properties: {
+        network: {
+            type: 'string',
+            enum: [
+                'Preprod',
+                'Mainnet'
+            ]
+        },
+        agentIdentifier: {
+            type: 'string'
+        },
+        interval: {
+            type: 'string',
+            enum: [
+                'Day',
+                'Week',
+                'Month'
+            ]
+        },
+        from: {
+            type: 'string',
+            format: 'date-time'
+        },
+        to: {
+            type: 'string',
+            format: 'date-time'
+        },
+        totals: {
+            type: 'object',
+            properties: {
+                purchases: {
+                    type: 'number'
+                },
+                distinctBuyers: {
+                    type: 'number'
+                },
+                amounts: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            unit: {
+                                type: 'string'
+                            },
+                            quantity: {
+                                type: 'string'
+                            }
+                        },
+                        required: [
+                            'unit',
+                            'quantity'
+                        ]
+                    }
+                }
+            },
+            required: [
+                'purchases',
+                'distinctBuyers',
+                'amounts'
+            ]
+        },
+        series: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    bucketStart: {
+                        type: 'string',
+                        format: 'date-time'
+                    },
+                    purchases: {
+                        type: 'number'
+                    },
+                    amounts: {
+                        type: 'array',
+                        items: {
+                            type: 'object',
+                            properties: {
+                                unit: {
+                                    type: 'string'
+                                },
+                                quantity: {
+                                    type: 'string'
+                                }
+                            },
+                            required: [
+                                'unit',
+                                'quantity'
+                            ]
+                        }
+                    }
+                },
+                required: [
+                    'bucketStart',
+                    'purchases',
+                    'amounts'
+                ]
+            }
+        }
+    },
+    required: [
+        'network',
+        'agentIdentifier',
+        'interval',
+        'from',
+        'to',
+        'totals',
+        'series'
     ]
 } as const;
 

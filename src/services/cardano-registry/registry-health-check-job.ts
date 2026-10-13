@@ -1,4 +1,8 @@
-import { $Enums, InboxAgentRegistrationStatus } from '@prisma/client';
+import {
+  $Enums,
+  HealthCheckTrigger,
+  InboxAgentRegistrationStatus,
+} from '@prisma/client';
 import { Mutex, tryAcquire, MutexInterface } from 'async-mutex';
 import { prisma } from '@/utils/db';
 import { healthCheckService } from '@/services/health-check';
@@ -171,6 +175,7 @@ export async function updateHealthCheck(onlyEntriesAfter?: Date | undefined) {
         await healthCheckService.checkVerifyAndUpdateRegistryEntries({
           registryEntries: combinedEntries,
           minHealthCheckDate: onlyEntriesAfter,
+          trigger: HealthCheckTrigger.Job,
         });
 
         const inboxAgentRegistrations =
