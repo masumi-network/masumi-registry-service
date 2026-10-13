@@ -808,4 +808,39 @@ describe('checkVerifyAndUpdateRegistryEntries uptime tracking', () => {
       ],
     });
   });
+
+  it('still returns checked entries when recording events fails', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({ type: 'masumi-agent', agentIdentifier: 'asset-1' }),
+    });
+    jest
+      .spyOn(prisma.registryEntry, 'update')
+      .mockResolvedValue({ id: 'entry-1', status: 'Online' } as never);
+    jest
+      .spyOn(prisma.healthCheckEvent, 'createMany')
+      .mockRejectedValue(new Error('foreign key'));
+
+    const result = await healthCheckService.checkVerifyAndUpdateRegistryEntries(
+      {
+        registryEntries: [
+          {
+            id: 'entry-1',
+            status: $Enums.Status.Online,
+            lastUptimeCheck: new Date(),
+            uptimeEwma: 1,
+            apiBaseUrl: 'https://agent.example.com',
+            type: 'Standard',
+            assetIdentifier: 'asset-1',
+            RegistrySource: { policyId: 'policy-id' },
+          },
+        ] as never,
+        minHealthCheckDate: new Date(),
+        trigger: 'Request',
+      }
+    );
+
+    expect(result).toEqual([{ id: 'entry-1', status: 'Online' }]);
+  });
 });

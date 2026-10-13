@@ -353,20 +353,28 @@ async function checkVerifyAndUpdateRegistryEntries({
       });
     }
   }
-  await uptimeTracking.recordHealthCheckEvents([
-    ...failedEntries.map((entry) => ({
-      registryEntryId: entry.id,
-      status: $Enums.Status.Offline,
-      trigger,
-      checkedAt,
-    })),
-    ...updatedEntries.map((entry) => ({
-      registryEntryId: entry.id,
-      status: entry.status,
-      trigger,
-      checkedAt,
-    })),
-  ]);
+  // Entries without a policy were returned unchecked: no event for them.
+  // Events are history only, so a failed write must not fail the check.
+  await uptimeTracking
+    .recordHealthCheckEvents(
+      [
+        ...failedEntries.map((entry) => ({
+          id: entry.id,
+          status: $Enums.Status.Offline,
+        })),
+        ...updatedEntries,
+      ]
+        .filter((entry) => entriesById.get(entry.id)?.RegistrySource?.policyId)
+        .map((entry) => ({
+          registryEntryId: entry.id,
+          status: entry.status,
+          trigger,
+          checkedAt,
+        }))
+    )
+    .catch((error) =>
+      logger.error('failed to record health check events', { error })
+    );
   logger.info(
     'updated the following registry entries successfully ' +
       successful.length +
