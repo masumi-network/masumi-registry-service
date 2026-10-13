@@ -126,9 +126,11 @@ function PaymentSources({ sources }: { sources: PaymentSource[] }) {
 }
 
 function unavailableMessage(error: unknown): string {
-  // payment-information answers 404 when no wallet holds the asset, as after a burn.
+  // payment-information answers 404 for several causes it does not tell apart: no wallet
+  // holds the asset (as after a burn), no registry source with chain access matches the
+  // policy, or the entry is gone. Name them all rather than guess one.
   if (isAxiosError(error) && error.response?.status === 404) {
-    return 'No wallet holds this asset on chain any more, so it may have been burned.';
+    return 'The registry could not read this asset on chain. It may have been burned, or the registry has no chain access for this policy.';
   }
   return classifyAuthError(error).message;
 }
