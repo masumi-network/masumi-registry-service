@@ -307,6 +307,30 @@ export type Capability = {
     }>;
 };
 
+export type RegistryEntryPurchases = {
+    network: 'Preprod' | 'Mainnet';
+    agentIdentifier: string;
+    interval: 'Day' | 'Week' | 'Month';
+    from: Date;
+    to: Date;
+    totals: {
+        purchases: number;
+        distinctBuyers: number;
+        amounts: Array<{
+            unit: string;
+            quantity: string;
+        }>;
+    };
+    series: Array<{
+        bucketStart: Date;
+        purchases: number;
+        amounts: Array<{
+            unit: string;
+            quantity: string;
+        }>;
+    }>;
+};
+
 export type InboxAgentRegistration = {
     id: string;
     createdAt: Date;
@@ -693,6 +717,51 @@ export type GetCapabilityResponses = {
 };
 
 export type GetCapabilityResponse = GetCapabilityResponses[keyof GetCapabilityResponses];
+
+export type GetRegistryEntryPurchasesData = {
+    body?: never;
+    path?: never;
+    query: {
+        network: 'Preprod' | 'Mainnet';
+        agentIdentifier: string;
+        /**
+         * UTC bucket size of the series. Weeks start on Monday.
+         */
+        interval?: 'Day' | 'Week' | 'Month';
+        /**
+         * Series start (inclusive). Defaults to 90 days before `to`.
+         */
+        from?: Date;
+        /**
+         * Series end (exclusive). Defaults to now. Max range 366 days.
+         */
+        to?: Date;
+    };
+    url: '/registry-entry-purchases/';
+};
+
+export type GetRegistryEntryPurchasesErrors = {
+    /**
+     * Invalid input or range
+     */
+    400: unknown;
+    /**
+     * Unauthorized
+     */
+    401: unknown;
+};
+
+export type GetRegistryEntryPurchasesResponses = {
+    /**
+     * Purchase totals and time series of the agent
+     */
+    200: {
+        data: RegistryEntryPurchases;
+        status: string;
+    };
+};
+
+export type GetRegistryEntryPurchasesResponse = GetRegistryEntryPurchasesResponses[keyof GetRegistryEntryPurchasesResponses];
 
 export type PostInboxAgentRegistrationData = {
     body?: {

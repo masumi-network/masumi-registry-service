@@ -2,8 +2,8 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import { getPaymentInformationResponseTransformer, getRegistryEntrySpecResponseTransformer, postInboxAgentRegistrationDiffResponseTransformer, postInboxAgentRegistrationRefreshResponseTransformer, postInboxAgentRegistrationResponseTransformer, postInboxAgentRegistrationSearchResponseTransformer, postRegistryDiffResponseTransformer, postRegistryEntryRefreshResponseTransformer, postRegistryEntryResponseTransformer, postRegistryEntrySearchResponseTransformer } from './transformers.gen';
-import type { DeleteApiKeyData, DeleteApiKeyErrors, DeleteApiKeyResponses, DeleteRegistrySourceData, DeleteRegistrySourceResponses, GetApiKeyData, GetApiKeyErrors, GetApiKeyResponses, GetApiKeyStatusData, GetApiKeyStatusResponses, GetCapabilityData, GetCapabilityErrors, GetCapabilityResponses, GetHealthData, GetHealthResponses, GetPaymentInformationData, GetPaymentInformationErrors, GetPaymentInformationResponses, GetRegistryEntrySpecData, GetRegistryEntrySpecErrors, GetRegistryEntrySpecResponses, GetRegistrySourceData, GetRegistrySourceResponses, PatchApiKeyData, PatchApiKeyErrors, PatchApiKeyResponses, PatchRegistrySourceData, PatchRegistrySourceResponses, PostApiKeyData, PostApiKeyErrors, PostApiKeyResponses, PostInboxAgentRegistrationData, PostInboxAgentRegistrationDiffData, PostInboxAgentRegistrationDiffErrors, PostInboxAgentRegistrationDiffResponses, PostInboxAgentRegistrationErrors, PostInboxAgentRegistrationRefreshData, PostInboxAgentRegistrationRefreshErrors, PostInboxAgentRegistrationRefreshResponses, PostInboxAgentRegistrationResponses, PostInboxAgentRegistrationSearchData, PostInboxAgentRegistrationSearchErrors, PostInboxAgentRegistrationSearchResponses, PostRegistryDiffData, PostRegistryDiffErrors, PostRegistryDiffResponses, PostRegistryEntryData, PostRegistryEntryErrors, PostRegistryEntryRefreshData, PostRegistryEntryRefreshErrors, PostRegistryEntryRefreshResponses, PostRegistryEntryResponses, PostRegistryEntrySearchData, PostRegistryEntrySearchErrors, PostRegistryEntrySearchResponses, PostRegistrySourceData, PostRegistrySourceResponses } from './types.gen';
+import { getPaymentInformationResponseTransformer, getRegistryEntryPurchasesResponseTransformer, getRegistryEntrySpecResponseTransformer, postInboxAgentRegistrationDiffResponseTransformer, postInboxAgentRegistrationRefreshResponseTransformer, postInboxAgentRegistrationResponseTransformer, postInboxAgentRegistrationSearchResponseTransformer, postRegistryDiffResponseTransformer, postRegistryEntryRefreshResponseTransformer, postRegistryEntryResponseTransformer, postRegistryEntrySearchResponseTransformer } from './transformers.gen';
+import type { DeleteApiKeyData, DeleteApiKeyErrors, DeleteApiKeyResponses, DeleteRegistrySourceData, DeleteRegistrySourceResponses, GetApiKeyData, GetApiKeyErrors, GetApiKeyResponses, GetApiKeyStatusData, GetApiKeyStatusResponses, GetCapabilityData, GetCapabilityErrors, GetCapabilityResponses, GetHealthData, GetHealthResponses, GetPaymentInformationData, GetPaymentInformationErrors, GetPaymentInformationResponses, GetRegistryEntryPurchasesData, GetRegistryEntryPurchasesErrors, GetRegistryEntryPurchasesResponses, GetRegistryEntrySpecData, GetRegistryEntrySpecErrors, GetRegistryEntrySpecResponses, GetRegistrySourceData, GetRegistrySourceResponses, PatchApiKeyData, PatchApiKeyErrors, PatchApiKeyResponses, PatchRegistrySourceData, PatchRegistrySourceResponses, PostApiKeyData, PostApiKeyErrors, PostApiKeyResponses, PostInboxAgentRegistrationData, PostInboxAgentRegistrationDiffData, PostInboxAgentRegistrationDiffErrors, PostInboxAgentRegistrationDiffResponses, PostInboxAgentRegistrationErrors, PostInboxAgentRegistrationRefreshData, PostInboxAgentRegistrationRefreshErrors, PostInboxAgentRegistrationRefreshResponses, PostInboxAgentRegistrationResponses, PostInboxAgentRegistrationSearchData, PostInboxAgentRegistrationSearchErrors, PostInboxAgentRegistrationSearchResponses, PostRegistryDiffData, PostRegistryDiffErrors, PostRegistryDiffResponses, PostRegistryEntryData, PostRegistryEntryErrors, PostRegistryEntryRefreshData, PostRegistryEntryRefreshErrors, PostRegistryEntryRefreshResponses, PostRegistryEntryResponses, PostRegistryEntrySearchData, PostRegistryEntrySearchErrors, PostRegistryEntrySearchResponses, PostRegistrySourceData, PostRegistrySourceResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -131,6 +131,19 @@ export const getCapability = <ThrowOnError extends boolean = true>(options?: Opt
     responseType: 'json',
     security: [{ name: 'token', type: 'apiKey' }],
     url: '/capability/',
+    ...options
+});
+
+/**
+ * REQUIRES API KEY Authentication (+user)
+ *
+ * Returns an agent's all-time purchase totals (count, distinct funded buyers, paid amount per asset unit) and a UTC time series of its purchases. Purchases are seller withdrawals indexed from the masumi payment contracts; amounts exclude the collateral returned to the buyer.
+ */
+export const getRegistryEntryPurchases = <ThrowOnError extends boolean = true>(options: Options<GetRegistryEntryPurchasesData, ThrowOnError>): RequestResult<GetRegistryEntryPurchasesResponses, GetRegistryEntryPurchasesErrors, ThrowOnError> => (options.client ?? client).get<GetRegistryEntryPurchasesResponses, GetRegistryEntryPurchasesErrors, ThrowOnError>({
+    responseTransformer: getRegistryEntryPurchasesResponseTransformer,
+    responseType: 'json',
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/registry-entry-purchases/',
     ...options
 });
 

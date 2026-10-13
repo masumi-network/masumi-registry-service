@@ -1312,6 +1312,118 @@
                     "capabilities"
                 ]
             },
+            "RegistryEntryPurchases": {
+                "type": "object",
+                "properties": {
+                    "network": {
+                        "type": "string",
+                        "enum": [
+                            "Preprod",
+                            "Mainnet"
+                        ]
+                    },
+                    "agentIdentifier": {
+                        "type": "string"
+                    },
+                    "interval": {
+                        "type": "string",
+                        "enum": [
+                            "Day",
+                            "Week",
+                            "Month"
+                        ]
+                    },
+                    "from": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "to": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "totals": {
+                        "type": "object",
+                        "properties": {
+                            "purchases": {
+                                "type": "number"
+                            },
+                            "distinctBuyers": {
+                                "type": "number"
+                            },
+                            "amounts": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "unit": {
+                                            "type": "string"
+                                        },
+                                        "quantity": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "unit",
+                                        "quantity"
+                                    ]
+                                }
+                            }
+                        },
+                        "required": [
+                            "purchases",
+                            "distinctBuyers",
+                            "amounts"
+                        ]
+                    },
+                    "series": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "bucketStart": {
+                                    "type": "string",
+                                    "format": "date-time"
+                                },
+                                "purchases": {
+                                    "type": "number"
+                                },
+                                "amounts": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "unit": {
+                                                "type": "string"
+                                            },
+                                            "quantity": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "required": [
+                                            "unit",
+                                            "quantity"
+                                        ]
+                                    }
+                                }
+                            },
+                            "required": [
+                                "bucketStart",
+                                "purchases",
+                                "amounts"
+                            ]
+                        }
+                    }
+                },
+                "required": [
+                    "network",
+                    "agentIdentifier",
+                    "interval",
+                    "from",
+                    "to",
+                    "totals",
+                    "series"
+                ]
+            },
             "InboxAgentRegistration": {
                 "type": "object",
                 "properties": {
@@ -2656,6 +2768,172 @@
                     },
                     "500": {
                         "description": "Internal Server Error"
+                    }
+                }
+            }
+        },
+        "/registry-entry-purchases/": {
+            "get": {
+                "description": "Returns an agent's all-time purchase totals (count, distinct funded buyers, paid amount per asset unit) and a UTC time series of its purchases. Purchases are seller withdrawals indexed from the masumi payment contracts; amounts exclude the collateral returned to the buyer.",
+                "summary": "REQUIRES API KEY Authentication (+user)",
+                "tags": [
+                    "registry-entry"
+                ],
+                "security": [
+                    {
+                        "API-Key": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "Preprod",
+                                "Mainnet"
+                            ]
+                        },
+                        "required": true,
+                        "name": "network",
+                        "in": "query"
+                    },
+                    {
+                        "schema": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 250
+                        },
+                        "required": true,
+                        "name": "agentIdentifier",
+                        "in": "query"
+                    },
+                    {
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "Day",
+                                "Week",
+                                "Month"
+                            ],
+                            "default": "Day",
+                            "description": "UTC bucket size of the series. Weeks start on Monday."
+                        },
+                        "required": false,
+                        "description": "UTC bucket size of the series. Weeks start on Monday.",
+                        "name": "interval",
+                        "in": "query"
+                    },
+                    {
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "string",
+                                    "format": "date"
+                                },
+                                {
+                                    "type": "string",
+                                    "format": "date-time"
+                                },
+                                {
+                                    "type": "string",
+                                    "format": "date-time"
+                                }
+                            ],
+                            "description": "Series start (inclusive). Defaults to 90 days before `to`."
+                        },
+                        "required": false,
+                        "description": "Series start (inclusive). Defaults to 90 days before `to`.",
+                        "name": "from",
+                        "in": "query"
+                    },
+                    {
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "string",
+                                    "format": "date"
+                                },
+                                {
+                                    "type": "string",
+                                    "format": "date-time"
+                                },
+                                {
+                                    "type": "string",
+                                    "format": "date-time"
+                                }
+                            ],
+                            "description": "Series end (exclusive). Defaults to now. Max range 366 days."
+                        },
+                        "required": false,
+                        "description": "Series end (exclusive). Defaults to now. Max range 366 days.",
+                        "name": "to",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Purchase totals and time series of the agent",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/RegistryEntryPurchases"
+                                        },
+                                        "status": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "data",
+                                        "status"
+                                    ],
+                                    "example": {
+                                        "data": {
+                                            "network": "Preprod",
+                                            "agentIdentifier": "222222222222222222222222222222222222222222222222222222222222222222",
+                                            "interval": "Day",
+                                            "from": "1970-01-01T00:00:00.000Z",
+                                            "to": "1970-04-01T00:00:00.000Z",
+                                            "totals": {
+                                                "purchases": 3,
+                                                "distinctBuyers": 2,
+                                                "amounts": [
+                                                    {
+                                                        "unit": "lovelace",
+                                                        "quantity": "15000000"
+                                                    },
+                                                    {
+                                                        "unit": "333333333333333333333333333333333333333333333333333333335553444d",
+                                                        "quantity": "25000000"
+                                                    }
+                                                ]
+                                            },
+                                            "series": [
+                                                {
+                                                    "bucketStart": "1970-01-01T00:00:00.000Z",
+                                                    "purchases": 2,
+                                                    "amounts": [
+                                                        {
+                                                            "unit": "lovelace",
+                                                            "quantity": "10000000"
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        "status": "success"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid input or range"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
                     }
                 }
             }

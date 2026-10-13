@@ -1300,6 +1300,119 @@ export const CapabilitySchema = {
     ]
 } as const;
 
+export const RegistryEntryPurchasesSchema = {
+    type: 'object',
+    properties: {
+        network: {
+            type: 'string',
+            enum: [
+                'Preprod',
+                'Mainnet'
+            ]
+        },
+        agentIdentifier: {
+            type: 'string'
+        },
+        interval: {
+            type: 'string',
+            enum: [
+                'Day',
+                'Week',
+                'Month'
+            ]
+        },
+        from: {
+            type: 'string',
+            format: 'date-time'
+        },
+        to: {
+            type: 'string',
+            format: 'date-time'
+        },
+        totals: {
+            type: 'object',
+            properties: {
+                purchases: {
+                    type: 'number'
+                },
+                distinctBuyers: {
+                    type: 'number'
+                },
+                amounts: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            unit: {
+                                type: 'string'
+                            },
+                            quantity: {
+                                type: 'string'
+                            }
+                        },
+                        required: [
+                            'unit',
+                            'quantity'
+                        ]
+                    }
+                }
+            },
+            required: [
+                'purchases',
+                'distinctBuyers',
+                'amounts'
+            ]
+        },
+        series: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    bucketStart: {
+                        type: 'string',
+                        format: 'date-time'
+                    },
+                    purchases: {
+                        type: 'number'
+                    },
+                    amounts: {
+                        type: 'array',
+                        items: {
+                            type: 'object',
+                            properties: {
+                                unit: {
+                                    type: 'string'
+                                },
+                                quantity: {
+                                    type: 'string'
+                                }
+                            },
+                            required: [
+                                'unit',
+                                'quantity'
+                            ]
+                        }
+                    }
+                },
+                required: [
+                    'bucketStart',
+                    'purchases',
+                    'amounts'
+                ]
+            }
+        }
+    },
+    required: [
+        'network',
+        'agentIdentifier',
+        'interval',
+        'from',
+        'to',
+        'totals',
+        'series'
+    ]
+} as const;
+
 export const InboxAgentRegistrationSchema = {
     type: 'object',
     properties: {
