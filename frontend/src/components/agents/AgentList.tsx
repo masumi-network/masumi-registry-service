@@ -77,8 +77,12 @@ function AgentRow({ agent }: { agent: RegistryEntry }) {
         </p>
         {tags.length > 0 && (
           <ul aria-label="Tags" className="flex flex-wrap gap-1 pt-1">
-            {tags.slice(0, VISIBLE_TAGS).map((tag) => (
-              <li key={tag} className="max-w-40 truncate rounded-full bg-muted px-2 py-0.5 text-xs">
+            {/* On-chain tags are not de-duplicated, so the index keeps keys unique. */}
+            {tags.slice(0, VISIBLE_TAGS).map((tag, index) => (
+              <li
+                key={`${index}-${tag}`}
+                className="max-w-40 truncate rounded-full bg-muted px-2 py-0.5 text-xs"
+              >
                 {tag}
               </li>
             ))}
