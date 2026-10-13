@@ -2,6 +2,7 @@ import { InboxAgentRegistrationStatus } from '@prisma/client';
 import {
   getInboxAgentRegistrationVerificationDataReset,
   INBOX_REGISTRY_METADATA_TYPE,
+  INBOX_REGISTRY_METADATA_TYPE_V2,
   hasInboxAgentRegistrationContentChanged,
   nextInboxAgentRegistrationStatus,
   normalizeInboxAgentRegistrationMetadata,
@@ -13,6 +14,23 @@ describe('inbox agent registration helpers', () => {
     expect(
       parseInboxAgentRegistrationMetadata({
         type: INBOX_REGISTRY_METADATA_TYPE,
+        name: 'Inbox Agent',
+        agentslug: 'inbox-agent',
+        metadata_version: 1,
+      })
+    ).toEqual({
+      name: 'Inbox Agent',
+      description: null,
+      agentSlug: 'inbox-agent',
+      providerUrl: null,
+      metadataVersion: 1,
+    });
+  });
+
+  it('accepts the MasumiInboxV2 type (previously dropped as unrecognised)', () => {
+    expect(
+      parseInboxAgentRegistrationMetadata({
+        type: INBOX_REGISTRY_METADATA_TYPE_V2,
         name: 'Inbox Agent',
         agentslug: 'inbox-agent',
         metadata_version: 1,
@@ -60,6 +78,17 @@ describe('inbox agent registration helpers', () => {
         type: INBOX_REGISTRY_METADATA_TYPE,
         name: 'Inbox Agent',
         agentslug: 'robots.txt',
+        metadata_version: 1,
+      })
+    ).toBeNull();
+  });
+
+  it('rejects slugs with leading or trailing whitespace', () => {
+    expect(
+      parseInboxAgentRegistrationMetadata({
+        type: INBOX_REGISTRY_METADATA_TYPE,
+        name: 'Inbox Agent',
+        agentslug: ' inbox-agent',
         metadata_version: 1,
       })
     ).toBeNull();

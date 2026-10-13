@@ -45,7 +45,50 @@ export const queryPaymentInformationSchemaOutput = z
         }),
       })
       .or(z.object({ pricingType: z.literal($Enums.PricingType.Free) }))
-      .or(z.object({ pricingType: z.literal($Enums.PricingType.Dynamic) })),
+      .or(z.object({ pricingType: z.literal($Enums.PricingType.Dynamic) }))
+      .nullable(),
+    SupportedPaymentSources: z.array(
+      z.object({
+        chain: z.string(),
+        network: z.string(),
+        sourceIndex: z.number().int().min(0),
+        paymentSourceType: z.string().nullable(),
+        address: z.string(),
+        scheme: z.string().nullable(),
+        pricing: z
+          .object({
+            pricingType: z.literal($Enums.PricingType.Fixed),
+            fixed: z.array(
+              z.object({
+                asset: z.string(),
+                amount: z.string(),
+                decimals: z.number().int().min(0).max(255).optional(),
+              })
+            ),
+          })
+          .or(
+            z.object({
+              pricingType: z.literal($Enums.PricingType.Dynamic),
+              dynamic: z
+                .array(
+                  z.object({
+                    asset: z.string(),
+                    decimals: z.number().int().min(0).max(255),
+                  })
+                )
+                .max(1)
+                .optional(),
+            })
+          )
+          .or(
+            z.object({
+              pricingType: z.literal($Enums.PricingType.Free),
+            })
+          ),
+        payTo: z.string().nullable(),
+        resource: z.string().nullable(),
+      })
+    ),
     name: z.string(),
     description: z.string().nullable(),
     status: z.nativeEnum($Enums.Status),
@@ -53,7 +96,16 @@ export const queryPaymentInformationSchemaOutput = z
     lastUptimeCheck: ez.dateOut(),
     uptimeCount: z.number(),
     uptimeCheckCount: z.number(),
-    apiBaseUrl: z.string(),
+    type: z.nativeEnum($Enums.RegistryEntryType),
+    apiBaseUrl: z.string().nullable(),
+    openApiSpecUrl: z.string().nullable(),
+    x402ResourcesUrl: z.string().nullable(),
+    A2A: z
+      .object({
+        agentCardUrl: z.string(),
+        protocolVersions: z.array(z.string()),
+      })
+      .nullable(),
     authorName: z.string().nullable(),
     authorOrganization: z.string().nullable(),
     authorContactEmail: z.string().nullable(),
@@ -131,26 +183,83 @@ export const queryPaymentInformationGet = authenticatedEndpointFactory.build({
     return {
       ...result,
       agentIdentifier: result.assetIdentifier,
+      A2A:
+        result.A2A == null
+          ? null
+          : {
+              agentCardUrl: result.A2A.agentCardUrl,
+              protocolVersions: result.A2A.protocolVersions,
+            },
       sellerWallet: {
         address: sellerWallet.address,
         vkey: resolvePaymentKeyHash(sellerWallet.address),
       },
       AgentPricing:
-        result.AgentPricing.pricingType === $Enums.PricingType.Fixed
-          ? {
-              pricingType: $Enums.PricingType.Fixed,
-              FixedPricing: {
-                Amounts:
-                  result.AgentPricing.FixedPricing?.Amounts.map((amount) => ({
-                    amount: amount.amount.toString(),
-                    unit: amount.unit,
-                  })) ?? [],
+        result.AgentPricing == null
+          ? null
+          : result.AgentPricing.pricingType === $Enums.PricingType.Fixed
+            ? {
+                pricingType: $Enums.PricingType.Fixed,
+                FixedPricing: {
+                  Amounts:
+                    result.AgentPricing.FixedPricing?.Amounts.map((amount) => ({
+                      amount: amount.amount.toString(),
+                      unit: amount.unit,
+                    })) ?? [],
+                },
+              }
+            : {
+                // Free or Dynamic — no FixedPricing
+                pricingType: result.AgentPricing.pricingType,
               },
-            }
-          : {
-              // Free or Dynamic — no FixedPricing
-              pricingType: result.AgentPricing.pricingType,
-            },
+      SupportedPaymentSources: result.SupportedPaymentSources.map((source) => {
+        if (source.Pricing == null) {
+          throw createHttpError(
+            500,
+            `Indexed payment source ${source.sourceIndex} is missing pricing`
+          );
+        }
+        const amounts = source.Pricing.FixedPricing?.Amounts ?? [];
+        const pricing =
+          source.Pricing.pricingType === $Enums.PricingType.Fixed
+            ? {
+                pricingType: $Enums.PricingType.Fixed,
+                fixed: amounts.map((amount) => ({
+                  asset: amount.unit,
+                  amount: amount.amount.toString(),
+                  ...(source.fixedDecimals != null
+                    ? { decimals: source.fixedDecimals }
+                    : {}),
+                })),
+              }
+            : source.Pricing.pricingType === $Enums.PricingType.Dynamic
+              ? {
+                  pricingType: $Enums.PricingType.Dynamic,
+                  ...(source.dynamicAsset != null &&
+                  source.dynamicDecimals != null
+                    ? {
+                        dynamic: [
+                          {
+                            asset: source.dynamicAsset,
+                            decimals: source.dynamicDecimals,
+                          },
+                        ],
+                      }
+                    : {}),
+                }
+              : { pricingType: $Enums.PricingType.Free };
+        return {
+          chain: source.chain,
+          network: source.network,
+          sourceIndex: source.sourceIndex,
+          paymentSourceType: source.paymentSourceType,
+          address: source.address,
+          scheme: source.scheme,
+          pricing,
+          payTo: source.payTo,
+          resource: source.resource,
+        };
+      }),
     };
   },
 });

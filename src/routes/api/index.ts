@@ -5,6 +5,7 @@ import {
   refreshRegistryEntryPost,
   searchRegistryEntryPost,
 } from '@/routes/api/registry-entry';
+import { registryEntrySpecGet } from '@/routes/api/registry-entry-spec';
 import {
   queryAPIKeyEndpointGet as queryCentralizedRegistrySourceGet,
   addAPIKeyEndpointPost as addCentralizedRegistrySourceEndpointPost,
@@ -24,8 +25,8 @@ import { registryDiffPost } from './registry-diff';
 import {
   queryInboxAgentRegistrationPost,
   refreshInboxAgentRegistrationPost,
-  searchInboxAgentRegistrationPost,
 } from './inbox-agent-registration';
+import { searchInboxAgentRegistrationPost } from './inbox-agent-registration-search';
 import { inboxAgentRegistrationDiffPost } from './inbox-agent-registration-diff';
 export const apiRouter: Routing = {
   v1: {
@@ -38,6 +39,9 @@ export const apiRouter: Routing = {
     },
     'registry-entry-refresh': {
       post: refreshRegistryEntryPost,
+    },
+    'registry-entry-spec': {
+      get: registryEntrySpecGet,
     },
     'registry-diff': {
       post: registryDiffPost,

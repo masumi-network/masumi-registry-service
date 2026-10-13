@@ -1,1 +1,1 @@
-export { paymentInformationRepository } from "./payment-information.repository"
+export { paymentInformationRepository } from './payment-information.repository';

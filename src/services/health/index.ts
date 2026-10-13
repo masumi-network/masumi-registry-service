@@ -1,2 +1,1 @@
-export { healthService } from "./health.service";
-
+export { healthService } from './health.service';

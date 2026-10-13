@@ -1,2 +1,1 @@
-export { healthCheckService } from "./health-check.service";
-
+export { healthCheckService } from './health-check.service';

@@ -5,6 +5,14 @@ import { isReservedInboxSlug, normalizeInboxSlug } from '@/utils/inbox-slug';
 import { normalizePublicUrl } from '@/utils/public-url';
 
 export const INBOX_REGISTRY_METADATA_TYPE = 'MasumiInboxV1' as const;
+export const INBOX_REGISTRY_METADATA_TYPE_V2 = 'MasumiInboxV2' as const;
+// Both inbox metadata type strings the payment-service mints. The V2 inbox
+// service emits "MasumiInboxV2" (still metadata_version 1); the indexer
+// previously only recognised V1 and silently dropped V2 inbox agents.
+export const INBOX_REGISTRY_METADATA_TYPES: readonly string[] = [
+  INBOX_REGISTRY_METADATA_TYPE,
+  INBOX_REGISTRY_METADATA_TYPE_V2,
+];
 
 const METADATA_VERSION = 1;
 const MAX_NAME_LENGTH = 120;
@@ -12,7 +20,7 @@ const MAX_DESCRIPTION_LENGTH = 500;
 const MAX_AGENT_SLUG_LENGTH = 80;
 
 export const inboxAgentRegistrationMetadataSchema = z.object({
-  type: z.literal(INBOX_REGISTRY_METADATA_TYPE),
+  type: z.enum([INBOX_REGISTRY_METADATA_TYPE, INBOX_REGISTRY_METADATA_TYPE_V2]),
   name: z
     .string()
     .min(1)
