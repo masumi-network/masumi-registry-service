@@ -97,8 +97,9 @@ async function agentMinterKeyHashes(
 // full address, so the match must be at that address: V2 rejects a duplicate
 // reference signature only there, and a copy under another stake credential
 // could carry another agent. V1 allows one copy in a Withdraw tx, but its
-// agent is part of the key (seller nonce suffix), so the agent and buyer stay
-// the same and distinct-buyer counts are unaffected.
+// agent is part of the key (seller nonce suffix), and a changed buyer fails
+// the funder check, so distinct-buyer counts are unaffected (purchase count
+// and volume can grow, as with any self-purchase).
 async function escrowLockFunderKeyHashes(params: {
   blockfrost: BlockFrostAPI;
   escrowAddress: string;
@@ -255,7 +256,9 @@ async function indexContract(params: {
 
   let page = state.lastCheckedPage;
   // Re-read the last full page: a rollback can shift later redeemers into
-  // it. Already indexed withdrawals are skipped, so this is one list call.
+  // it. Already indexed withdrawals are skipped, so this is one list call
+  // once the constructor cache is warm (after a restart, up to one datum
+  // lookup per distinct redeemer on the page).
   if (page > 1) await indexContractPage({ ...params, page: page - 1 });
   for (let pages = 0; pages < MAX_PAGES_PER_CONTRACT_PER_RUN; pages++) {
     const redeemerCount = await indexContractPage({ ...params, page });
