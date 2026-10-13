@@ -1,6 +1,6 @@
 import express from 'express';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'fs';
-import type { Server } from 'http';
+import { request, type Server } from 'http';
 import type { AddressInfo } from 'net';
 import { tmpdir } from 'os';
 import { join } from 'path';
@@ -70,8 +70,18 @@ describe('serveAdminUi', () => {
   });
 
   it('does not serve pages outside the dist directory', async () => {
-    const response = await fetch(`${baseUrl}/admin/..%2fsecret`);
-    expect(await response.text()).not.toBe('secret');
+    // fetch normalizes "/../", so send the raw request line instead.
+    const body = await new Promise<string>((resolveBody, rejectBody) => {
+      const { hostname, port } = new URL(baseUrl);
+      request({ hostname, port, path: '/admin/../secret' }, (response) => {
+        let data = '';
+        response.on('data', (chunk) => (data += chunk));
+        response.on('end', () => resolveBody(data));
+      })
+        .on('error', rejectBody)
+        .end();
+    });
+    expect(body).toBe('not-found-page');
   });
 
   it('caches hashed assets as immutable', async () => {
@@ -84,6 +94,11 @@ describe('serveAdminUi', () => {
     const response = await fetch(`${baseUrl}/admin/missing.js`);
     expect(response.status).toBe(418);
     expect(await response.text()).toBe(API_FALLTHROUGH);
+  });
+
+  it('lets the API answer a missing hashed asset', async () => {
+    const response = await fetch(`${baseUrl}/admin/_next/static/missing.js`);
+    expect(response.status).toBe(418);
   });
 
   it('lets the API answer non-GET requests', async () => {
