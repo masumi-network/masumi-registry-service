@@ -1,6 +1,7 @@
 import { Network } from '@prisma/client';
 import { agentPurchaseRepository } from '@/repositories/agent-purchase';
 import {
+  PURCHASE_HISTORY_PAGE_SIZE,
   agentPurchaseService,
   bucketPurchases,
   bucketStart,
@@ -78,7 +79,7 @@ describe('bucketPurchases', () => {
 });
 
 describe('getPurchaseHistory', () => {
-  const now = new Date('2026-10-13T00:00:00Z');
+  const now = new Date('2026-10-13T12:00:00Z');
   const totals = { purchases: 0, distinctBuyers: 0, amounts: [] };
 
   beforeEach(() => {
@@ -91,7 +92,7 @@ describe('getPurchaseHistory', () => {
     ).mockResolvedValue([]);
   });
 
-  it('defaults to the 90 days before now', async () => {
+  it('defaults to the 90 days before now, from the start of that day', async () => {
     const result = await agentPurchaseService.getPurchaseHistory({
       network: Network.Preprod,
       agentIdentifier: AGENT,
@@ -99,12 +100,14 @@ describe('getPurchaseHistory', () => {
       now,
     });
 
-    const from = new Date(now.getTime() - 90 * DAY_MS);
+    const from = new Date('2026-07-15T00:00:00Z');
     expect(agentPurchaseRepository.findPurchasesInRange).toHaveBeenCalledWith({
       network: Network.Preprod,
       agentIdentifier: AGENT,
       from,
       to: now,
+      take: PURCHASE_HISTORY_PAGE_SIZE,
+      cursorId: undefined,
     });
     expect(result).toEqual({
       network: Network.Preprod,
@@ -131,5 +134,57 @@ describe('getPurchaseHistory', () => {
       })
     ).rejects.toMatchObject({ status: 400 });
     expect(agentPurchaseRepository.findPurchasesInRange).not.toHaveBeenCalled();
+  });
+
+  it('starts a Month series at the start of the month of `from`', async () => {
+    const result = await agentPurchaseService.getPurchaseHistory({
+      network: Network.Preprod,
+      agentIdentifier: AGENT,
+      interval: 'Month',
+      from: new Date('2025-10-13T12:00:00Z'),
+      to: now,
+    });
+
+    // The requested range is 365 days; snapping it to the month is allowed.
+    expect(result.from).toEqual(new Date('2025-10-01T00:00:00Z'));
+  });
+
+  it('reads the series in pages and sums across them', async () => {
+    const row = (id: string) => ({
+      id,
+      blockTime: new Date('2026-10-01T10:00:00Z'),
+      Amounts: [{ unit: 'lovelace', quantity: 1n }],
+    });
+    const fullPage = Array.from(
+      { length: PURCHASE_HISTORY_PAGE_SIZE },
+      (_, i) => row(`r${i}`)
+    );
+    (agentPurchaseRepository.findPurchasesInRange as jest.Mock)
+      .mockResolvedValueOnce(fullPage)
+      .mockResolvedValueOnce([row('last')]);
+
+    const result = await agentPurchaseService.getPurchaseHistory({
+      network: Network.Preprod,
+      agentIdentifier: AGENT,
+      interval: 'Day',
+      now,
+    });
+
+    expect(
+      (agentPurchaseRepository.findPurchasesInRange as jest.Mock).mock
+        .calls[1][0]
+    ).toMatchObject({ cursorId: `r${PURCHASE_HISTORY_PAGE_SIZE - 1}` });
+    expect(result.series).toEqual([
+      {
+        bucketStart: new Date('2026-10-01T00:00:00Z'),
+        purchases: PURCHASE_HISTORY_PAGE_SIZE + 1,
+        amounts: [
+          {
+            unit: 'lovelace',
+            quantity: BigInt(PURCHASE_HISTORY_PAGE_SIZE + 1),
+          },
+        ],
+      },
+    ]);
   });
 });

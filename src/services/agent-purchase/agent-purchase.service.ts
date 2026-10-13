@@ -8,8 +8,10 @@ export type PurchaseHistoryInterval =
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 export const DEFAULT_PURCHASE_HISTORY_DAYS = 90;
-// Bounds the rows one request loads for the series.
+// Bounds the time span (not the row count) of one series request.
 export const MAX_PURCHASE_HISTORY_DAYS = 366;
+// Series rows are read in pages, so memory stays bounded per request.
+export const PURCHASE_HISTORY_PAGE_SIZE = 1000;
 
 // Start of the UTC bucket that contains `date`. Weeks start on Monday.
 export function bucketStart(
@@ -34,15 +36,14 @@ type PurchaseRow = {
   Amounts: { unit: string; quantity: bigint }[];
 };
 
-// Sums purchases into sparse buckets: buckets without purchases are omitted.
-export function bucketPurchases(
+type Buckets = Map<number, { purchases: number; amounts: Map<string, bigint> }>;
+
+// Adds purchases to sparse buckets: buckets without purchases never appear.
+function addToBuckets(
+  buckets: Buckets,
   rows: readonly PurchaseRow[],
   interval: PurchaseHistoryInterval
 ) {
-  const buckets = new Map<
-    number,
-    { purchases: number; amounts: Map<string, bigint> }
-  >();
   for (const row of rows) {
     if (row.blockTime == null) continue;
     const key = bucketStart(row.blockTime, interval).getTime();
@@ -56,6 +57,9 @@ export function bucketPurchases(
     }
     buckets.set(key, bucket);
   }
+}
+
+function toSeries(buckets: Buckets) {
   return [...buckets.entries()]
     .sort(([left], [right]) => left - right)
     .map(([key, bucket]) => ({
@@ -65,6 +69,39 @@ export function bucketPurchases(
         .sort(([left], [right]) => (left < right ? -1 : 1))
         .map(([unit, quantity]) => ({ unit, quantity })),
     }));
+}
+
+export function bucketPurchases(
+  rows: readonly PurchaseRow[],
+  interval: PurchaseHistoryInterval
+) {
+  const buckets: Buckets = new Map();
+  addToBuckets(buckets, rows, interval);
+  return toSeries(buckets);
+}
+
+async function loadSeries(params: {
+  network: Network;
+  agentIdentifier: string;
+  interval: PurchaseHistoryInterval;
+  from: Date;
+  to: Date;
+}) {
+  const buckets: Buckets = new Map();
+  let cursorId: string | undefined;
+  for (;;) {
+    const page = await agentPurchaseRepository.findPurchasesInRange({
+      network: params.network,
+      agentIdentifier: params.agentIdentifier,
+      from: params.from,
+      to: params.to,
+      take: PURCHASE_HISTORY_PAGE_SIZE,
+      cursorId,
+    });
+    addToBuckets(buckets, page, params.interval);
+    if (page.length < PURCHASE_HISTORY_PAGE_SIZE) return toSeries(buckets);
+    cursorId = page[page.length - 1].id;
+  }
 }
 
 // All-time totals plus a time series of one agent's on-chain purchases
@@ -78,34 +115,33 @@ async function getPurchaseHistory(params: {
   now?: Date;
 }) {
   const to = params.to ?? params.now ?? new Date();
-  const from =
+  const requestedFrom =
     params.from ??
     new Date(to.getTime() - DEFAULT_PURCHASE_HISTORY_DAYS * DAY_MS);
-  if (from >= to) {
+  if (requestedFrom >= to) {
     throw createHttpError(400, '`from` must be before `to`');
   }
-  if (to.getTime() - from.getTime() > MAX_PURCHASE_HISTORY_DAYS * DAY_MS) {
+  if (
+    to.getTime() - requestedFrom.getTime() >
+    MAX_PURCHASE_HISTORY_DAYS * DAY_MS
+  ) {
     throw createHttpError(
       400,
       `The range must not exceed ${MAX_PURCHASE_HISTORY_DAYS} days`
     );
   }
+  // Snapped to its bucket start, so the first bucket is complete. The last
+  // bucket ends at `to` and can be partial (e.g. the current day).
+  const from = bucketStart(requestedFrom, params.interval);
   const scope = {
     network: params.network,
     agentIdentifier: params.agentIdentifier,
   };
-  const [totals, rows] = await Promise.all([
+  const [totals, series] = await Promise.all([
     agentPurchaseRepository.getPurchaseTotals(scope),
-    agentPurchaseRepository.findPurchasesInRange({ ...scope, from, to }),
+    loadSeries({ ...scope, interval: params.interval, from, to }),
   ]);
-  return {
-    ...scope,
-    interval: params.interval,
-    from,
-    to,
-    totals,
-    series: bucketPurchases(rows, params.interval),
-  };
+  return { ...scope, interval: params.interval, from, to, totals, series };
 }
 
 export const agentPurchaseService = { getPurchaseHistory };

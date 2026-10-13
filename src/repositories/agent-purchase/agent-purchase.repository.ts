@@ -31,9 +31,15 @@ async function getPurchaseTotals({ network, agentIdentifier }: AgentScope) {
   };
 }
 
-// One agent's purchases with a block time in [from, to), oldest first.
+// One page of an agent's purchases with a block time in [from, to), oldest
+// first; pass the last row's id as `cursorId` for the next page.
 async function findPurchasesInRange(
-  params: AgentScope & { from: Date; to: Date }
+  params: AgentScope & {
+    from: Date;
+    to: Date;
+    take: number;
+    cursorId?: string;
+  }
 ) {
   return prisma.agentSuccessfulPurchase.findMany({
     where: {
@@ -42,10 +48,15 @@ async function findPurchasesInRange(
       blockTime: { gte: params.from, lt: params.to },
     },
     select: {
+      id: true,
       blockTime: true,
       Amounts: { select: { unit: true, quantity: true } },
     },
-    orderBy: { blockTime: 'asc' },
+    orderBy: [{ blockTime: 'asc' }, { id: 'asc' }],
+    take: params.take,
+    ...(params.cursorId == null
+      ? {}
+      : { cursor: { id: params.cursorId }, skip: 1 }),
   });
 }
 

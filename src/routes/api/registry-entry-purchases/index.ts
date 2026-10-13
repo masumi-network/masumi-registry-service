@@ -16,11 +16,15 @@ export const registryEntryPurchasesSchemaInput = z.object({
   from: ez
     .dateIn()
     .optional()
-    .describe('Series start (inclusive). Defaults to 90 days before `to`.'),
+    .describe(
+      'Series start (inclusive), moved back to the start of its bucket. Defaults to 90 days before `to`.'
+    ),
   to: ez
     .dateIn()
     .optional()
-    .describe('Series end (exclusive). Defaults to now. Max range 366 days.'),
+    .describe(
+      'Series end (exclusive); the last bucket can be partial. Defaults to now. Max range 366 days.'
+    ),
 });
 
 // Base units (lovelace, token base units) as a digit string.
