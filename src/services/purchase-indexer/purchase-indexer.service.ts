@@ -9,6 +9,7 @@ import { getBlockfrostInstance } from '@/utils/blockfrost';
 import {
   WITHDRAW_REDEEMER_CONSTRUCTOR,
   addressKeyHashes,
+  addressScriptHash,
   decodeEscrowDatum,
   purchaseAmounts,
   spentInputForRedeemer,
@@ -32,11 +33,23 @@ async function redeemerConstructor(
   const constructor = (datum.json_value as { constructor?: unknown })
     ?.constructor;
   const value = typeof constructor === 'number' ? constructor : null;
-  redeemerConstructorCache.set(redeemerDataHash, value);
+  setBounded(redeemerConstructorCache, redeemerDataHash, value);
   return value;
 }
 
-const HTTP_NOT_FOUND = 404;
+// Blockfrost answers these for an asset id that does not exist or is
+// malformed: the withdrawal can never be attributed, so it is not retried.
+const PERMANENT_LOOKUP_STATUS_CODES = new Set([400, 404]);
+// Escrow continuations (SubmitResult, refund requests, ...) re-lock the
+// escrow at the contract; this bounds the walk back to the buyer's lock.
+const MAX_ESCROW_CHAIN_STEPS = 10;
+// Bounds the process-lifetime caches; identifiers come from chain data.
+const MAX_CACHE_ENTRIES = 10_000;
+
+function setBounded<K, V>(cache: Map<K, V>, key: K, value: V) {
+  if (cache.size >= MAX_CACHE_ENTRIES) cache.clear();
+  cache.set(key, value);
+}
 
 // Payment key hashes that funded an agent's registry NFT mint: the payment
 // service mints from the agent's selling wallet. A mint never changes, so the
@@ -65,23 +78,55 @@ async function agentMinterKeyHashes(
     const asset = await blockfrost.assetsById(agentIdentifier);
     keyHashes = await inputKeyHashes(blockfrost, asset.initial_mint_tx_hash);
   } catch (error) {
-    // An identifier that was never minted cannot be attributed.
-    if ((error as { status_code?: number }).status_code !== HTTP_NOT_FOUND) {
+    const statusCode = (error as { status_code?: number }).status_code;
+    if (statusCode == null || !PERMANENT_LOOKUP_STATUS_CODES.has(statusCode)) {
       throw error;
     }
     keyHashes = new Set();
   }
-  agentMinterKeyHashCache.set(cacheKey, keyHashes);
+  setBounded(agentMinterKeyHashCache, cacheKey, keyHashes);
   return keyHashes;
+}
+
+// Payment key hashes that funded the buyer's original escrow lock. The
+// withdrawn escrow output usually comes from a continuation tx (the seller's
+// SubmitResult), so walk back through this buyer's escrow inputs at the same
+// contract to the first lock.
+async function escrowLockFunderKeyHashes(params: {
+  blockfrost: BlockFrostAPI;
+  scriptHash: string;
+  buyerKeyHash: string;
+  escrowCreatedByTxHash: string;
+}): Promise<Set<string>> {
+  let txHash = params.escrowCreatedByTxHash;
+  for (let step = 0; step < MAX_ESCROW_CHAIN_STEPS; step++) {
+    const utxos = await params.blockfrost.txsUtxos(txHash);
+    const spent = utxos.inputs.filter(
+      (input) => !input.reference && !input.collateral
+    );
+    const previousEscrow = spent.find(
+      (input) =>
+        addressScriptHash(input.address) === params.scriptHash &&
+        input.inline_datum != null &&
+        decodeEscrowDatum(deserializeDatum(input.inline_datum))
+          ?.buyerKeyHash === params.buyerKeyHash
+    );
+    if (previousEscrow == null) {
+      return addressKeyHashes(spent.map((input) => input.address));
+    }
+    txHash = previousEscrow.tx_hash;
+  }
+  return new Set();
 }
 
 // A withdrawal counts for an agent only when the seller that signed it (the
 // contract requires the seller signature) also minted the agent. The buyer is
-// kept only when it funded the escrow and is not the seller, so a seller
+// kept only when it funded the escrow lock and is not the seller, so a seller
 // cannot invent buyers by writing arbitrary keys into the datum.
 async function describeWithdrawal(params: {
   blockfrost: BlockFrostAPI;
   network: $Enums.Network;
+  scriptHash: string;
   txHash: string;
   redeemerIndex: number;
 }): Promise<Prisma.AgentSuccessfulPurchaseCreateInput> {
@@ -101,14 +146,18 @@ async function describeWithdrawal(params: {
   );
   if (!minterKeyHashes.has(escrow.sellerKeyHash)) return unattributed;
 
-  const [transaction, escrowFunderKeyHashes] = await Promise.all([
+  const buyerKeyHash = escrow.buyerKeyHash;
+  const [transaction, buyerFundedEscrow] = await Promise.all([
     blockfrost.txs(txHash),
-    inputKeyHashes(blockfrost, input.tx_hash),
+    buyerKeyHash != null && buyerKeyHash !== escrow.sellerKeyHash
+      ? escrowLockFunderKeyHashes({
+          blockfrost,
+          scriptHash: params.scriptHash,
+          buyerKeyHash,
+          escrowCreatedByTxHash: input.tx_hash,
+        }).then((funders) => funders.has(buyerKeyHash))
+      : false,
   ]);
-  const buyerFundedEscrow =
-    escrow.buyerKeyHash != null &&
-    escrow.buyerKeyHash !== escrow.sellerKeyHash &&
-    escrowFunderKeyHashes.has(escrow.buyerKeyHash);
   return {
     ...unattributed,
     agentIdentifier: escrow.agentIdentifier,
@@ -165,6 +214,7 @@ async function indexContractPage(params: {
     const purchase = await describeWithdrawal({
       blockfrost: params.blockfrost,
       network: params.network,
+      scriptHash: params.scriptHash,
       ...withdrawal,
     });
     await prisma.agentSuccessfulPurchase.upsert({

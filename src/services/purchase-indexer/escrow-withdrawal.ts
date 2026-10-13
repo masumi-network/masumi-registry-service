@@ -30,6 +30,8 @@ const SELLER_NONCE_HEX_LENGTH = 64;
 // Plutus Credential constructor of a key (not script) payment credential.
 const VERIFICATION_KEY_CREDENTIAL = 0;
 const HEX = /^[0-9a-f]+$/i;
+// Cardano asset id: 28-byte policy id plus a 1-32 byte asset name.
+const ASSET_ID = /^[0-9a-f]{56}(?:[0-9a-f]{2}){1,32}$/;
 
 type PlutusField = { bytes?: unknown; int?: unknown; fields?: unknown };
 
@@ -98,8 +100,12 @@ export function decodeEscrowDatum(datum: unknown): EscrowDatum | null {
       : (bytesField(fields, layout.sellerNonce)?.slice(
           SELLER_NONCE_HEX_LENGTH
         ) ?? null);
+  const agentIdentifierHex = asHex(agentIdentifier);
   return {
-    agentIdentifier: asHex(agentIdentifier),
+    agentIdentifier:
+      agentIdentifierHex != null && ASSET_ID.test(agentIdentifierHex)
+        ? agentIdentifierHex
+        : null,
     sellerKeyHash: addressKeyHash(fields[layout.seller]),
     buyerKeyHash: addressKeyHash(fields[layout.buyer]),
     collateralReturnLovelace:
@@ -120,6 +126,15 @@ export function addressKeyHashes(addresses: readonly string[]): Set<string> {
     }
   }
   return keyHashes;
+}
+
+// Payment script hash of a bech32 address, null for key or invalid addresses.
+export function addressScriptHash(address: string): string | null {
+  try {
+    return asHex(deserializeAddress(address).scriptHash);
+  } catch {
+    return null;
+  }
 }
 
 // Value the buyer paid: the escrow value minus the lovelace the seller must

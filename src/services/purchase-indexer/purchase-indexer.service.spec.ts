@@ -4,6 +4,7 @@ import {
   conStr1,
   integer,
   pubKeyAddress,
+  scriptAddress,
   serializeAddressObj,
   serializeData,
 } from '@meshsdk/core';
@@ -41,6 +42,7 @@ const BLOCK_TIME = 1_700_000_000;
 
 const bech32 = (keyHash: string) =>
   serializeAddressObj(pubKeyAddress(keyHash), 0);
+const CONTRACT_ADDRESS = serializeAddressObj(scriptAddress(V1_SCRIPT_HASH), 0);
 const keyAddress = (keyHash: string) =>
   conStr0([conStr0([byteString(keyHash)]), conStr1([])]);
 
@@ -58,11 +60,13 @@ function v1EscrowDatum(params: {
   return serializeData(conStr0(fields as never[]), 'JSON');
 }
 
-function escrowInput(inlineDatum: string) {
+// The escrow a Withdraw spends was re-locked by the seller's SubmitResult tx,
+// which itself spent the buyer's original lock.
+function escrowInput(inlineDatum: string, createdBy = 'submit-result-tx') {
   return {
-    tx_hash: 'lock-tx',
+    tx_hash: createdBy,
     output_index: 0,
-    address: 'addr_test1-contract',
+    address: CONTRACT_ADDRESS,
     amount: [
       { unit: 'lovelace', quantity: '7000000' },
       { unit: 'usdm-unit', quantity: '25000000' },
@@ -131,6 +135,14 @@ describe('updateSuccessfulPurchaseIndex', () => {
       if (txHash === 'mint-tx') {
         return { inputs: [{ address: bech32(SELLER) }] };
       }
+      if (txHash === 'submit-result-tx') {
+        return {
+          inputs: [
+            escrowInput(withdrawalDatum, 'lock-tx'),
+            { address: bech32(SELLER) },
+          ],
+        };
+      }
       if (txHash === 'lock-tx') {
         return { inputs: [{ address: bech32(lockTxFunder) }] };
       }
@@ -173,6 +185,31 @@ describe('updateSuccessfulPurchaseIndex', () => {
       { network: Network.Preprod, txHash: 'tx-withdraw', redeemerIndex: 0 },
     ]);
     expect(blockfrost.txs).not.toHaveBeenCalled();
+  });
+
+  it('rejects a malformed agent identifier without looking it up', async () => {
+    withdrawalDatum = v1EscrowDatum({ agentIdentifier: 'abcd' });
+
+    await updateSuccessfulPurchaseIndex();
+
+    expect(upsertedPurchases()).toEqual([
+      { network: Network.Preprod, txHash: 'tx-withdraw', redeemerIndex: 0 },
+    ]);
+    expect(blockfrost.assetsById).not.toHaveBeenCalled();
+  });
+
+  it('records a rejected asset lookup (400) as unattributed instead of retrying forever', async () => {
+    const rejectedAgent = `${'7e'.repeat(28)}${'aa'.repeat(32)}`;
+    withdrawalDatum = v1EscrowDatum({ agentIdentifier: rejectedAgent });
+    blockfrost.assetsById.mockRejectedValueOnce(
+      Object.assign(new Error('Bad Request'), { status_code: 400 })
+    );
+
+    await updateSuccessfulPurchaseIndex();
+
+    expect(upsertedPurchases()).toEqual([
+      { network: Network.Preprod, txHash: 'tx-withdraw', redeemerIndex: 0 },
+    ]);
   });
 
   it('keeps a withdrawal for a never-minted agent unattributed', async () => {
