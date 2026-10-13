@@ -144,17 +144,13 @@ export function addressKeyHashes(addresses: readonly string[]): Set<string> {
   return keyHashes;
 }
 
-// Payment script hash of a bech32 address, null for key or invalid addresses.
-export function addressScriptHash(address: string): string | null {
-  try {
-    return asHex(deserializeAddress(address).scriptHash);
-  } catch {
-    return null;
-  }
-}
+// Postgres BIGINT max. Ledger values can exceed it (quantities are unsigned
+// 64-bit), and such an amount would fail the insert on every run.
+const MAX_STORED_QUANTITY = 9223372036854775807n;
 
 // Value the buyer paid: the escrow value minus the lovelace the seller must
-// return to the buyer as collateral. Zero quantities are dropped.
+// return to the buyer as collateral. Zero quantities, and quantities too large
+// to store, are dropped.
 export function purchaseAmounts(
   escrowValue: readonly { unit: string; quantity: string }[],
   collateralReturnLovelace: bigint
@@ -172,7 +168,9 @@ export function purchaseAmounts(
             : quantity,
       };
     })
-    .filter((amount) => amount.quantity > 0n);
+    .filter(
+      (amount) => amount.quantity > 0n && amount.quantity <= MAX_STORED_QUANTITY
+    );
 }
 
 type TxInput = {

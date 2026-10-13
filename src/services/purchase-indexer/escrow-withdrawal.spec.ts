@@ -147,6 +147,22 @@ describe('purchaseAmounts', () => {
     ]);
   });
 
+  it('drops a quantity too large to store as a Postgres BIGINT', () => {
+    expect(
+      purchaseAmounts(
+        [
+          { unit: 'lovelace', quantity: '3000000' },
+          { unit: 'big-unit', quantity: '9223372036854775808' },
+          { unit: 'max-unit', quantity: '9223372036854775807' },
+        ],
+        2_000_000n
+      )
+    ).toEqual([
+      { unit: 'lovelace', quantity: 1_000_000n },
+      { unit: 'max-unit', quantity: 9223372036854775807n },
+    ]);
+  });
+
   it('drops lovelace that only covers the collateral return', () => {
     expect(
       purchaseAmounts(

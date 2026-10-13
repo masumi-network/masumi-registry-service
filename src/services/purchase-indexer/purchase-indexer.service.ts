@@ -9,16 +9,17 @@ import { getBlockfrostInstance } from '@/utils/blockfrost';
 import {
   WITHDRAW_REDEEMER_CONSTRUCTOR,
   addressKeyHashes,
-  addressScriptHash,
   decodeEscrowDatum,
   purchaseAmounts,
   spentInputForRedeemer,
 } from './escrow-withdrawal';
 
 const REDEEMERS_PER_PAGE = 100;
-// ponytail: bounds Blockfrost calls per run; a long first backfill finishes
-// over several runs via the persisted page cursor.
-const MAX_PAGES_PER_CONTRACT_PER_RUN = 20;
+// Bounds Blockfrost calls per run (a full page costs up to ~10 calls per
+// withdrawal), so the backfill does not starve the registry sync that shares
+// the rate limiter. A long backfill finishes over several runs via the
+// persisted page cursor.
+const MAX_PAGES_PER_CONTRACT_PER_RUN = 2;
 
 // Redeemer data is content-addressed, so hash -> constructor never changes.
 const redeemerConstructorCache = new Map<string, number | null>();
@@ -92,10 +93,12 @@ async function agentMinterKeyHashes(
 // withdrawn escrow output usually comes from a continuation tx (the seller's
 // SubmitResult), so walk back through the same escrow (matched by its
 // reference signature and nonces, not the buyer, which a seller could copy
-// into another escrow) at the same contract to the first lock.
+// into another escrow) to the first lock. The match must be at the same full
+// address: the contract only rejects a duplicate reference signature at the
+// escrow's own address, so a copy under another stake credential is allowed.
 async function escrowLockFunderKeyHashes(params: {
   blockfrost: BlockFrostAPI;
-  scriptHash: string;
+  escrowAddress: string;
   escrowKey: string;
   escrowCreatedByTxHash: string;
 }): Promise<Set<string>> {
@@ -107,7 +110,7 @@ async function escrowLockFunderKeyHashes(params: {
     );
     const previousEscrow = spent.find(
       (input) =>
-        addressScriptHash(input.address) === params.scriptHash &&
+        input.address === params.escrowAddress &&
         input.inline_datum != null &&
         decodeEscrowDatum(deserializeDatum(input.inline_datum))?.escrowKey ===
           params.escrowKey
@@ -127,7 +130,6 @@ async function escrowLockFunderKeyHashes(params: {
 async function describeWithdrawal(params: {
   blockfrost: BlockFrostAPI;
   network: $Enums.Network;
-  scriptHash: string;
   txHash: string;
   redeemerIndex: number;
 }): Promise<Prisma.AgentSuccessfulPurchaseCreateInput> {
@@ -153,7 +155,7 @@ async function describeWithdrawal(params: {
     buyerKeyHash != null && buyerKeyHash !== escrow.sellerKeyHash
       ? escrowLockFunderKeyHashes({
           blockfrost,
-          scriptHash: params.scriptHash,
+          escrowAddress: input.address,
           escrowKey: escrow.escrowKey,
           escrowCreatedByTxHash: input.tx_hash,
         }).then((funders) => funders.has(buyerKeyHash))
@@ -215,7 +217,6 @@ async function indexContractPage(params: {
     const purchase = await describeWithdrawal({
       blockfrost: params.blockfrost,
       network: params.network,
-      scriptHash: params.scriptHash,
       ...withdrawal,
     });
     await prisma.agentSuccessfulPurchase.upsert({
@@ -250,6 +251,9 @@ async function indexContract(params: {
   });
 
   let page = state.lastCheckedPage;
+  // Re-read the last full page: a rollback can shift later redeemers into
+  // it. Already indexed withdrawals are skipped, so this is one list call.
+  if (page > 1) await indexContractPage({ ...params, page: page - 1 });
   for (let pages = 0; pages < MAX_PAGES_PER_CONTRACT_PER_RUN; pages++) {
     const redeemerCount = await indexContractPage({ ...params, page });
     // A partial page is the chain tip: keep the cursor on it for the next run.

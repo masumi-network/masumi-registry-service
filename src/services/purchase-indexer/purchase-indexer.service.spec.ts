@@ -66,11 +66,15 @@ function v1EscrowDatum(params: {
 
 // The escrow a Withdraw spends was re-locked by the seller's SubmitResult tx,
 // which itself spent the buyer's original lock.
-function escrowInput(inlineDatum: string, createdBy = 'submit-result-tx') {
+function escrowInput(
+  inlineDatum: string,
+  createdBy = 'submit-result-tx',
+  address = CONTRACT_ADDRESS
+) {
   return {
     tx_hash: createdBy,
     output_index: 0,
-    address: CONTRACT_ADDRESS,
+    address,
     amount: [
       { unit: 'lovelace', quantity: '7000000' },
       { unit: 'usdm-unit', quantity: '25000000' },
@@ -294,6 +298,47 @@ describe('updateSuccessfulPurchaseIndex', () => {
       agentIdentifier: AGENT,
       buyerKeyHash: null,
     });
+  });
+
+  it('drops a buyer copied, with the same escrow key, under another stake address', async () => {
+    // The contract only dedupes reference signatures at the escrow's own
+    // address, so the seller's SubmitResult can add an exact copy of BUYER's
+    // escrow key at the same script with another stake credential.
+    const stakedContract = serializeAddressObj(
+      scriptAddress(V1_SCRIPT_HASH, STRANGER),
+      0
+    );
+    const txsUtxos = blockfrost.txsUtxos.getMockImplementation()!;
+    blockfrost.txsUtxos.mockImplementation((txHash: string) =>
+      txHash === 'tx-withdraw'
+        ? {
+            inputs: [
+              escrowInput(withdrawalDatum, 'submit-result-tx', stakedContract),
+            ],
+          }
+        : txsUtxos(txHash)
+    );
+
+    await updateSuccessfulPurchaseIndex();
+
+    expect(upsertedPurchases()[0]).toMatchObject({
+      agentIdentifier: AGENT,
+      buyerKeyHash: null,
+    });
+  });
+
+  it('re-reads the last full page in case a rollback shifted redeemers into it', async () => {
+    (prisma.paymentContractSyncState.upsert as jest.Mock).mockResolvedValue({
+      id: V1_SCRIPT_HASH,
+      lastCheckedPage: 3,
+    });
+
+    await updateSuccessfulPurchaseIndex();
+
+    const pages = blockfrost.scriptsRedeemers.mock.calls
+      .filter(([scriptHash]) => scriptHash === V1_SCRIPT_HASH)
+      .map(([, { page }]) => page);
+    expect(pages).toEqual([2, 3]);
   });
 
   it('ignores collateral inputs of the mint tx when finding the minter', async () => {
