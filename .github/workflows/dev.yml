@@ -51,6 +51,9 @@ jobs:
       - name: Run Frontend Format Check
         run: pnpm -C frontend run format:check
 
+      - name: Run Frontend Tests
+        run: pnpm run test:frontend
+
       - name: Run Open API Generator
         run: pnpm run swagger-json
 
