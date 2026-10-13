@@ -763,13 +763,9 @@ describe('checkVerifyAndUpdateRegistryEntries uptime tracking', () => {
         Promise.resolve({ type: 'masumi-agent', agentIdentifier: 'asset-1' }),
     });
     const lastUptimeCheck = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-    jest.spyOn(prisma.registryEntry, 'update').mockImplementation(
-      (args) =>
-        ({
-          id: 'entry-1',
-          status: (args as { data: { status: string } }).data.status,
-        }) as never
-    );
+    jest
+      .spyOn(prisma.registryEntry, 'findUnique')
+      .mockResolvedValue({ id: 'entry-1', status: 'Online' } as never);
     // Stored state, read at write time (not the snapshot passed in).
     jest.spyOn(prisma.registryEntry, 'findFirst').mockResolvedValue({
       status: $Enums.Status.Offline,
@@ -807,7 +803,11 @@ describe('checkVerifyAndUpdateRegistryEntries uptime tracking', () => {
     // Offline held for one half-life: 1 decays to ~0.5.
     expect(write.data.uptimeEwma).toBeCloseTo(0.5, 3);
     // Compare-and-set on the state the value was computed from.
-    expect(write.where).toEqual({ id: 'entry-1', lastUptimeCheck });
+    expect(write.where).toEqual({
+      id: 'entry-1',
+      lastUptimeCheck,
+      status: { not: $Enums.Status.Deregistered },
+    });
     expect(createEventsSpy).toHaveBeenCalledWith({
       data: [
         expect.objectContaining({
@@ -826,7 +826,7 @@ describe('checkVerifyAndUpdateRegistryEntries uptime tracking', () => {
         Promise.resolve({ type: 'masumi-agent', agentIdentifier: 'asset-1' }),
     });
     jest
-      .spyOn(prisma.registryEntry, 'update')
+      .spyOn(prisma.registryEntry, 'findUnique')
       .mockResolvedValue({ id: 'entry-1', status: 'Online' } as never);
     jest.spyOn(prisma.registryEntry, 'findFirst').mockResolvedValue({
       status: $Enums.Status.Online,
@@ -846,7 +846,7 @@ describe('checkVerifyAndUpdateRegistryEntries uptime tracking', () => {
           {
             id: 'entry-1',
             status: $Enums.Status.Online,
-            lastUptimeCheck: new Date(),
+            lastUptimeCheck: new Date(0),
             uptimeEwma: 1,
             apiBaseUrl: 'https://agent.example.com',
             type: 'Standard',
@@ -876,7 +876,7 @@ describe('checkVerifyAndUpdateRegistryEntries uptime tracking', () => {
   it('serves a request from cache when the entry was checked within a minute', async () => {
     global.fetch = jest.fn();
     jest
-      .spyOn(prisma.registryEntry, 'update')
+      .spyOn(prisma.registryEntry, 'findUnique')
       .mockResolvedValue({ id: 'entry-1', status: 'Online' } as never);
     const updateManySpy = jest.spyOn(prisma.registryEntry, 'updateMany');
     const createEventsSpy = jest.spyOn(prisma.healthCheckEvent, 'createMany');
@@ -900,7 +900,7 @@ describe('checkVerifyAndUpdateRegistryEntries uptime tracking', () => {
         Promise.resolve({ type: 'masumi-agent', agentIdentifier: 'asset-1' }),
     });
     jest
-      .spyOn(prisma.registryEntry, 'update')
+      .spyOn(prisma.registryEntry, 'findUnique')
       .mockResolvedValue({ id: 'entry-1', status: 'Online' } as never);
     jest.spyOn(prisma.registryEntry, 'findFirst').mockResolvedValue({
       status: $Enums.Status.Online,
@@ -930,7 +930,7 @@ describe('checkVerifyAndUpdateRegistryEntries uptime tracking', () => {
         Promise.resolve({ type: 'masumi-agent', agentIdentifier: 'asset-1' }),
     });
     jest
-      .spyOn(prisma.registryEntry, 'update')
+      .spyOn(prisma.registryEntry, 'findUnique')
       .mockResolvedValue({ id: 'entry-1', status: 'Online' } as never);
     jest.spyOn(prisma.registryEntry, 'findFirst').mockResolvedValue({
       status: $Enums.Status.Online,
@@ -953,37 +953,66 @@ describe('checkVerifyAndUpdateRegistryEntries uptime tracking', () => {
     expect(global.fetch).toHaveBeenCalledTimes(1);
   });
 
-  it('leaves uptime and history alone for an entry returned unchecked', async () => {
+  it('writes nothing for an entry returned unchecked', async () => {
     global.fetch = jest.fn();
-    const updateSpy = jest
-      .spyOn(prisma.registryEntry, 'update')
-      .mockResolvedValue({ id: 'entry-1', status: 'Online' } as never);
+    const updateSpy = jest.spyOn(prisma.registryEntry, 'update');
+    const updateManySpy = jest.spyOn(prisma.registryEntry, 'updateMany');
+    const createEventsSpy = jest
+      .spyOn(prisma.healthCheckEvent, 'createMany')
+      .mockResolvedValue({ count: 0 });
+    const entry = {
+      id: 'entry-1',
+      status: $Enums.Status.Online,
+      lastUptimeCheck: new Date(0),
+      uptimeEwma: 1,
+      apiBaseUrl: null,
+      type: 'Standard',
+      assetIdentifier: 'asset-1',
+      RegistrySource: { policyId: null },
+    };
+
+    const result = await healthCheckService.checkVerifyAndUpdateRegistryEntries(
+      {
+        registryEntries: [entry] as never,
+        minHealthCheckDate: new Date(),
+        trigger: 'Request',
+      }
+    );
+
+    // The snapshot is returned as is: a concurrent status write is kept.
+    expect(result).toEqual([entry]);
+    expect(updateSpy).not.toHaveBeenCalled();
+    expect(updateManySpy).not.toHaveBeenCalled();
+    expect(createEventsSpy).not.toHaveBeenCalled();
+  });
+
+  it('does not revive an entry burned while its probe ran', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({ type: 'masumi-agent', agentIdentifier: 'asset-1' }),
+    });
+    // Loaded as Online; the stored row is Deregistered by write time.
+    jest.spyOn(prisma.registryEntry, 'findFirst').mockResolvedValue({
+      status: $Enums.Status.Deregistered,
+      lastUptimeCheck: new Date(0),
+      uptimeEwma: 1,
+    } as never);
     const updateManySpy = jest.spyOn(prisma.registryEntry, 'updateMany');
     const createEventsSpy = jest
       .spyOn(prisma.healthCheckEvent, 'createMany')
       .mockResolvedValue({ count: 0 });
 
-    await healthCheckService.checkVerifyAndUpdateRegistryEntries({
-      registryEntries: [
-        {
-          id: 'entry-1',
-          status: $Enums.Status.Online,
-          lastUptimeCheck: new Date(0),
-          uptimeEwma: 1,
-          apiBaseUrl: null,
-          type: 'Standard',
-          assetIdentifier: 'asset-1',
-          RegistrySource: { policyId: null },
-        },
-      ] as never,
-      minHealthCheckDate: new Date(),
-      trigger: 'Request',
-    });
+    const result = await healthCheckService.checkVerifyAndUpdateRegistryEntries(
+      {
+        registryEntries: [recentlyChecked(90)] as never,
+        minHealthCheckDate: new Date(),
+        trigger: 'Job',
+      }
+    );
 
-    const data = (updateSpy.mock.calls[0][0] as { data: object }).data;
-    expect(data).not.toHaveProperty('uptimeEwma');
-    expect(data).not.toHaveProperty('lastUptimeCheck');
     expect(updateManySpy).not.toHaveBeenCalled();
     expect(createEventsSpy).not.toHaveBeenCalled();
+    expect(result).toEqual([]);
   });
 });

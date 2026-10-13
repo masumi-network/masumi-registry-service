@@ -137,9 +137,13 @@ describe('applyUptimeCheck', () => {
       $Enums.Status.Offline,
       after(7 * DAY_MS)
     );
-    expect(applied).toBe(true);
+    expect(applied).toBe('applied');
     expect(db.registryEntry.updateMany).toHaveBeenCalledWith({
-      where: { id: 'entry-1', lastUptimeCheck: start },
+      where: {
+        id: 'entry-1',
+        lastUptimeCheck: start,
+        status: { not: $Enums.Status.Deregistered },
+      },
       data: {
         status: $Enums.Status.Offline,
         ...uptimeCheckUpdate(
@@ -180,7 +184,11 @@ describe('applyUptimeCheck', () => {
     );
     expect(db.registryEntry.updateMany).toHaveBeenCalledTimes(2);
     expect(db.registryEntry.updateMany).toHaveBeenLastCalledWith({
-      where: { assetIdentifier: 'asset-1', lastUptimeCheck: after(DAY_MS) },
+      where: {
+        assetIdentifier: 'asset-1',
+        lastUptimeCheck: after(DAY_MS),
+        status: { not: $Enums.Status.Deregistered },
+      },
       data: {
         status: $Enums.Status.Online,
         ...uptimeCheckUpdate(
@@ -201,7 +209,66 @@ describe('applyUptimeCheck', () => {
         $Enums.Status.Online,
         start
       )
-    ).toBe(false);
+    ).toBe('missing');
     expect(db.registryEntry.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('skips a Deregistered entry', async () => {
+    const db = fakeDb(
+      [
+        {
+          status: $Enums.Status.Deregistered,
+          lastUptimeCheck: start,
+          uptimeEwma: 1,
+        },
+      ],
+      []
+    );
+    expect(
+      await uptimeTracking.applyUptimeCheck(
+        db as never,
+        { id: 'entry-1' },
+        $Enums.Status.Online,
+        after(DAY_MS)
+      )
+    ).toBe('skipped');
+    expect(db.registryEntry.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('never moves lastUptimeCheck backwards', async () => {
+    const later = {
+      status: $Enums.Status.Online,
+      lastUptimeCheck: after(2 * DAY_MS),
+      uptimeEwma: 0.5,
+    };
+    const db = fakeDb([later], [1]);
+    await uptimeTracking.applyUptimeCheck(
+      db as never,
+      { id: 'entry-1' },
+      $Enums.Status.Offline,
+      after(DAY_MS)
+    );
+    const { data } = db.registryEntry.updateMany.mock.calls[0][0];
+    expect(data.lastUptimeCheck).toEqual(after(2 * DAY_MS));
+    // No elapsed time: the rolling uptime does not move.
+    expect(data.uptimeEwma).toBe(0.5);
+  });
+
+  it('gives up as skipped when concurrent writes keep winning', async () => {
+    const state = {
+      status: $Enums.Status.Online,
+      lastUptimeCheck: start,
+      uptimeEwma: 1,
+    };
+    const db = fakeDb([state, state, state], [0, 0, 0]);
+    expect(
+      await uptimeTracking.applyUptimeCheck(
+        db as never,
+        { id: 'entry-1' },
+        $Enums.Status.Online,
+        after(DAY_MS)
+      )
+    ).toBe('skipped');
+    expect(db.registryEntry.updateMany).toHaveBeenCalledTimes(3);
   });
 });

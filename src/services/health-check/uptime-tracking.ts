@@ -67,31 +67,52 @@ type EntryKey = { id: string } | { assetIdentifier: string };
 // Concurrent checks of one entry retry at most this often before giving up.
 const MAX_UPTIME_WRITE_ATTEMPTS = 3;
 
-// Applies one check outcome to an existing entry: status, check counters and
-// rolling uptime. The rolling uptime depends on the stored state, so the write
-// is a compare-and-set on lastUptimeCheck: when a concurrent check (job,
-// request or sync) wrote first, re-read and recompute instead of overwriting
-// its interval. Returns false when the entry does not exist yet.
+// applied: the check was written. missing: no entry yet (the caller creates
+// it). skipped: nothing written (Deregistered, or concurrent writes won).
+export type UptimeCheckResult = 'applied' | 'missing' | 'skipped';
+
+// Applies one check outcome to an existing entry: status, check counters,
+// rolling uptime and `extraData`. The rolling uptime depends on the stored
+// state, so the write is a compare-and-set on lastUptimeCheck: when a
+// concurrent check (job, request or sync) wrote first, re-read and recompute
+// instead of overwriting its interval.
 async function applyUptimeCheck(
   db: UptimeClient,
   entry: EntryKey,
   status: $Enums.Status,
-  checkedAt: Date
-): Promise<boolean> {
+  checkedAt: Date,
+  extraData: Prisma.RegistryEntryUpdateManyMutationInput = {}
+): Promise<UptimeCheckResult> {
   for (let attempt = 0; attempt < MAX_UPTIME_WRITE_ATTEMPTS; attempt++) {
     const previous = await db.registryEntry.findFirst({
       where: entry,
       select: { status: true, lastUptimeCheck: true, uptimeEwma: true },
     });
-    if (previous == null) return false;
+    if (previous == null) return 'missing';
+    // Burned agents stay Deregistered: a still-live endpoint must not revive
+    // them, also when the burn lands while the probe runs.
+    if (previous.status === $Enums.Status.Deregistered) return 'skipped';
+    // A concurrent check can store a later time; never move it backwards.
+    const at =
+      previous.lastUptimeCheck > checkedAt
+        ? previous.lastUptimeCheck
+        : checkedAt;
     const { count } = await db.registryEntry.updateMany({
-      where: { ...entry, lastUptimeCheck: previous.lastUptimeCheck },
-      data: { status, ...uptimeCheckUpdate(previous, status, checkedAt) },
+      where: {
+        ...entry,
+        lastUptimeCheck: previous.lastUptimeCheck,
+        status: { not: $Enums.Status.Deregistered },
+      },
+      data: {
+        status,
+        ...uptimeCheckUpdate(previous, status, at),
+        ...extraData,
+      },
     });
-    if (count > 0) return true;
+    if (count > 0) return 'applied';
   }
   logger.warn('uptime check not applied after concurrent writes', { entry });
-  return true;
+  return 'skipped';
 }
 
 // One row per check outcome: the time series behind the rolling uptime.

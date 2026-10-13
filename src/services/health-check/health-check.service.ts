@@ -8,6 +8,7 @@ import {
   InboxAgentRegistration,
   InboxAgentRegistrationStatus,
   PricingType,
+  Prisma,
   RegistryEntry,
   RegistrySource,
   SupportedPaymentSource,
@@ -164,6 +165,23 @@ async function checkAndVerifyRegistryEntry({
   }
   return result.status;
 }
+
+const checkedEntryInclude = {
+  AgentPricing: {
+    include: { FixedPricing: { include: { Amounts: true } } },
+  },
+  Capability: true,
+  RegistrySource: true,
+  ExampleOutput: true,
+  SupportedPaymentSources: {
+    include: {
+      Pricing: { include: { FixedPricing: { include: { Amounts: true } } } },
+    },
+    orderBy: { sourceIndex: 'asc' },
+  },
+  Verifications: true,
+  A2A: true,
+} satisfies Prisma.RegistryEntryInclude;
 
 // Request-triggered checks re-probe an entry at most once per this window, so
 // API callers cannot force a probe and a history write on every request.
@@ -350,57 +368,45 @@ async function checkVerifyAndUpdateRegistryEntries({
     (entry) => !successful.find((s) => s.id === entry.id)
   );
 
+  // Entries whose check was written; only they get a history event.
+  const recorded: { id: string; status: $Enums.Status }[] = [];
   // A check that threw counts as Offline, so its interval still feeds uptime.
   for (const entry of failedEntries) {
-    await uptimeTracking.applyUptimeCheck(
+    const result = await uptimeTracking.applyUptimeCheck(
       prisma,
       { id: entry.id },
       $Enums.Status.Offline,
       checkedAt
     );
+    if (result === 'applied') {
+      recorded.push({ id: entry.id, status: $Enums.Status.Offline });
+    }
   }
-  const updatedEntries = [];
+  const entriesById = new Map(entriesToCheck.map((entry) => [entry.id, entry]));
+  const updatedEntries: (typeof registryEntries)[number][] = [];
   for (const s of successful) {
     try {
+      // Cached status: no write, so a concurrent check or burn is kept.
+      if (uncheckedIds.has(s.id)) {
+        updatedEntries.push(entriesById.get(s.id)!);
+        continue;
+      }
       // Rolling uptime is computed from the stored state, not the snapshot
       // loaded before the probes, so concurrent checks do not overwrite it.
-      if (!uncheckedIds.has(s.id)) {
-        await uptimeTracking.applyUptimeCheck(
-          prisma,
-          { id: s.id },
-          s.status,
-          checkedAt
-        );
-      }
-      updatedEntries.push(
-        await prisma.registryEntry.update({
-          where: { id: s.id },
-          include: {
-            AgentPricing: {
-              include: { FixedPricing: { include: { Amounts: true } } },
-            },
-            Capability: true,
-            RegistrySource: true,
-            ExampleOutput: true,
-            SupportedPaymentSources: {
-              include: {
-                Pricing: {
-                  include: {
-                    FixedPricing: { include: { Amounts: true } },
-                  },
-                },
-              },
-              orderBy: { sourceIndex: 'asc' },
-            },
-            Verifications: true,
-            A2A: true,
-          },
-          data: {
-            status: s.status,
-            ...specCachePatch(s), // caches a just-validated spec snapshot
-          },
-        })
+      const result = await uptimeTracking.applyUptimeCheck(
+        prisma,
+        { id: s.id },
+        s.status,
+        checkedAt,
+        specCachePatch(s) // caches a just-validated spec snapshot
       );
+      if (result !== 'applied') continue;
+      recorded.push({ id: s.id, status: s.status });
+      const row = await prisma.registryEntry.findUnique({
+        where: { id: s.id },
+        include: checkedEntryInclude,
+      });
+      if (row != null) updatedEntries.push(row);
     } catch (e) {
       logger.error('failed to update registry entry in db ', {
         error: e,
@@ -408,24 +414,15 @@ async function checkVerifyAndUpdateRegistryEntries({
       });
     }
   }
-  // Unchecked entries get no event. Events are history only, so a failed
-  // write must not fail the check.
+  // Events are history only, so a failed write must not fail the check.
   await uptimeTracking
     .recordHealthCheckEvents(
-      [
-        ...failedEntries.map((entry) => ({
-          id: entry.id,
-          status: $Enums.Status.Offline,
-        })),
-        ...updatedEntries,
-      ]
-        .filter((entry) => !uncheckedIds.has(entry.id))
-        .map((entry) => ({
-          registryEntryId: entry.id,
-          status: entry.status,
-          trigger,
-          checkedAt,
-        }))
+      recorded.map((entry) => ({
+        registryEntryId: entry.id,
+        status: entry.status,
+        trigger,
+        checkedAt,
+      }))
     )
     .catch((error) =>
       logger.error('failed to record health check events', { error })

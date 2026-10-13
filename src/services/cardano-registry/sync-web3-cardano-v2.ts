@@ -160,10 +160,10 @@ export async function syncWeb3CardanoV2RegistryEntry(params: {
   };
 
   const checkedAt = new Date();
-  const entryId = await prisma.$transaction(async (tx) => {
+  const { entryId, uptime } = await prisma.$transaction(async (tx) => {
     // An existing entry gets the check applied first (compare-and-set); the
     // upsert then only creates the uptime fields for a new entry.
-    await uptimeTracking.applyUptimeCheck(
+    const uptime = await uptimeTracking.applyUptimeCheck(
       tx,
       { assetIdentifier: params.asset },
       status,
@@ -214,9 +214,12 @@ export async function syncWeb3CardanoV2RegistryEntry(params: {
         where: { registryEntryId: entry.id },
       });
     }
-    return entry.id;
+    return { entryId: entry.id, uptime };
   });
-  await uptimeTracking.recordSyncCheck(entryId, status, checkedAt);
+  // A skipped check (e.g. a Deregistered entry) has no history event.
+  if (uptime !== 'skipped') {
+    await uptimeTracking.recordSyncCheck(entryId, status, checkedAt);
+  }
 
   return true;
 }

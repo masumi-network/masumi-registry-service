@@ -192,7 +192,7 @@ async function syncWeb3CardanoRegistryEntry(params: {
   // An existing entry gets the check applied first (compare-and-set); the
   // upsert then only creates the uptime fields for a new entry.
   const checkedAt = new Date();
-  await uptimeTracking.applyUptimeCheck(
+  const uptime = await uptimeTracking.applyUptimeCheck(
     prisma,
     { assetIdentifier: params.asset },
     status,
@@ -206,7 +206,10 @@ async function syncWeb3CardanoRegistryEntry(params: {
       ...uptimeTracking.uptimeCheckCreate(status, checkedAt),
     },
   });
-  await uptimeTracking.recordSyncCheck(entry.id, status, checkedAt);
+  // A skipped check (e.g. a Deregistered entry) has no history event.
+  if (uptime !== 'skipped') {
+    await uptimeTracking.recordSyncCheck(entry.id, status, checkedAt);
+  }
 
   return true;
 }
