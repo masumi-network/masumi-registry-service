@@ -176,15 +176,24 @@ export default function AgentsPage() {
               <>
                 <AgentListHeader />
                 <AgentList agents={agents} />
-                {query.isFetchNextPageError ? (
+                {/* A failed next page or a failed background refresh: the rows above stay. */}
+                {query.isError ? (
                   <div
                     role="alert"
                     className="flex flex-col items-center gap-2 border-t p-4 text-sm"
                   >
                     <p className="text-muted-foreground">
+                      {!query.isFetchNextPageError &&
+                        'Could not refresh, showing earlier results. '}
                       {classifyAuthError(query.error).message}
                     </p>
-                    <Button variant="outline" size="sm" onClick={() => void query.fetchNextPage()}>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        void (query.isFetchNextPageError ? query.fetchNextPage() : query.refetch())
+                      }
+                    >
                       Try again
                     </Button>
                   </div>
