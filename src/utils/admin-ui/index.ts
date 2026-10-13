@@ -1,11 +1,14 @@
 import express, { type IRouter } from 'express';
-import { existsSync, readFileSync } from 'fs';
+import { existsSync } from 'fs';
+import { readFile } from 'fs/promises';
 import { isAbsolute, join, relative, resolve } from 'path';
 import { logger } from '@/utils/logger/';
 
 // Must match `basePath` in frontend/next.config.ts.
 const ADMIN_BASE_PATH = '/admin';
 const HAS_FILE_EXTENSION = /\.[a-zA-Z0-9]+$/;
+// Next.js puts a content hash in every file name under _next/static.
+const HASHED_ASSETS_MAX_AGE = '1y';
 
 /**
  * Serves the admin UI's Next.js static export (frontend/dist) under /admin.
@@ -18,11 +21,18 @@ export function serveAdminUi(app: IRouter, distDir: string): void {
     );
   }
 
+  app.use(
+    `${ADMIN_BASE_PATH}/_next/static`,
+    express.static(join(distDir, '_next/static'), {
+      immutable: true,
+      maxAge: HASHED_ASSETS_MAX_AGE,
+    })
+  );
   app.use(ADMIN_BASE_PATH, express.static(distDir));
 
   // Every admin route is its own pre-rendered page (about -> about.html), so a hard
   // reload of /admin/about must send that file rather than the API's JSON 404.
-  app.use(ADMIN_BASE_PATH, (req, res, next) => {
+  app.use(ADMIN_BASE_PATH, async (req, res, next) => {
     if (req.method !== 'GET' && req.method !== 'HEAD') {
       return next();
     }
@@ -46,7 +56,7 @@ export function serveAdminUi(app: IRouter, distDir: string): void {
     // Content-Type behind for the API's own reply.
     let page: Buffer;
     try {
-      page = readFileSync(fileToSend);
+      page = await readFile(fileToSend);
     } catch {
       // No build (or no 404 page): let the API answer.
       return next();
