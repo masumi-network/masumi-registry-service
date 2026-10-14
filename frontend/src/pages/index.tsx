@@ -6,6 +6,8 @@ import { KeyStatusCard } from '@/components/auth/KeyStatusCard';
 import { ApiStatus } from '@/components/dashboard/ApiStatus';
 import { AgentFilterPanel } from '@/components/agents/AgentFilterPanel';
 import { AgentList, AgentListHeader } from '@/components/agents/AgentList';
+import { AgentSortSelect } from '@/components/agents/AgentSortSelect';
+import { TextFilterInput } from '@/components/agents/TextFilterInput';
 import { AgentsEmptyState } from '@/components/agents/AgentsEmptyState';
 import { AgentListSkeleton } from '@/components/skeletons/AgentListSkeleton';
 import { Button } from '@/components/ui/button';
@@ -19,7 +21,13 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { activeFilterKeys } from '@/lib/agent-empty-result';
-import { PAGE_SIZES, type Network, type PageSize } from '@/lib/agent-filters';
+import {
+  MAX_QUERY_LENGTH,
+  PAGE_SIZES,
+  effectiveSortBy,
+  type Network,
+  type PageSize,
+} from '@/lib/agent-filters';
 import { classifyAuthError } from '@/lib/auth/errors';
 import { useNetwork } from '@/lib/contexts/NetworkContext';
 import { useAgentFilters } from '@/lib/hooks/useAgentFilters';
@@ -85,22 +93,44 @@ function PageSizeSelect({
   );
 }
 
-/** The main screen: the registry's agents, with every filter the API supports. */
+/**
+ * The API returns no total, so the count is what has loaded, with "+" while more pages
+ * remain: "20+ agents matching “weather”", exact once the last page is in.
+ */
+function resultCountText(loaded: number, hasMore: boolean, query: string): string {
+  const noun = loaded === 1 && !hasMore ? 'agent' : 'agents';
+  const matching = query ? ` matching “${query}”` : '';
+  return `${loaded}${hasMore ? '+' : ''} ${noun}${matching}${hasMore ? ', load more for the rest' : ''}`;
+}
+
+/** The main screen: search, every filter the API supports, and the API's ranking. */
 export default function AgentsPage() {
   const { network } = useNetwork();
   const { isReady, filters, updateFilters } = useAgentFilters();
   const { query, agents } = useAgents(filters, network, isReady);
   const [isPanelOpen, setIsPanelOpen] = useState(false);
-  const activeCount = activeFilterKeys(filters).length;
+  // The search box sits outside the panel, so it is not counted as a panel filter.
+  const activeCount = activeFilterKeys(filters).filter((key) => key !== 'query').length;
 
   const isLoadingFirstPage = !isReady || query.isPending;
   const isEmpty = query.isSuccess && agents.length === 0;
   const hasFailed = query.isError && agents.length === 0;
+  const isSearching = filters.query !== '';
   const statusText = isLoadingFirstPage
-    ? 'Loading agents…'
+    ? isSearching
+      ? 'Searching…'
+      : 'Loading agents…'
     : hasFailed
       ? 'Agents unavailable'
-      : `${agents.length} ${agents.length === 1 ? 'agent' : 'agents'} shown`;
+      : resultCountText(agents.length, query.hasNextPage, filters.query);
+  const rowView = {
+    query: filters.query,
+    sortBy: effectiveSortBy(filters),
+    priceUnit: filters.priceUnit,
+    minPrice: filters.minPrice,
+    maxPrice: filters.maxPrice,
+    network,
+  };
 
   return (
     <MainLayout>
@@ -112,8 +142,8 @@ export default function AgentsPage() {
           <div className="space-y-2">
             <h1 className="text-2xl font-semibold tracking-tight">Agents</h1>
             <p className="max-w-prose text-sm text-muted-foreground">
-              Registry entries on {network}. The filters live in the URL, so this view can be shared
-              as a link.
+              Registry entries on {network}. Search, filters and sort live in the URL, so this view
+              can be shared as a link.
             </p>
           </div>
           <div className="space-y-2">
@@ -121,6 +151,21 @@ export default function AgentsPage() {
             <KeyStatusCard />
           </div>
         </div>
+
+        <search className="max-w-2xl">
+          <TextFilterInput
+            revision={filters}
+            id="agent-search"
+            type="search"
+            label="Search agents"
+            value={filters.query}
+            maxLength={MAX_QUERY_LENGTH}
+            placeholder="Name, description, capability, tag, asset ID…"
+            hint="Matches name, description, author, API URL, asset identifier, capability and tags. Combines with the filters."
+            inputClassName="h-10"
+            onCommit={(query) => updateFilters((current) => ({ ...current, query }))}
+          />
+        </search>
 
         <Button
           variant="outline"
@@ -156,10 +201,13 @@ export default function AgentsPage() {
                   <Loader2 className="h-3.5 w-3.5 animate-spin" aria-label="Refreshing" />
                 )}
               </p>
-              <PageSizeSelect
-                value={filters.pageSize}
-                onChange={(pageSize) => updateFilters((current) => ({ ...current, pageSize }))}
-              />
+              <div className="flex flex-wrap items-center gap-3">
+                <AgentSortSelect filters={filters} onChange={updateFilters} />
+                <PageSizeSelect
+                  value={filters.pageSize}
+                  onChange={(pageSize) => updateFilters((current) => ({ ...current, pageSize }))}
+                />
+              </div>
             </div>
 
             {isLoadingFirstPage ? (
@@ -175,7 +223,7 @@ export default function AgentsPage() {
             ) : (
               <>
                 <AgentListHeader />
-                <AgentList agents={agents} />
+                <AgentList agents={agents} view={rowView} />
                 {/* A failed next page or a failed background refresh: the rows above stay. */}
                 {query.isError ? (
                   <div

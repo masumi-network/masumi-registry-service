@@ -1,10 +1,15 @@
 import { useMemo } from 'react';
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { postRegistryEntry, type RegistryEntry } from '@/lib/api/generated';
 import {
-  buildRegistryQueryBody,
+  postRegistryEntry,
+  postRegistryEntrySearch,
+  type RegistryEntry,
+} from '@/lib/api/generated';
+import {
+  buildRegistryListRequest,
   type AgentFilters,
   type Network,
+  type RegistryListRequest,
   type RegistryQueryBody,
 } from '@/lib/agent-filters';
 import {
@@ -19,19 +24,38 @@ const API_MAX_LIMIT = 50;
 
 const entryKey = (entry: RegistryEntry) => entry.id;
 
+function entriesOf(data: { data?: { entries?: unknown } } | undefined): RegistryEntry[] {
+  // A proxy error page can arrive as a 200 with a non-JSON body.
+  if (!Array.isArray(data?.data?.entries)) throw new Error('Unexpected registry entry response');
+  return data.data.entries as RegistryEntry[];
+}
+
 export async function fetchRegistryEntries(
   body: RegistryQueryBody,
   signal?: AbortSignal,
 ): Promise<RegistryEntry[]> {
   const { data } = await postRegistryEntry({ body, signal, throwOnError: true });
-  // A proxy error page can arrive as a 200 with a non-JSON body.
-  if (!Array.isArray(data?.data?.entries)) throw new Error('Unexpected registry entry response');
-  return data.data.entries;
+  return entriesOf(data);
+}
+
+/** One page of a view: `POST /registry-entry/search` with search text, else the plain list. */
+export async function fetchRegistryList(
+  request: RegistryListRequest,
+  signal?: AbortSignal,
+): Promise<RegistryEntry[]> {
+  if (request.endpoint === 'query') return fetchRegistryEntries(request.body, signal);
+  const { data } = await postRegistryEntrySearch({
+    body: request.body,
+    signal,
+    throwOnError: true,
+  });
+  return entriesOf(data);
 }
 
 /**
- * The agent list for one view, a page at a time ("Load more"). The registry's cursor is
- * inclusive, so later pages repeat a row; `agents` is the de-duplicated list to render.
+ * The agent list for one view, a page at a time ("Load more"), in the order the API returns:
+ * sorted views are ranked server side, never here. The registry's cursor is inclusive, so
+ * later pages repeat a row; `agents` is the de-duplicated list to render.
  */
 export function useAgents(filters: AgentFilters, network: Network, enabled: boolean) {
   const query = useInfiniteQuery({
@@ -41,8 +65,8 @@ export function useAgents(filters: AgentFilters, network: Network, enabled: bool
       // A later page spends its first row on the repeated cursor row, so it asks for one
       // more to still add a full page, within the API's maximum.
       const limit = pageParam ? Math.min(filters.pageSize + 1, API_MAX_LIMIT) : filters.pageSize;
-      const body = buildRegistryQueryBody(filters, network, { limit, cursorId: pageParam });
-      const items = await fetchRegistryEntries(body, signal);
+      const request = buildRegistryListRequest(filters, network, { limit, cursorId: pageParam });
+      const items = await fetchRegistryList(request, signal);
       return { items, limit, cursorId: pageParam };
     },
     getNextPageParam: (lastPage) => nextInclusiveCursor(lastPage, entryKey),
