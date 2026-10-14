@@ -1,20 +1,25 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { activeFilterKeys, explainEmptyResult, planEmptyResultProbes } from './agent-empty-result';
+import {
+  activeFilterKeys,
+  explainEmptyResult,
+  planEmptyResultProbes,
+  withoutFilter,
+} from './agent-empty-result';
 import { parseAgentFilters } from './agent-filters';
 
 describe('activeFilterKeys', () => {
   it('counts the default Online status but not the health-check date', () => {
-    const filters = parseAgentFilters({ minHealthCheckDate: '2024-03-01' });
+    const filters = parseAgentFilters({ lastCheckedAfter: '2024-03-01' });
     assert.deepEqual(activeFilterKeys(filters), ['status']);
   });
 });
 
 describe('planEmptyResultProbes', () => {
   it('never lets a probe force live health checks', () => {
-    const filters = parseAgentFilters({ tags: 'x', minHealthCheckDate: '2024-03-01' });
+    const filters = parseAgentFilters({ tags: 'x', lastCheckedAfter: '2024-03-01' });
     for (const probe of planEmptyResultProbes(filters)) {
-      assert.equal(probe.filters.minHealthCheckDate, '');
+      assert.equal(probe.filters.lastCheckedAfter, '');
     }
   });
 
@@ -75,5 +80,40 @@ describe('explainEmptyResult', () => {
     assert.deepEqual(explainEmptyResult(['status'], { status: 'empty' }), {
       kind: 'network-empty',
     });
+  });
+});
+
+describe('search text and the new filters', () => {
+  it('counts search text, hidden statuses and the new filters as narrowing the view', () => {
+    const filters = parseAgentFilters({
+      q: 'weather',
+      excludeStatus: 'Invalid',
+      priceUnit: 'lovelace',
+      minUptime: '90',
+      onlyOnline: 'true',
+      registeredAfter: '2024-01-01',
+    });
+    assert.deepEqual(activeFilterKeys(filters), [
+      'query',
+      'status',
+      'pricing',
+      'uptime',
+      'onlyOnline',
+      'registered',
+    ]);
+  });
+
+  it('probes without the search text, and never with a sort', () => {
+    const filters = parseAgentFilters({ q: 'weather', sortBy: 'price', priceUnit: 'u' });
+    const probes = planEmptyResultProbes(filters);
+    assert.equal(probes.find((probe) => probe.id === 'query')?.filters.query, '');
+    for (const probe of probes) assert.equal(probe.filters.sortBy, '');
+  });
+
+  it('clears a price sort together with the pricing filter', () => {
+    const filters = parseAgentFilters({ sortBy: 'price', priceUnit: 'u' });
+    const withoutPricing = withoutFilter(filters, 'pricing');
+    assert.equal(withoutPricing.priceUnit, '');
+    assert.equal(withoutPricing.sortBy, '');
   });
 });

@@ -1,10 +1,14 @@
 import { isAxiosError } from 'axios';
-import { z } from 'zod';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { RegistryEntry } from '@/lib/api/generated';
 import type { Network } from '@/lib/agent-filters';
 import { classifyAuthError } from '@/lib/auth/errors';
-import { PAYMENT_TYPE_LABELS, formatAmount, unitLabel } from '@/lib/display-labels';
+import {
+  PAYMENT_TYPE_LABELS,
+  agentPricingSchema,
+  formatAmount,
+  unitLabel,
+} from '@/lib/display-labels';
 import { usePaymentInformation } from '@/lib/queries/usePaymentInformation';
 import { DetailSection, Field, Mono, UrlText } from './AgentDetailSection';
 
@@ -13,19 +17,6 @@ type PricingFields = Pick<
   'paymentType' | 'AgentPricing' | 'SupportedPaymentSources'
 >;
 type PaymentSource = RegistryEntry['SupportedPaymentSources'][number];
-
-// The generated type of AgentPricing collapses to `unknown` (a nullable union), so it is
-// narrowed here against the API's own output schema.
-const agentPricingSchema = z.discriminatedUnion('pricingType', [
-  z.object({
-    pricingType: z.literal('Fixed'),
-    FixedPricing: z.object({
-      Amounts: z.array(z.object({ amount: z.string(), unit: z.string() })),
-    }),
-  }),
-  z.object({ pricingType: z.literal('Free') }),
-  z.object({ pricingType: z.literal('Dynamic') }),
-]);
 
 function Amounts({ amounts }: { amounts: ReturnType<typeof formatAmount>[] }) {
   return (

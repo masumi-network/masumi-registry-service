@@ -1,10 +1,41 @@
+import { z } from 'zod';
 import type { RegistryEntry } from '@/lib/api/generated';
-import type { PaymentType } from './agent-filters';
+import type { PaymentType, SortBy } from './agent-filters';
+import type { RankingComponentKey, RelevanceReason } from './ranking-breakdown';
+import type { MatchSource } from './search-match';
 
 export const PAYMENT_TYPE_LABELS: Record<PaymentType, string> = {
   Web3CardanoV1: 'Cardano V1',
   Web3CardanoV2: 'Cardano V2',
   None: 'None',
+};
+
+export const SORT_LABELS: Record<SortBy, string> = {
+  relevance: 'Relevance',
+  score: 'Score',
+  uptime: 'Uptime',
+  price: 'Price, lowest first',
+  recency: 'Newest first seen',
+};
+
+export const MATCH_SOURCE_LABELS: Record<MatchSource, string> = {
+  metadata: 'Metadata',
+  capability: 'Capability',
+  tags: 'Tags',
+  'across-fields': 'Across fields',
+};
+
+export const RANKING_COMPONENT_LABELS: Record<RankingComponentKey, string> = {
+  distinctBuyers: 'Buyers',
+  uptime: 'Uptime',
+  lineageAge: 'Lineage age',
+};
+
+export const RELEVANCE_REASON_LABELS: Record<RelevanceReason, string> = {
+  'exact-name': 'Name is the search text',
+  name: 'Name contains the search text',
+  tag: 'A tag contains the search text',
+  other: 'Another field contains the search text',
 };
 
 export const ENTRY_TYPE_LABELS: Record<RegistryEntry['type'], string> = {
@@ -60,3 +91,16 @@ export function formatAmount(
     inBaseUnits,
   };
 }
+
+// The generated type of AgentPricing collapses to `unknown` (a nullable union), so it is
+// narrowed here against the API's own output schema.
+export const agentPricingSchema = z.discriminatedUnion('pricingType', [
+  z.object({
+    pricingType: z.literal('Fixed'),
+    FixedPricing: z.object({
+      Amounts: z.array(z.object({ amount: z.string(), unit: z.string() })),
+    }),
+  }),
+  z.object({ pricingType: z.literal('Free') }),
+  z.object({ pricingType: z.literal('Dynamic') }),
+]);
