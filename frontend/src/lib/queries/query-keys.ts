@@ -1,4 +1,5 @@
 import type { AgentFilters, Network, RegistryQueryBody } from '@/lib/agent-filters';
+import type { InboxFilters } from '@/lib/inbox-filters';
 
 // All TanStack Query keys live here, so invalidation can target a whole domain.
 // Feature slices add their own entries next to the hooks that use them.
@@ -20,4 +21,14 @@ export const queryKeys = {
     ['payment-information', agentIdentifier] as const,
   // The capability endpoint is not network-scoped, so neither is its key.
   capabilities: ['capabilities'] as const,
+  // Admin screens (MAS-615). Sources and keys are not network-scoped.
+  registrySources: ['registry-sources'] as const,
+  sourceDependents: (network: Network, policyId: string) =>
+    ['registry-sources', 'dependents', network, policyId] as const,
+  apiKeys: ['api-keys'] as const,
+  registryOverview: (network: Network) => ['overview', 'registry', network] as const,
+  inbox: ['inbox'] as const,
+  inboxOverview: (network: Network) => ['inbox', 'overview', network] as const,
+  inboxList: (network: Network, filters: InboxFilters) =>
+    ['inbox', 'list', network, filters] as const,
 };

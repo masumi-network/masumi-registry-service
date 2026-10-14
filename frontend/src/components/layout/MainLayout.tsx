@@ -2,9 +2,13 @@ import { useCallback, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import {
+  Activity,
   BookOpen,
   Bot,
+  Database,
   FileCode,
+  Inbox,
+  KeyRound,
   LogOut,
   MessageSquare,
   Moon,
@@ -37,7 +41,14 @@ type NavItem = {
 
 // Feature slices append their pages here. Non-admin keys only see the ones whose path is
 // listed in lib/permissions.ts, so a new read page must be registered there as well.
-const navItems: NavItem[] = [{ href: '/', name: 'Agents', icon: Bot, activeOn: ['/agent'] }];
+const navItems: NavItem[] = [
+  { href: '/', name: 'Agents', icon: Bot, activeOn: ['/agent'] },
+  // Admin screens (MAS-615): not in USER_PATHS, so User keys neither see nor open them.
+  { href: '/status', name: 'Status', icon: Activity },
+  { href: '/sources', name: 'Sources', icon: Database },
+  { href: '/api-keys', name: 'API keys', icon: KeyRound },
+  { href: '/inbox', name: 'Inbox', icon: Inbox },
+];
 
 type HeaderLink = {
   href: string;

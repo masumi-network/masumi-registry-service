@@ -77,7 +77,7 @@ const allValues = (value: unknown) =>
   value === undefined ? [] : Array.isArray(value) ? value : [value];
 
 // Each field falls back on its own, so one bad parameter never wipes the rest of a view.
-const boundedText = (maxLength: number) =>
+export const boundedText = (maxLength: number) =>
   z.preprocess(firstValue, z.string().trim().max(maxLength)).catch('');
 // Capability names come from on-chain metadata and the API matches them exactly, so a
 // name with surrounding spaces must survive the URL round trip untouched.
@@ -85,7 +85,7 @@ const verbatimText = (maxLength: number) =>
   z.preprocess(firstValue, z.string().max(maxLength)).catch('');
 
 // Keeps the allowed values in their canonical order, so one view always has one URL.
-const enumValues = <T extends string>(allowed: readonly T[]) =>
+export const enumValues = <T extends string>(allowed: readonly T[]) =>
   z
     .preprocess(allValues, z.array(z.unknown()))
     .transform((raw) => allowed.filter((value) => raw.includes(value)));
