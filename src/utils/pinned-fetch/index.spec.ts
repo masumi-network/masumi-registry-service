@@ -85,6 +85,47 @@ describe('pinnedGet', () => {
     expect(lastResponse.destroyed).toBe(true);
   });
 
+  it('reads the body of the statuses the caller asks for', async () => {
+    mockResponse('{"items":[]}', 200, { 'content-type': 'application/json' });
+
+    const result = await pinnedGet('https://api.example.com/x', {
+      readBodyFor: (status) => status === 200,
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      status: 200,
+      body: '{"items":[]}',
+    });
+  });
+
+  it('still bounds a body it was asked to read', async () => {
+    mockResponse('x'.repeat(100), 200);
+
+    const result = await pinnedGet('https://api.example.com/x', {
+      readBodyFor: (status) => status === 200,
+      maxBodyBytes: 50,
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      reason: 'response exceeds 50 bytes',
+      unreachable: false,
+    });
+  });
+
+  it('fails cleanly when the body predicate throws', async () => {
+    mockResponse('{}', 200);
+
+    const result = await pinnedGet('https://api.example.com/x', {
+      readBodyFor: () => {
+        throw new Error('predicate bug');
+      },
+    });
+
+    expect(result).toMatchObject({ ok: false, unreachable: true });
+  });
+
   it('does not follow redirects', async () => {
     mockResponse('', 301, { location: 'http://169.254.169.254/' });
 

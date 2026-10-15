@@ -1390,6 +1390,285 @@ export const RegistryEntryX402ProbesSchema = {
     ]
 } as const;
 
+export const X402DiscoverySchema = {
+    type: 'object',
+    properties: {
+        payTo: {
+            type: 'string'
+        },
+        truncated: {
+            type: 'boolean',
+            description: 'The facilitator holds more resources than were read'
+        },
+        registeredEntries: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    assetIdentifier: {
+                        type: 'string'
+                    },
+                    network: {
+                        type: 'string',
+                        enum: [
+                            'Preprod',
+                            'Mainnet'
+                        ]
+                    },
+                    status: {
+                        type: 'string',
+                        enum: [
+                            'Online',
+                            'Offline',
+                            'Deregistered',
+                            'Invalid'
+                        ]
+                    }
+                },
+                required: [
+                    'assetIdentifier',
+                    'network',
+                    'status'
+                ]
+            },
+            description: 'X402 registry entries that already sell to this address'
+        },
+        candidates: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    host: {
+                        type: 'string'
+                    },
+                    serviceName: {
+                        type: 'string',
+                        nullable: true
+                    },
+                    networks: {
+                        type: 'array',
+                        items: {
+                            type: 'string'
+                        }
+                    },
+                    registered: {
+                        type: 'boolean',
+                        description: 'A registry entry already lists one of these resources'
+                    },
+                    manifestValid: {
+                        type: 'boolean'
+                    },
+                    suggestedManifest: {
+                        type: 'object',
+                        nullable: true,
+                        properties: {
+                            x402Version: {
+                                type: 'number'
+                            },
+                            resources: {
+                                type: 'array',
+                                items: {
+                                    type: 'object',
+                                    properties: {
+                                        resource: {
+                                            type: 'string'
+                                        },
+                                        type: {
+                                            type: 'string',
+                                            enum: [
+                                                'http'
+                                            ]
+                                        },
+                                        description: {
+                                            type: 'string'
+                                        },
+                                        inputSchema: {
+                                            type: 'object',
+                                            additionalProperties: {
+                                                nullable: true
+                                            }
+                                        },
+                                        outputSchema: {
+                                            type: 'object',
+                                            additionalProperties: {
+                                                nullable: true
+                                            }
+                                        }
+                                    },
+                                    required: [
+                                        'resource',
+                                        'type'
+                                    ]
+                                }
+                            }
+                        },
+                        required: [
+                            'x402Version',
+                            'resources'
+                        ],
+                        description: 'A manifest the registry would accept; host it and register its URL as x402ResourcesUrl'
+                    },
+                    resources: {
+                        type: 'array',
+                        items: {
+                            type: 'object',
+                            properties: {
+                                resource: {
+                                    type: 'string'
+                                },
+                                method: {
+                                    type: 'string',
+                                    nullable: true
+                                },
+                                description: {
+                                    type: 'string',
+                                    nullable: true
+                                },
+                                serviceName: {
+                                    type: 'string',
+                                    nullable: true
+                                },
+                                tags: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'string'
+                                    }
+                                },
+                                x402Version: {
+                                    type: 'number',
+                                    nullable: true
+                                },
+                                accepts: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'object',
+                                        properties: {
+                                            scheme: {
+                                                type: 'string'
+                                            },
+                                            network: {
+                                                type: 'string'
+                                            },
+                                            amount: {
+                                                type: 'string',
+                                                description: 'Atomic units'
+                                            },
+                                            asset: {
+                                                type: 'string'
+                                            },
+                                            payTo: {
+                                                type: 'string'
+                                            },
+                                            maxTimeoutSeconds: {
+                                                type: 'number',
+                                                nullable: true
+                                            },
+                                            extra: {
+                                                type: 'object',
+                                                nullable: true,
+                                                additionalProperties: {
+                                                    anyOf: [
+                                                        {
+                                                            type: 'string'
+                                                        },
+                                                        {
+                                                            type: 'number'
+                                                        },
+                                                        {
+                                                            type: 'boolean'
+                                                        }
+                                                    ]
+                                                }
+                                            }
+                                        },
+                                        required: [
+                                            'scheme',
+                                            'network',
+                                            'amount',
+                                            'asset',
+                                            'payTo',
+                                            'maxTimeoutSeconds',
+                                            'extra'
+                                        ]
+                                    }
+                                },
+                                inputSchema: {
+                                    type: 'object',
+                                    nullable: true,
+                                    additionalProperties: {
+                                        nullable: true
+                                    }
+                                },
+                                outputSchema: {
+                                    type: 'object',
+                                    nullable: true,
+                                    additionalProperties: {
+                                        nullable: true
+                                    }
+                                },
+                                lastUpdated: {
+                                    type: 'string',
+                                    nullable: true
+                                },
+                                quality: {
+                                    type: 'object',
+                                    nullable: true,
+                                    properties: {
+                                        l30DaysTotalCalls: {
+                                            type: 'number'
+                                        },
+                                        l30DaysUniquePayers: {
+                                            type: 'number'
+                                        },
+                                        lastCalledAt: {
+                                            type: 'string',
+                                            nullable: true
+                                        }
+                                    },
+                                    required: [
+                                        'l30DaysTotalCalls',
+                                        'l30DaysUniquePayers',
+                                        'lastCalledAt'
+                                    ],
+                                    description: 'Usage reported by the facilitator over the last 30 days'
+                                }
+                            },
+                            required: [
+                                'resource',
+                                'method',
+                                'description',
+                                'serviceName',
+                                'tags',
+                                'x402Version',
+                                'accepts',
+                                'inputSchema',
+                                'outputSchema',
+                                'lastUpdated',
+                                'quality'
+                            ]
+                        }
+                    }
+                },
+                required: [
+                    'host',
+                    'serviceName',
+                    'networks',
+                    'registered',
+                    'manifestValid',
+                    'suggestedManifest',
+                    'resources'
+                ]
+            }
+        }
+    },
+    required: [
+        'payTo',
+        'truncated',
+        'registeredEntries',
+        'candidates'
+    ]
+} as const;
+
 export const CapabilitySchema = {
     type: 'object',
     properties: {

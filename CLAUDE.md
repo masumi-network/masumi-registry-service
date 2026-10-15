@@ -265,6 +265,7 @@ Agents are verified by:
 | `UPDATE_CARDANO_REGISTRY_INTERVAL` | No | Sync interval in seconds (default: 50, min: 20) |
 | `UPDATE_HEALTH_CHECK_INTERVAL` | No | Health check interval in seconds (default: 100, min: 20) |
 | `UPDATE_X402_PROBE_INTERVAL` | No | x402 resource probe interval in seconds (default: 3600, min: 300) |
+| `X402_DISCOVERY_FACILITATOR_URL` | No | https base URL of the x402 facilitator queried by `GET /x402-discovery` (default: Coinbase CDP `https://api.cdp.coinbase.com/platform/v2/x402`) |
 
 ## Key Files Reference
 

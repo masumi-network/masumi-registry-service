@@ -7,6 +7,7 @@ import {
 import { x402ManifestSchema } from '@/services/spec-validation';
 import { logger } from '@/utils/logger';
 import { pinnedGet } from '@/utils/pinned-fetch';
+import { canonicalUrl, isStorableUrl } from '@/utils/resource-url';
 import {
   compareChallengeToSources,
   parseX402Challenge,
@@ -22,8 +23,6 @@ const MAX_PROBES_PER_HOST_PER_CYCLE = 25;
 // ponytail: only the first 100 resources of a manifest are tracked; raise (and
 // paginate the endpoint) if agents with larger resource sets need coverage.
 const MAX_TRACKED_RESOURCES_PER_ENTRY = 100;
-// Beyond this the (entryId, resource) unique index cannot store the URL.
-const MAX_RESOURCE_URL_LENGTH = 2048;
 const MAX_STORED_TEXT_LENGTH = 500;
 // Stops starting probes after this long, so one cycle (and a shutdown waiting
 // for it) cannot run unbounded.
@@ -34,21 +33,6 @@ const ENTRY_CONCURRENCY = 2;
 export const X402_PROBE_ENTRY_PAGE_SIZE = 50;
 
 const clip = (text: string) => text.slice(0, MAX_STORED_TEXT_LENGTH);
-
-// Storable and requestable as written: no whitespace or control characters.
-const isStorableUrl = (value: string) =>
-  value.length <= MAX_RESOURCE_URL_LENGTH && !/[\s\p{Cc}]/u.test(value);
-
-// The same request, spelled differently: scheme/host case, fragment.
-function canonicalUrl(value: string): string | null {
-  try {
-    const url = new URL(value);
-    url.hash = '';
-    return url.href;
-  } catch {
-    return null;
-  }
-}
 
 /**
  * The http resources of the cached manifest, or null when there is none. A

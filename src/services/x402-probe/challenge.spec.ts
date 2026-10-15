@@ -203,6 +203,27 @@ describe('parseX402Challenge', () => {
     ).toMatchObject({ kind: 'invalid' });
   });
 
+  it.each(['constructor', 'toString', '__proto__', 'hasOwnProperty'])(
+    'keeps the network name %s as plain text',
+    (name) => {
+      const result = parseX402Challenge({
+        status: 402,
+        headers: {
+          'payment-required': toHeader({
+            ...v2Challenge,
+            accepts: [{ ...v2Challenge.accepts[0], network: name }],
+          }),
+        },
+        body: '',
+      });
+
+      expect(result).toMatchObject({
+        kind: 'challenge',
+        accepts: [{ network: name }],
+      });
+    }
+  );
+
   it('keeps at most ten accepts', () => {
     const result = parseX402Challenge({
       status: 402,

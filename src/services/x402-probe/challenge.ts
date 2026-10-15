@@ -68,25 +68,33 @@ const challengeSchema = z.object({
   accepts: z.array(z.unknown()).min(1),
 });
 
+/** One `accepts[]` entry in the shape registered payment sources use, or null. */
+export function normalizeAccept(candidate: unknown): ProbeAccept | null {
+  const parsed = acceptSchema.safeParse(candidate);
+  if (!parsed.success) return null;
+  const amount = parsed.data.amount ?? parsed.data.maxAmountRequired;
+  if (amount == null) return null;
+  return {
+    scheme: parsed.data.scheme,
+    // hasOwn: a name like "constructor" must not resolve through the prototype.
+    network: Object.hasOwn(LEGACY_NETWORKS, parsed.data.network)
+      ? LEGACY_NETWORKS[parsed.data.network]
+      : parsed.data.network,
+    amount,
+    asset: parsed.data.asset,
+    payTo: parsed.data.payTo,
+    maxTimeoutSeconds: parsed.data.maxTimeoutSeconds ?? null,
+  };
+}
+
 function normalizeChallenge(raw: unknown): ParsedChallenge | null {
   const envelope = challengeSchema.safeParse(raw);
   if (!envelope.success) return null;
   const accepts: ProbeAccept[] = [];
   for (const candidate of envelope.data.accepts) {
     if (accepts.length >= MAX_ACCEPTS) break;
-    const parsed = acceptSchema.safeParse(candidate);
-    const amount = parsed.success
-      ? (parsed.data.amount ?? parsed.data.maxAmountRequired)
-      : undefined;
-    if (!parsed.success || amount == null) continue;
-    accepts.push({
-      scheme: parsed.data.scheme,
-      network: LEGACY_NETWORKS[parsed.data.network] ?? parsed.data.network,
-      amount,
-      asset: parsed.data.asset,
-      payTo: parsed.data.payTo,
-      maxTimeoutSeconds: parsed.data.maxTimeoutSeconds ?? null,
-    });
+    const accept = normalizeAccept(candidate);
+    if (accept != null) accepts.push(accept);
   }
   return accepts.length === 0
     ? null

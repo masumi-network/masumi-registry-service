@@ -115,6 +115,40 @@ describe('numeric configuration', () => {
     });
   });
 
+  describe('X402_DISCOVERY_FACILITATOR_URL', () => {
+    it('defaults to the Coinbase CDP facilitator', () => {
+      expect(loadConfig({})).toMatchObject({
+        X402_DISCOVERY_FACILITATOR_URL:
+          'https://api.cdp.coinbase.com/platform/v2/x402',
+      });
+    });
+
+    it('accepts an https url and drops a trailing slash', () => {
+      expect(
+        loadConfig({
+          X402_DISCOVERY_FACILITATOR_URL: 'https://facilitator.example/x402/',
+        })
+      ).toMatchObject({
+        X402_DISCOVERY_FACILITATOR_URL: 'https://facilitator.example/x402',
+      });
+    });
+
+    it.each([
+      ['http', 'http://facilitator.example'],
+      ['garbage', 'not a url'],
+      ['userinfo', 'https://user:pw@facilitator.example'],
+      ['a query string', 'https://facilitator.example/x?a=1'],
+      ['a custom port', 'https://facilitator.example:8443'],
+      ['an empty query', 'https://facilitator.example/x?'],
+      ['an empty fragment', 'https://facilitator.example/x#'],
+      ['a backslash', 'https://facilitator.example\\@evil.example'],
+    ])('rejects %s and names the variable', (_label, value) => {
+      expect(() =>
+        loadConfig({ X402_DISCOVERY_FACILITATOR_URL: value })
+      ).toThrow(/^Invalid X402_DISCOVERY_FACILITATOR_URL ENV variable/);
+    });
+  });
+
   it('requires a whole number of pool connections', () => {
     expect(() => loadConfig({ DB_CONNECTION_POOL_LIMIT: '2.5' })).toThrow(
       /DB_CONNECTION_POOL_LIMIT/

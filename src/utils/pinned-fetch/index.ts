@@ -47,7 +47,8 @@ function getAtAddress(
   destination: ResolvedPublicUrl,
   address: Address,
   signal: AbortSignal,
-  maxBodyBytes: number
+  maxBodyBytes: number,
+  readBodyFor: (status: number) => boolean
 ): Promise<Extract<PinnedGetResult, { ok: true }>> {
   return new Promise((resolve, reject) => {
     const req = request(
@@ -72,9 +73,19 @@ function getAtAddress(
         void (async () => {
           const status = response.statusCode ?? 0;
           const headers = flattenHeaders(response.headers);
-          // Only a 402 carries a challenge worth reading. Anything else
-          // (including a redirect, which is never followed) is just a status.
-          if (status !== 402) {
+          // Bodies are only read for statuses the caller wants (a 402
+          // challenge by default). Anything else, including a redirect which is
+          // never followed, is just a status.
+          let wantBody: boolean;
+          try {
+            wantBody = readBodyFor(status);
+          } catch (error) {
+            reject(error);
+            response.destroy();
+            req.destroy();
+            return;
+          }
+          if (!wantBody) {
             response.destroy();
             resolve({ ok: true, status, headers, body: '' });
             return;
@@ -117,12 +128,19 @@ function getAtAddress(
 async function getFromAnyAddress(
   destination: ResolvedPublicUrl,
   signal: AbortSignal,
-  maxBodyBytes: number
+  maxBodyBytes: number,
+  readBodyFor: (status: number) => boolean
 ) {
   const addresses = destination.addresses.slice(0, MAX_ADDRESSES_TRIED);
   for (const [index, address] of addresses.entries()) {
     try {
-      return await getAtAddress(destination, address, signal, maxBodyBytes);
+      return await getAtAddress(
+        destination,
+        address,
+        signal,
+        maxBodyBytes,
+        readBodyFor
+      );
     } catch (error) {
       // Only a connection failure moves on to the next checked address.
       if (
@@ -141,14 +159,19 @@ async function getFromAnyAddress(
  * One bounded, unauthenticated GET to an untrusted https URL: the destination is
  * resolved and checked once and the connection is pinned to the checked
  * address (no DNS rebinding), redirects are never followed, and the body is only
- * read for a 402. Never sends credentials or payment headers.
+ * read for the statuses asked for (a 402 challenge by default). Never sends credentials or payment headers.
  */
 export async function pinnedGet(
   rawUrl: string,
-  options: { timeoutMs?: number; maxBodyBytes?: number } = {}
+  options: {
+    timeoutMs?: number;
+    maxBodyBytes?: number;
+    readBodyFor?: (status: number) => boolean;
+  } = {}
 ): Promise<PinnedGetResult> {
   const timeoutMs = options.timeoutMs ?? PINNED_GET_TIMEOUT_MS;
   const maxBodyBytes = options.maxBodyBytes ?? PINNED_GET_MAX_BODY_BYTES;
+  const readBodyFor = options.readBodyFor ?? ((status) => status === 402);
   const controller = new AbortController();
   let rejectDeadline: (error: Error) => void;
   const deadline = new Promise<never>((_resolve, reject) => {
@@ -194,7 +217,12 @@ export async function pinnedGet(
       deadline,
     ]);
     return await Promise.race([
-      getFromAnyAddress(destination, controller.signal, maxBodyBytes),
+      getFromAnyAddress(
+        destination,
+        controller.signal,
+        maxBodyBytes,
+        readBodyFor
+      ),
       deadline,
     ]);
   } catch (error) {
