@@ -6,6 +6,7 @@ const NUMERIC_VARS = [
   'UPDATE_HEALTH_CHECK_INTERVAL',
   'UPDATE_PURCHASE_INDEX_INTERVAL',
   'UPDATE_X402_PROBE_INTERVAL',
+  'UPDATE_X402_OPENAPI_DISCOVERY_INTERVAL',
   'DB_CONNECTION_TIMEOUT',
   'DB_CONNECTION_POOL_LIMIT',
   'DB_STAEMENT_TIMEOUT',
@@ -35,6 +36,7 @@ describe('numeric configuration', () => {
       UPDATE_HEALTH_CHECK_INTERVAL: 100,
       UPDATE_PURCHASE_INDEX_INTERVAL: 300,
       UPDATE_X402_PROBE_INTERVAL: 3600,
+      UPDATE_X402_OPENAPI_DISCOVERY_INTERVAL: 21600,
       RANKING_WEIGHTS: { distinctBuyers: 0.6, uptime: 0.3, lineageAge: 0.1 },
       DB_CONNECTION_TIMEOUT: 20,
       DB_CONNECTION_POOL_LIMIT: 5,
@@ -113,6 +115,15 @@ describe('numeric configuration', () => {
     expect(loadConfig({ UPDATE_X402_PROBE_INTERVAL: '300' })).toMatchObject({
       UPDATE_X402_PROBE_INTERVAL: 300,
     });
+  });
+
+  it('keeps the x402 OpenAPI discovery interval at least five minutes', () => {
+    expect(() =>
+      loadConfig({ UPDATE_X402_OPENAPI_DISCOVERY_INTERVAL: '299' })
+    ).toThrow(/UPDATE_X402_OPENAPI_DISCOVERY_INTERVAL/);
+    expect(
+      loadConfig({ UPDATE_X402_OPENAPI_DISCOVERY_INTERVAL: '300' })
+    ).toMatchObject({ UPDATE_X402_OPENAPI_DISCOVERY_INTERVAL: 300 });
   });
 
   it('requires a whole number of pool connections', () => {

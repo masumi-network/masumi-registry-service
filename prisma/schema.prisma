@@ -109,6 +109,7 @@ model RegistryEntry {
   Verifications           AgentVerification[]
   HealthCheckEvents       HealthCheckEvent[]
   X402ResourceProbes      X402ResourceProbe[]
+  X402OpenApiDiscoveries  X402OpenApiDiscovery[]
   A2A                     A2ARegistryEntry?
 
   metadataVersion Int
@@ -477,5 +478,48 @@ model X402ResourceProbe {
   registryEntryId String
 
   @@unique([registryEntryId, resource])
+  @@index([registryEntryId, checkedAt])
+}
+
+// What the registry's OpenAPI discovery last found at an origin an X402 entry's
+// manifest resources live on (MAS-453). Rows are written by a background job,
+// one per (entry, origin), so it is derived data: never part of a snapshot.
+// Purely informational: it never changes RegistryEntry.status.
+enum X402OpenApiDiscoveryOutcome {
+  // A document was served and passed OpenAPI validation.
+  Found
+  // The origin answered, but none of the candidate locations served a document.
+  NotFound
+  // A candidate served something that is not a valid OpenAPI document (or one
+  // too large to read), or the origin is a URL the fetcher refuses to contact.
+  Invalid
+  // The origin did not answer.
+  Unreachable
+}
+
+model X402OpenApiDiscovery {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // https origin of one or more of the manifest's resources.
+  origin         String
+  outcome        X402OpenApiDiscoveryOutcome
+  // Where the document was found (Found only).
+  specUrl        String?
+  // OpenAPI version the document declares, e.g. "3.1.0" (Found only).
+  openApiVersion String?
+  title          String?
+  // The document itself, when small enough to sit inline in the row. Null for a
+  // larger Found document: specUrl still points at it.
+  spec           Json?
+  // Why the outcome was Invalid or Unreachable.
+  reason         String?
+  checkedAt      DateTime
+
+  RegistryEntry   RegistryEntry @relation(fields: [registryEntryId], references: [id], onDelete: Cascade)
+  registryEntryId String
+
+  @@unique([registryEntryId, origin])
   @@index([registryEntryId, checkedAt])
 }

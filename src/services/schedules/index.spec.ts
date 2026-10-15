@@ -8,6 +8,9 @@ jest.mock('@/services/purchase-indexer/purchase-indexer.service', () => ({
 jest.mock('@/services/x402-probe', () => ({
   updateX402Probes: jest.fn(),
 }));
+jest.mock('@/services/x402-openapi-discovery', () => ({
+  updateX402OpenApiDiscoveries: jest.fn(),
+}));
 jest.mock('@/services/health-check', () => ({
   uptimeTracking: { pruneHealthCheckEvents: jest.fn() },
 }));
@@ -70,6 +73,25 @@ describe('schedules', () => {
     expect(probe).toHaveBeenCalledTimes(1);
     await jest.advanceTimersByTimeAsync(3600 * 1000);
     expect(probe).toHaveBeenCalledTimes(2);
+
+    await schedules.stopSchedules();
+  });
+
+  it('discovers x402 OpenAPI documents on its own, slower interval', async () => {
+    const discover = (
+      jest.requireMock('@/services/x402-openapi-discovery') as {
+        updateX402OpenApiDiscoveries: jest.Mock;
+      }
+    ).updateX402OpenApiDiscoveries;
+    discover.mockResolvedValue({ discovered: 0 });
+    void schedules.default();
+
+    await jest.advanceTimersByTimeAsync(1500 + 15000);
+    expect(discover).toHaveBeenCalledTimes(1);
+    await jest.advanceTimersByTimeAsync(3600 * 1000);
+    expect(discover).toHaveBeenCalledTimes(1);
+    await jest.advanceTimersByTimeAsync(21600 * 1000);
+    expect(discover).toHaveBeenCalledTimes(2);
 
     await schedules.stopSchedules();
   });

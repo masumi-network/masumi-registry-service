@@ -55,7 +55,7 @@ function canonicalUrl(value: string): string | null {
  * manifest too large to cache has no snapshot and is not probed: the probe never
  * contacts an agent-supplied manifest URL itself.
  */
-function manifestResources(spec: unknown): string[] | null {
+export function manifestResources(spec: unknown): string[] | null {
   const manifest = x402ManifestSchema.safeParse(spec);
   if (!manifest.success) return null;
   const seen = new Set<string>();

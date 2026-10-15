@@ -17,6 +17,10 @@ import {
   registryEntrySpecSchemaOutput,
 } from '@/routes/api/registry-entry-spec';
 import {
+  registryEntryX402OpenApiSchemaInput,
+  registryEntryX402OpenApiSchemaOutput,
+} from '@/routes/api/registry-entry-x402-openapi';
+import {
   registryEntryX402ProbesSchemaInput,
   registryEntryX402ProbesSchemaOutput,
 } from '@/routes/api/registry-entry-x402-probes';
@@ -502,6 +506,88 @@ export function registerRegistryEntryPaths(
                         ],
                         matchesRegisteredSources: true,
                         mismatches: [],
+                        reason: null,
+                        checkedAt: new Date(120000),
+                      },
+                    ],
+                  },
+                  status: 'success',
+                },
+              }),
+          },
+        },
+      },
+      400: {
+        description: 'Bad Request (possible parameters missing or invalid)',
+      },
+      401: {
+        description: 'Unauthorized',
+      },
+      404: {
+        description: 'Registry entry not found, or it is not an X402 entry',
+      },
+      500: {
+        description: 'Internal Server Error',
+      },
+    },
+  });
+  registry.registerPath({
+    method: 'get',
+    path: '/registry-entry-x402-openapi/',
+    description:
+      'Returns where the registry last found an OpenAPI document for the ' +
+      "origins an X402 agent's resources live on. For each origin it tries the " +
+      'document advertised in a `Link: rel="service-desc"` header of the ' +
+      'origin root, then `/openapi.json`, `/.well-known/openapi.json` and ' +
+      '`/openapi.yaml`. ' +
+      "Informational only; it never changes the entry's status. At most 5 " +
+      'origins per agent are tracked and origins are checked in rotation, so ' +
+      'an origin that has not been checked yet is absent. Use `checkedAt` for ' +
+      'freshness: rows of an entry that is no longer Online keep their last ' +
+      "result. The document is the origin's own claim about its API, not a " +
+      "trust signal: the origin comes from the agent's manifest and has not " +
+      'agreed to host that agent, so a found document does not prove it ' +
+      'belongs to the agent. YAML documents over 64 KiB are not read.',
+    summary: 'REQUIRES API KEY Authentication (+user)',
+    tags: ['registry-entry'],
+    request: {
+      query: registryEntryX402OpenApiSchemaInput.openapi({
+        example: {
+          network: 'Preprod',
+          agentIdentifier:
+            '222222222222222222222222222222222222222222222222222222222222222222',
+        },
+      }),
+    },
+    security: [{ [apiKeyAuthName]: [] }],
+    responses: {
+      200: {
+        description: 'The last discovery result of each origin',
+        content: {
+          'application/json': {
+            schema: z
+              .object({
+                data: registryEntryX402OpenApiSchemaOutput,
+                status: z.string(),
+              })
+              .openapi({
+                example: {
+                  data: {
+                    agentIdentifier:
+                      '222222222222222222222222222222222222222222222222222222222222222222',
+                    status: Status.Online,
+                    origins: [
+                      {
+                        origin: 'https://agent.example',
+                        outcome: 'Found',
+                        specUrl: 'https://agent.example/openapi.json',
+                        openApiVersion: '3.1.0',
+                        title: 'Summarizer API',
+                        spec: {
+                          openapi: '3.1.0',
+                          info: { title: 'Summarizer API', version: '1.0.0' },
+                          paths: {},
+                        },
                         reason: null,
                         checkedAt: new Date(120000),
                       },

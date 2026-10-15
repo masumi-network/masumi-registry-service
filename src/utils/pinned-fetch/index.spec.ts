@@ -85,6 +85,36 @@ describe('pinnedGet', () => {
     expect(lastResponse.destroyed).toBe(true);
   });
 
+  it('reads the body of a status the caller asks for', async () => {
+    mockResponse('{"openapi":"3.1.0"}', 200, {
+      'content-type': 'application/json',
+    });
+
+    const result = await pinnedGet('https://api.example.com/openapi.json', {
+      readBodyFor: [200],
+      accept: 'application/json, application/yaml',
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+      body: '{"openapi":"3.1.0"}',
+    });
+    const options = (request as jest.Mock).mock.calls[0][1];
+    expect(options.headers.Accept).toBe('application/json, application/yaml');
+  });
+
+  it('still skips the body of a status the caller did not ask for', async () => {
+    mockResponse('x'.repeat(1_000), 404);
+
+    const result = await pinnedGet('https://api.example.com/openapi.json', {
+      readBodyFor: [200],
+    });
+
+    expect(result).toMatchObject({ ok: true, status: 404, body: '' });
+  });
+
   it('does not follow redirects', async () => {
     mockResponse('', 301, { location: 'http://169.254.169.254/' });
 

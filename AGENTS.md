@@ -222,6 +222,7 @@ Scheduled tasks run via `AsyncInterval`:
 1. **Registry Sync** (`UPDATE_CARDANO_REGISTRY_INTERVAL`): Scans blockchain for new/burned agent NFTs
 2. **Health Check** (`UPDATE_HEALTH_CHECK_INTERVAL`): Verifies agent endpoint availability
 3. **x402 Probe** (`UPDATE_X402_PROBE_INTERVAL`): Sends an unpaid GET to each resource of Online `X402` entries and records the live 402 challenge (informational; never changes `Status`)
+4. **x402 OpenAPI Discovery** (`UPDATE_X402_OPENAPI_DISCOVERY_INTERVAL`): Looks for an OpenAPI document at each origin of an Online `X402` entry's manifest resources (`Link: rel="service-desc"`, then well-known paths) and caches the valid one (informational; never changes `Status`)
 
 ## Health Check Logic
 
@@ -264,6 +265,7 @@ Agents are verified by:
 | `UPDATE_CARDANO_REGISTRY_INTERVAL` | No | Sync interval in seconds (default: 50, min: 20) |
 | `UPDATE_HEALTH_CHECK_INTERVAL` | No | Health check interval in seconds (default: 100, min: 20) |
 | `UPDATE_X402_PROBE_INTERVAL` | No | x402 resource probe interval in seconds (default: 3600, min: 300) |
+| `UPDATE_X402_OPENAPI_DISCOVERY_INTERVAL` | No | x402 OpenAPI discovery interval in seconds (default: 21600, min: 300) |
 
 ## Key Files Reference
 

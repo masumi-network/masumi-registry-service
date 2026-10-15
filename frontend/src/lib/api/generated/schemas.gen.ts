@@ -1390,6 +1390,92 @@ export const RegistryEntryX402ProbesSchema = {
     ]
 } as const;
 
+export const RegistryEntryX402OpenApiSchema = {
+    type: 'object',
+    properties: {
+        agentIdentifier: {
+            type: 'string'
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'Online',
+                'Offline',
+                'Deregistered',
+                'Invalid'
+            ]
+        },
+        origins: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    origin: {
+                        type: 'string',
+                        description: 'https origin of the resources it covers'
+                    },
+                    outcome: {
+                        type: 'string',
+                        enum: [
+                            'Found',
+                            'NotFound',
+                            'Invalid',
+                            'Unreachable'
+                        ],
+                        description: 'Found: a valid OpenAPI document was served. NotFound: the origin answered but no candidate location served a document. Invalid: a candidate served something that is not a valid OpenAPI document, a JSON document over 2 MiB, a YAML document over 64 KiB (YAML is not parsed beyond that), or the origin is a URL the registry refuses to contact. Unreachable: the origin did not answer.'
+                    },
+                    specUrl: {
+                        type: 'string',
+                        nullable: true,
+                        description: 'Where the document was found (Found only)'
+                    },
+                    openApiVersion: {
+                        type: 'string',
+                        nullable: true,
+                        description: 'OpenAPI version the document declares'
+                    },
+                    title: {
+                        type: 'string',
+                        nullable: true,
+                        description: 'info.title of the document'
+                    },
+                    spec: {
+                        type: 'object',
+                        nullable: true,
+                        additionalProperties: {
+                            nullable: true
+                        },
+                        description: 'The document itself, when small enough to be cached (256 KiB). Null for a larger one: fetch it from specUrl.'
+                    },
+                    reason: {
+                        type: 'string',
+                        nullable: true
+                    },
+                    checkedAt: {
+                        type: 'string',
+                        format: 'date-time'
+                    }
+                },
+                required: [
+                    'origin',
+                    'outcome',
+                    'specUrl',
+                    'openApiVersion',
+                    'title',
+                    'spec',
+                    'reason',
+                    'checkedAt'
+                ]
+            }
+        }
+    },
+    required: [
+        'agentIdentifier',
+        'status',
+        'origins'
+    ]
+} as const;
+
 export const CapabilitySchema = {
     type: 'object',
     properties: {

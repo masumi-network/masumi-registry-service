@@ -4,6 +4,7 @@ import {
 } from '@/services/cardano-registry/cardano-registry.service';
 import { uptimeTracking } from '@/services/health-check';
 import { updateX402Probes } from '@/services/x402-probe';
+import { updateX402OpenApiDiscoveries } from '@/services/x402-openapi-discovery';
 import { updateSuccessfulPurchaseIndex } from '@/services/purchase-indexer/purchase-indexer.service';
 import { CONFIG } from '@/utils/config';
 import { logger } from '@/utils/logger';
@@ -55,6 +56,10 @@ async function init() {
       logger.info('Probing x402 resources');
       await updateX402Probes({ shouldStop: () => isStopping });
     }, CONFIG.UPDATE_X402_PROBE_INTERVAL * 1000),
+    AsyncInterval.start(async () => {
+      logger.info('Discovering x402 OpenAPI documents');
+      await updateX402OpenApiDiscoveries({ shouldStop: () => isStopping });
+    }, CONFIG.UPDATE_X402_OPENAPI_DISCOVERY_INTERVAL * 1000),
     AsyncInterval.start(async () => {
       const { count } = await uptimeTracking.pruneHealthCheckEvents(new Date());
       logger.info('Pruned old health check events', { count });

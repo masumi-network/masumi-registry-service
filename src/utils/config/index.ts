@@ -83,6 +83,13 @@ const updateX402ProbeInterval = readNumberEnv(
   3600,
   { min: 300, max: MAX_TIMER_SECONDS }
 );
+// An API's OpenAPI document changes rarely and each origin costs several
+// requests, so this runs far less often than the probe.
+const updateX402OpenApiDiscoveryInterval = readNumberEnv(
+  'UPDATE_X402_OPENAPI_DISCOVERY_INTERVAL',
+  21600,
+  { min: 300, max: MAX_TIMER_SECONDS }
+);
 
 // Weights of the ranking score. Distinct buyers dominate: they are the only
 // input that costs an attacker real on-chain transactions (thesis §4.1).
@@ -115,6 +122,7 @@ export const CONFIG = {
   UPDATE_HEALTH_CHECK_INTERVAL: updateHealthCheckInterval,
   UPDATE_PURCHASE_INDEX_INTERVAL: updatePurchaseIndexInterval,
   UPDATE_X402_PROBE_INTERVAL: updateX402ProbeInterval,
+  UPDATE_X402_OPENAPI_DISCOVERY_INTERVAL: updateX402OpenApiDiscoveryInterval,
   RANKING_WEIGHTS: rankingWeights,
   VERSION: '0.1.2',
   DB_CONNECTION_TIMEOUT: dbConnectionTimeout,
