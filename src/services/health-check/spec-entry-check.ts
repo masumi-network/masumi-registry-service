@@ -18,7 +18,13 @@ export function specKindForType(
   return null;
 }
 
-export type SpecEntryCheck = { status: $Enums.Status; spec?: unknown };
+// `dropSpec`: the spec is valid but too large to cache, so a cached older copy
+// is no longer the live document and must be cleared, not kept.
+export type SpecEntryCheck = {
+  status: $Enums.Status;
+  spec?: unknown;
+  dropSpec?: boolean;
+};
 
 /**
  * For OpenApi/X402 entries: fetch + validate the advertised spec URL and map the
@@ -75,7 +81,7 @@ export async function checkSpecEntry(entry: {
       // sit inline in the row without bloating every RegistryEntry read.
       return isCacheableSpec(outcome.spec)
         ? { status: $Enums.Status.Online, spec: outcome.spec }
-        : { status: $Enums.Status.Online };
+        : { status: $Enums.Status.Online, dropSpec: true };
     case 'invalid':
       return { status: $Enums.Status.Invalid };
     case 'unreachable':
@@ -98,16 +104,22 @@ function isCacheableSpec(spec: unknown): boolean {
 }
 
 /**
- * Prisma update fragment that caches a just-validated spec snapshot. Returns an
- * empty object for non-spec results (Standard entries, or a failed check), so a
+ * Prisma update fragment that caches a just-validated spec snapshot, or clears
+ * the cache when the live spec is valid but too large to hold. Returns an empty
+ * object for any other result (Standard entries, or a failed check), so a
  * previously-cached snapshot is left untouched and GET /{id}/spec keeps serving
  * the last known-good copy.
  */
 export function specCachePatch(result: {
   spec?: unknown;
+  dropSpec?: boolean;
 }):
   | { spec: Prisma.InputJsonValue; specValidatedAt: Date }
+  | { spec: typeof Prisma.DbNull; specValidatedAt: null }
   | Record<never, never> {
+  if (result.dropSpec === true) {
+    return { spec: Prisma.DbNull, specValidatedAt: null };
+  }
   return result.spec !== undefined
     ? {
         spec: result.spec as Prisma.InputJsonValue,
