@@ -69,7 +69,20 @@ const IPV6_RANGES = [
   ipv6Cidr('fc00::', 7),
   ipv6Cidr('fe80::', 10),
   ipv6Cidr('ff00::', 8),
+  // Transition and deprecated ranges that can smuggle an IPv4 destination past
+  // the checks above, or have no legitimate public use.
+  ipv6Cidr('::', 96),
+  ipv6Cidr('64:ff9b:1::', 48),
+  ipv6Cidr('2001::', 32),
+  ipv6Cidr('2001:10::', 28),
+  ipv6Cidr('2002::', 16),
+  ipv6Cidr('3fff::', 20),
+  ipv6Cidr('fec0::', 10),
 ];
+
+// NAT64 (RFC 6052): the low 32 bits are an IPv4 address. A synthesized address
+// is exactly as reachable as that IPv4 address, so judge it by the IPv4 ranges.
+const NAT64_RANGE = ipv6Cidr('64:ff9b::', 96);
 
 function normalizeHostname(hostname: string): string {
   return hostname
@@ -153,6 +166,13 @@ function isBlockedIpAddress(address: string): boolean {
 
   if (addressFamily === 6) {
     const ipv6Value = parseIpv6ToBigInt(normalizedAddress);
+    if (ipv6Value >= NAT64_RANGE[0] && ipv6Value <= NAT64_RANGE[1]) {
+      const embedded = Number(ipv6Value & 0xffffffffn);
+      return IPV4_RANGES.some(
+        ([rangeStart, rangeEnd]) =>
+          embedded >= rangeStart && embedded <= rangeEnd
+      );
+    }
     return IPV6_RANGES.some(
       ([rangeStart, rangeEnd]) =>
         ipv6Value >= rangeStart && ipv6Value <= rangeEnd

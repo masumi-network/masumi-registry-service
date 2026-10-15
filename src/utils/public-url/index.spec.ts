@@ -64,6 +64,26 @@ describe('public url helpers', () => {
     });
   });
 
+  it.each([
+    ['NAT64 of a private address', 'http://[64:ff9b::a00:1]'],
+    ['NAT64 of the metadata address', 'http://[64:ff9b::a9fe:a9fe]'],
+    ['local-use NAT64', 'http://[64:ff9b:1::1]'],
+    ['6to4', 'http://[2002:a00:1::]'],
+    ['Teredo', 'http://[2001::1]'],
+    ['site-local', 'http://[fec0::1]'],
+    ['IPv4-compatible', 'http://[::7f00:1]'],
+  ])('rejects %s', async (_label, url) => {
+    await expect(validatePublicUrl(url)).rejects.toMatchObject({
+      code: 'blocked_ip',
+    });
+  });
+
+  it('allows NAT64 of a public address', async () => {
+    await expect(
+      validatePublicUrl('https://[64:ff9b::5db8:d822]/x')
+    ).resolves.toMatchObject({ hostname: '64:ff9b::5db8:d822' });
+  });
+
   it('rejects blocked metadata and internal hostnames after dns resolution', async () => {
     (lookup as jest.Mock).mockResolvedValueOnce([
       { address: '169.254.169.254', family: 4 },

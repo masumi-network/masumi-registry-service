@@ -315,6 +315,7 @@ async function checkVerifyAndUpdateRegistryEntries({
           status: check.status,
           assetIdentifier: entry.assetIdentifier,
           spec: check.spec,
+          dropSpec: check.dropSpec,
         };
       }
       if (entry.apiBaseUrl != null && lookupMap.has(entry.apiBaseUrl)) {
