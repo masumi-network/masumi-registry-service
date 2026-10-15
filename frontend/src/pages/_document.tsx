@@ -4,8 +4,11 @@ export default function Document() {
   return (
     <Html lang="en">
       <Head>
-        <meta name="robots" content="noindex, nofollow" />
-        <link rel="icon" href="/admin/favicon.svg" type="image/svg+xml" />
+        <meta property="og:title" content="Masumi Registry Admin" />
+        <meta
+          property="og:description"
+          content="Admin interface for the Masumi Registry Service."
+        />
       </Head>
       <body className="antialiased">
         <Main />

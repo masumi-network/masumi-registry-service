@@ -1,14 +1,30 @@
-// Encrypts the API key before it is written to localStorage, so a copy of
-// localStorage alone (a storage export, a screenshot of devtools) is not usable.
-// The AES key is a non-extractable CryptoKey in IndexedDB: script can use it to
-// decrypt but can never read its raw bytes. The browser still keeps that key in the
-// same profile, so anyone with the whole profile (a shared or stolen machine) can
-// use the stored API key until sign-out. This does not defend against XSS on the
-// same origin, which can still ask the page to decrypt; it is not a substitute for CSP.
+// Encrypts the API key before localStorage, same pattern as the payment admin UI.
+// Legacy hex-encoded keys (pre-secure-storage) are migrated on sign-in.
 const DB_NAME = 'masumi-registry-secure-storage';
 const STORE_NAME = 'keys';
 const KEY_ID = 'api-key-encryption-key';
 const IV_LENGTH_BYTES = 12;
+const HEX_CHARACTERS_PER_BYTE = 2;
+
+export function decodeLegacyStoredKey(stored: string): string | null {
+  if (
+    stored.length === 0 ||
+    stored.length % HEX_CHARACTERS_PER_BYTE !== 0 ||
+    /[^0-9a-f]/i.test(stored)
+  ) {
+    return null;
+  }
+  const bytes = new Uint8Array(stored.length / HEX_CHARACTERS_PER_BYTE);
+  for (let index = 0; index < bytes.length; index += 1) {
+    const offset = index * HEX_CHARACTERS_PER_BYTE;
+    bytes[index] = Number.parseInt(stored.slice(offset, offset + HEX_CHARACTERS_PER_BYTE), 16);
+  }
+  try {
+    return new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes);
+  } catch {
+    return null;
+  }
+}
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -40,8 +56,6 @@ async function saveKeyIfAbsent(key: CryptoKey): Promise<CryptoKey> {
   const db = await openDb();
   try {
     return await new Promise<CryptoKey>((resolve, reject) => {
-      // IndexedDB serializes read/write transactions across tabs. Recheck inside this
-      // transaction so a competing tab's key is never replaced.
       const tx = db.transaction(STORE_NAME, 'readwrite');
       const store = tx.objectStore(STORE_NAME);
       const request = store.get(KEY_ID);
@@ -113,10 +127,6 @@ export async function encryptForStorage(plaintext: string): Promise<string> {
   return encryptWithKey(await getOrCreateKey(), plaintext);
 }
 
-/**
- * Storage errors reach the caller. Only an invalid ciphertext returns null, so a
- * temporary IndexedDB failure never causes a saved key to be discarded.
- */
 export async function decryptFromStorage(stored: string): Promise<string | null> {
   return decryptWithKey(await getOrCreateKey(), stored);
 }

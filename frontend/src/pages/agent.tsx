@@ -16,7 +16,7 @@ import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import type { Network } from '@/lib/agent-filters';
 import { classifyAuthError } from '@/lib/auth/errors';
-import { useNetwork } from '@/lib/contexts/NetworkContext';
+import { useAppContext } from '@/lib/contexts/AppContext';
 import { ENTRY_TYPE_LABELS } from '@/lib/display-labels';
 import { isAdminKey } from '@/lib/permissions';
 import { useAgent } from '@/lib/queries/useAgent';
@@ -63,7 +63,7 @@ function RefreshButton({
 }
 
 function AgentDetail({ agentIdentifier }: { agentIdentifier: string }) {
-  const { network, setNetwork } = useNetwork();
+  const { network, setNetwork } = useAppContext();
   const query = useAgent(network, agentIdentifier);
   const { data: key } = useApiKeyStatus();
 

@@ -1,27 +1,30 @@
-import { useCallback, useEffect } from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/router';
-import {
-  BookOpen,
-  Bot,
-  FileCode,
-  LogOut,
-  MessageSquare,
-  Moon,
-  PanelLeft,
-  Sun,
-  type LucideIcon,
-} from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import MasumiLogo from '@/components/MasumiLogo';
-import MasumiIconFlat from '@/components/MasumiIconFlat';
-import { NetworkSwitch } from '@/components/layout/NetworkSwitch';
+import { useRouter } from 'next/router';
+import Link from 'next/link';
+import { useState, useEffect, useCallback } from 'react';
+import {
+  LayoutDashboard,
+  Bot,
+  Database,
+  Key,
+  Settings,
+  Sun,
+  Moon,
+  BookOpen,
+  PanelLeft,
+  Search,
+  Command,
+  MessageSquare,
+} from 'lucide-react';
 import { useTheme } from '@/lib/contexts/ThemeContext';
 import { useSidebar } from '@/lib/contexts/SidebarContext';
-import { useAuth } from '@/lib/contexts/AuthContext';
-import { canAccessPath, isAdminKey } from '@/lib/permissions';
-import { useApiKeyStatus } from '@/lib/queries/useApiKeyStatus';
 import { cn } from '@/lib/utils';
+import { useAppContext } from '@/lib/contexts/AppContext';
+import MasumiLogo from '@/components/MasumiLogo';
+import MasumiIconFlat from '@/components/MasumiIconFlat';
+import { NetworkSwitcher } from '@/components/layout/NetworkSwitcher';
+import { SearchDialog } from '@/components/search/SearchDialog';
+import type { NetworkType } from '@/lib/api/types';
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -30,60 +33,39 @@ interface MainLayoutProps {
 type NavItem = {
   href: string;
   name: string;
-  icon: LucideIcon;
-  /** Other pages that belong to this item, such as a detail page. */
-  activeOn?: string[];
+  icon: React.ReactNode;
+  group: number;
 };
 
-// Feature slices append their pages here. Non-admin keys only see the ones whose path is
-// listed in lib/permissions.ts, so a new read page must be registered there as well.
-const navItems: NavItem[] = [{ href: '/', name: 'Agents', icon: Bot, activeOn: ['/agent'] }];
-
-type HeaderLink = {
-  href: string;
-  label: string;
-  icon: LucideIcon;
-  external: boolean;
-};
-
-const headerLinks: HeaderLink[] = [
-  // Swagger UI lives on the API server outside the /admin basePath, so it is a plain <a>.
-  { href: '/docs', label: 'API docs', icon: FileCode, external: false },
+const navItems: NavItem[] = [
   {
-    href: 'https://www.masumi.network/dev/masumi',
-    label: 'Documentation',
-    icon: BookOpen,
-    external: true,
+    href: '/',
+    name: 'Dashboard',
+    icon: <LayoutDashboard className="h-4 w-4" />,
+    group: 0,
   },
   {
-    href: 'https://www.masumi.network/contact',
-    label: 'Support',
-    icon: MessageSquare,
-    external: true,
+    href: '/agents',
+    name: 'Agents',
+    icon: <Bot className="h-4 w-4" />,
+    group: 0,
+  },
+  {
+    href: '/sources',
+    name: 'Sources',
+    icon: <Database className="h-4 w-4" />,
+    group: 0,
+  },
+  {
+    href: '/api-keys',
+    name: 'API keys',
+    icon: <Key className="h-4 w-4" />,
+    group: 1,
   },
 ];
-
-const footerLinks = [
-  { href: 'https://www.masumi.network/about', label: 'About' },
-  {
-    href: 'https://www.house-of-communication.com/de/en/footer/privacy-policy.html',
-    label: 'Privacy',
-  },
-  { href: 'https://www.masumi.network/product-releases', label: 'Changelog' },
-];
-
-const SIDEBAR_WIDTH = 280;
-const SIDEBAR_WIDTH_COLLAPSED = 96;
-const NAV_ANIMATION_MS = 1000;
-const THEME_BLUR_MS = 200;
 
 export function MainLayout({ children }: MainLayoutProps) {
   const router = useRouter();
-  const { signOut } = useAuth();
-  const { data: keyStatus } = useApiKeyStatus();
-  const visibleNavItems = navItems.filter((item) =>
-    canAccessPath(item.href, isAdminKey(keyStatus)),
-  );
   const { theme, setThemePreference, isChangingTheme } = useTheme();
   const {
     collapsed,
@@ -94,14 +76,36 @@ export function MainLayout({ children }: MainLayoutProps) {
     hasAnimatedNav,
     markNavAnimated,
   } = useSidebar();
-  const isRail = collapsed && !isHovered;
+  const sideBarWidth = 280;
+  const sideBarWidthCollapsed = 96;
+  const [isMac, setIsMac] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const { network, setNetwork, isChangingNetwork } = useAppContext();
   const isFirstNavMount = !hasAnimatedNav;
 
   useEffect(() => {
-    if (hasAnimatedNav) return;
-    const timer = setTimeout(() => markNavAnimated(), NAV_ANIMATION_MS);
-    return () => clearTimeout(timer);
+    if (typeof window !== 'undefined') {
+      queueMicrotask(() => setIsMac(window.navigator.userAgent.includes('Macintosh')));
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!hasAnimatedNav) {
+      const timer = setTimeout(() => markNavAnimated(), 1000);
+      return () => clearTimeout(timer);
+    }
   }, [hasAnimatedNav, markNavAnimated]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setIsSearchOpen(true);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const applyBlurTransition = useCallback((isActive: boolean) => {
     if (!isActive) return;
@@ -111,97 +115,131 @@ export function MainLayout({ children }: MainLayoutProps) {
     app.style.transition = 'all 0.2s ease';
     app.style.filter = 'blur(10px)';
     app.style.pointerEvents = 'none';
+    app.style.opacity = '1';
     app.style.scale = '1.1';
 
     const timer = setTimeout(() => {
       app.style.filter = '';
       app.style.pointerEvents = 'auto';
-      // Cleared, not '1': any scale other than `none` makes #__next the containing
-      // block for the fixed app shell, which collapses it and blocks every click.
-      app.style.scale = '';
-    }, THEME_BLUR_MS);
+      app.style.opacity = '1';
+      app.style.scale = '1';
+    }, 200);
 
     return () => {
       clearTimeout(timer);
-      app.style.filter = '';
-      app.style.transition = '';
-      app.style.pointerEvents = 'auto';
-      app.style.scale = '';
+      const el = document.getElementById('__next');
+      if (el) {
+        el.style.filter = '';
+        el.style.transition = '';
+        el.style.pointerEvents = 'auto';
+        el.style.opacity = '1';
+        el.style.scale = '1';
+      }
     };
   }, []);
 
   useEffect(() => applyBlurTransition(isChangingTheme), [isChangingTheme, applyBlurTransition]);
+  useEffect(() => applyBlurTransition(isChangingNetwork), [isChangingNetwork, applyBlurTransition]);
 
-  const sidebarWidth = isRail ? SIDEBAR_WIDTH_COLLAPSED : SIDEBAR_WIDTH;
+  const handleNetworkChange = (newNetwork: NetworkType) => {
+    if (newNetwork === network) return;
+    setNetwork(newNetwork);
+  };
 
   return (
-    <div className="fixed inset-0 flex w-full overflow-x-hidden overflow-y-scroll bg-background">
-      <a
-        href="#main-content"
-        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-background focus:px-3 focus:py-2 focus:text-sm focus:ring-1 focus:ring-ring"
-      >
-        Skip to content
-      </a>
+    <div
+      className="flex bg-background w-full"
+      style={{
+        overflowY: 'scroll',
+        overflowX: 'hidden',
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        width: '100%',
+        height: '100%',
+      }}
+      onClick={(e) => e.stopPropagation()}
+    >
       <aside
-        className="fixed left-0 top-0 z-40 h-screen border-r bg-[#FAFAFA] transition-[width] duration-300 dark:bg-[#111]"
+        className={cn(
+          'fixed left-0 top-0 z-40 h-screen border-r transition-[width] duration-300',
+          'bg-[#FAFAFA] dark:bg-[#111]',
+        )}
         data-collapsed={collapsed}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
-        // Keyboard focus expands the rail like hover does, so the toggle stays reachable.
-        onFocus={() => setIsHovered(true)}
-        onBlur={(event) => {
-          if (!event.currentTarget.contains(event.relatedTarget)) setIsHovered(false);
+        style={{
+          width: collapsed && !isHovered ? `${sideBarWidthCollapsed}px` : `${sideBarWidth}px`,
+          pointerEvents: 'auto',
         }}
-        style={{ width: `${sidebarWidth}px` }}
       >
-        <div className="border-b border-border">
-          <div
-            className={cn(
-              'flex h-14 shrink-0 items-center overflow-hidden px-4',
-              isRail ? 'justify-center' : 'justify-between',
-            )}
-          >
-            {isRail ? (
-              <Link
-                href="/"
-                key="masumi-logo-icon"
-                aria-label="Masumi Registry home"
-                className="flex h-8 w-8 items-center justify-center"
-                style={shouldAnimateIcon ? { animation: 'rotateIn 0.3s ease-out' } : undefined}
-              >
-                <MasumiIconFlat className="h-6 w-6" aria-hidden="true" />
-              </Link>
-            ) : (
-              <Link href="/" key="masumi-logo-full" aria-label="Masumi Registry home">
-                <MasumiLogo />
-              </Link>
-            )}
-            {!isRail && (
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label="Toggle sidebar"
-                aria-expanded={!collapsed}
-                className={cn('h-8 w-8', collapsed ? 'text-muted-foreground' : 'text-foreground')}
-                onClick={() => setCollapsed(!collapsed)}
-              >
-                <PanelLeft className="h-4 w-4" />
-              </Button>
-            )}
+        <div className="flex flex-col">
+          {/* Border on the wrapper (like the main sticky header) so h-14 + 1px border matches. */}
+          <div className="border-b border-border">
+            <div
+              className={cn(
+                'flex h-14 shrink-0 items-center px-4',
+                collapsed && !isHovered ? 'justify-center' : 'justify-between',
+              )}
+            >
+              {!(collapsed && !isHovered) ? (
+                <Link href="/" key="masumi-logo-full">
+                  <MasumiLogo />
+                </Link>
+              ) : (
+                <Link
+                  href="/"
+                  key="masumi-logo-icon"
+                  className="flex items-center justify-center w-8 h-8"
+                  style={
+                    shouldAnimateIcon && collapsed && !isHovered
+                      ? {
+                          animation: 'rotateIn 0.3s ease-out',
+                        }
+                      : undefined
+                  }
+                >
+                  <MasumiIconFlat className="w-6 h-6" />
+                </Link>
+              )}
+              {!(collapsed && !isHovered) && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                  className={cn(
+                    'h-8 w-8',
+                    collapsed ? 'text-muted-foreground opacity-50' : 'text-foreground opacity-100',
+                  )}
+                  onClick={() => setCollapsed(!collapsed)}
+                >
+                  <PanelLeft className={cn('h-4 w-4 transition-transform duration-300')} />
+                </Button>
+              )}
+            </div>
           </div>
-          <div className={cn('px-2 pb-2', isRail && 'flex justify-center px-0')}>
-            <NetworkSwitch compact={isRail} />
+
+          <div
+            className={cn('p-2 w-full', collapsed && !isHovered ? 'flex justify-center' : 'px-2')}
+          >
+            <NetworkSwitcher
+              collapsed={collapsed && !isHovered}
+              onNetworkChange={handleNetworkChange}
+            />
           </div>
         </div>
 
         <nav
-          aria-label="Main navigation"
-          className={cn('flex flex-col gap-1 p-2', isRail ? 'items-center px-0' : 'px-2')}
+          className={cn(
+            'flex flex-col gap-1 p-2',
+            collapsed && !isHovered ? 'px-0 items-center' : 'px-2',
+          )}
         >
-          {visibleNavItems.map((item, index) => {
-            const isActive =
-              router.pathname === item.href || !!item.activeOn?.includes(router.pathname);
-            const Icon = item.icon;
+          {navItems.map((item, index) => {
+            const isActive = router.pathname === item.href;
+            const showSeparator = index > 0 && item.group !== navItems[index - 1].group;
             return (
               <div
                 key={item.href}
@@ -212,20 +250,30 @@ export function MainLayout({ children }: MainLayoutProps) {
                     : undefined
                 }
               >
+                {showSeparator && (
+                  <div
+                    className={cn(
+                      'my-1.5',
+                      collapsed && !isHovered ? 'mx-1' : 'mx-2',
+                      'border-t border-border',
+                    )}
+                  />
+                )}
                 <Link
                   href={item.href}
-                  aria-current={isActive ? 'page' : undefined}
-                  aria-label={isRail ? item.name : undefined}
-                  title={isRail ? item.name : undefined}
+                  onMouseEnter={() => {
+                    if (item.href.startsWith('/')) void router.prefetch(item.href);
+                  }}
                   className={cn(
-                    'sidebar-active-indicator relative flex items-center rounded-lg text-sm transition-colors duration-150',
-                    'hover:bg-[#F4F4F5] focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring dark:hover:bg-secondary',
-                    isActive && 'is-active bg-[#F4F4F5] font-bold dark:bg-secondary',
-                    isRail ? 'h-10 w-10 justify-center' : 'h-10 gap-3 px-3',
+                    'flex items-center rounded-lg text-sm transition-colors duration-150 relative sidebar-active-indicator',
+                    'hover:bg-[#F4F4F5] dark:hover:bg-secondary',
+                    isActive && 'bg-[#F4F4F5] dark:bg-secondary font-bold is-active',
+                    collapsed && !isHovered ? 'h-10 w-10 justify-center' : 'px-3 h-10 gap-3',
                   )}
+                  title={collapsed && !isHovered ? item.name : undefined}
                 >
-                  <Icon className="h-4 w-4" aria-hidden="true" />
-                  {!isRail && <span className="truncate">{item.name}</span>}
+                  {item.icon}
+                  {!(collapsed && !isHovered) && <span className="truncate">{item.name}</span>}
                 </Link>
               </div>
             );
@@ -235,33 +283,65 @@ export function MainLayout({ children }: MainLayoutProps) {
         <div
           className={cn(
             'absolute bottom-4 left-0 right-0 overflow-hidden transition-all duration-300',
-            isRail ? 'px-0' : 'px-2',
+            collapsed && !isHovered ? 'px-0' : 'px-2',
           )}
         >
-          <div className="mx-2 mb-2 border-t border-border" />
+          <div className={cn('mb-2', collapsed && !isHovered ? 'flex justify-center' : '')}>
+            <Link
+              href="/settings"
+              className={cn(
+                'flex items-center rounded-lg text-sm transition-colors duration-150 relative sidebar-active-indicator',
+                'hover:bg-[#F4F4F5] dark:hover:bg-secondary',
+                router.pathname === '/settings' &&
+                  'bg-[#F4F4F5] dark:bg-secondary font-bold is-active',
+                collapsed && !isHovered ? 'h-10 w-10 justify-center' : 'px-3 h-10 gap-3',
+              )}
+              title={collapsed && !isHovered ? 'Settings' : undefined}
+            >
+              <Settings className="h-4 w-4" />
+              {!(collapsed && !isHovered) && <span className="truncate">Settings</span>}
+            </Link>
+          </div>
+          <div className="border-t border-border mx-2 mb-2" />
           <div className="flex items-center justify-between px-2">
             <div
-              className={cn('flex items-center text-xs text-muted-foreground', isRail && 'hidden')}
+              className={cn(
+                'flex items-center gap-0 text-xs text-muted-foreground',
+                collapsed && !isHovered && 'hidden',
+              )}
             >
-              {footerLinks.map((link, index) => (
-                <span key={link.href} className="flex items-center">
-                  {index > 0 && <span className="mx-2 text-muted-foreground/40">|</span>}
-                  <a
-                    href={link.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="truncate transition-colors hover:text-foreground"
-                  >
-                    {link.label}
-                  </a>
-                </span>
-              ))}
+              <Link
+                href="https://www.masumi.network/about"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="truncate hover:text-foreground transition-colors"
+              >
+                About
+              </Link>
+              <span className="mx-2 text-muted-foreground/40">|</span>
+              <Link
+                href="https://www.house-of-communication.com/de/en/footer/privacy-policy.html"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="truncate hover:text-foreground transition-colors"
+              >
+                Privacy
+              </Link>
+              <span className="mx-2 text-muted-foreground/40">|</span>
+              <Link
+                href="https://www.masumi.network/product-releases"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="truncate hover:text-foreground transition-colors"
+              >
+                Changelog
+              </Link>
             </div>
             <Button
               variant="ghost"
               size="icon"
               aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
-              className={cn('h-8 w-8', isRail && 'mx-auto')}
+              className={cn('h-8 w-8', collapsed && !isHovered && 'mx-auto')}
               onClick={() => setThemePreference(theme === 'dark' ? 'light' : 'dark')}
             >
               {theme === 'dark' ? (
@@ -275,41 +355,66 @@ export function MainLayout({ children }: MainLayoutProps) {
       </aside>
 
       <div
-        className="flex min-h-screen w-full flex-col transition-[padding] duration-300"
-        style={{ paddingLeft: `${sidebarWidth}px` }}
+        className="flex flex-col min-h-screen w-screen transition-all duration-300"
+        style={{
+          paddingLeft: collapsed && !isHovered ? `${sideBarWidthCollapsed}px` : `${sideBarWidth}px`,
+        }}
       >
-        <header className="sticky top-0 z-20 border-b border-border bg-background/80 backdrop-blur-md">
-          <div className="mx-auto flex h-14 w-full max-w-[1400px] items-center justify-end gap-2 px-4 sm:gap-4">
-            {headerLinks.map((link) => {
-              const Icon = link.icon;
-              return (
-                <Button key={link.href} variant="outline" size="sm" asChild>
-                  <a
-                    href={link.href}
-                    aria-label={link.label}
-                    {...(link.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
-                  >
-                    <Icon className="h-4 w-4" aria-hidden="true" />
-                    <span className="hidden sm:inline">{link.label}</span>
-                  </a>
-                </Button>
-              );
-            })}
-            <Button variant="outline" size="sm" aria-label="Log out" onClick={() => signOut()}>
-              <LogOut className="h-4 w-4" aria-hidden="true" />
-              <span className="hidden sm:inline">Log out</span>
-            </Button>
-          </div>
-        </header>
+        <div className="sticky top-0 z-20 border-b border-border bg-background/80 backdrop-blur-md">
+          <div className="max-w-[1400px] mx-auto w-full">
+            <div className="h-14 px-4 flex items-center justify-between gap-4">
+              <button
+                type="button"
+                aria-label="Open search"
+                className="flex flex-1 max-w-[220px] cursor-pointer items-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                onClick={() => setIsSearchOpen(true)}
+              >
+                <Search className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+                <span className="min-w-0 flex-1 truncate text-muted-foreground">Search…</span>
+                <span className="pointer-events-none flex shrink-0 items-center gap-1" aria-hidden>
+                  <kbd className="bg-muted text-muted-foreground inline-flex size-5 shrink-0 items-center justify-center rounded-sm border border-border p-0 font-mono text-[9px] font-medium leading-none">
+                    {isMac ? <Command className="h-3 w-3" /> : 'Ctrl'}
+                  </kbd>
+                  <kbd className="bg-muted text-muted-foreground inline-flex size-5 shrink-0 items-center justify-center rounded-sm border border-border p-0 font-mono text-[10px] font-medium leading-none">
+                    K
+                  </kbd>
+                </span>
+              </button>
 
-        <main
-          id="main-content"
-          tabIndex={-1}
-          className="relative z-10 w-full flex-1 animate-content-fade-in focus:outline-hidden"
-        >
-          <div className="mx-auto w-full max-w-[1400px] p-8 px-4">{children}</div>
+              <div className="flex items-center gap-4">
+                <Button variant="outline" size="sm" asChild>
+                  <Link
+                    href="https://www.masumi.network/dev/masumi"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2"
+                  >
+                    <BookOpen className="h-4 w-4" />
+                    Documentation
+                  </Link>
+                </Button>
+                <Button variant="outline" size="sm" asChild>
+                  <Link
+                    href="https://www.masumi.network/contact"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2"
+                  >
+                    <MessageSquare className="h-4 w-4" />
+                    Support
+                  </Link>
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <main className="flex-1 relative z-10 w-full animate-content-fade-in">
+          <div className="max-w-[1400px] mx-auto w-full p-8 px-4">{children}</div>
         </main>
       </div>
+
+      <SearchDialog open={isSearchOpen} onOpenChange={setIsSearchOpen} />
     </div>
   );
 }
