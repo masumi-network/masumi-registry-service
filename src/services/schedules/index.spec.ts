@@ -5,6 +5,9 @@ jest.mock('@/services/cardano-registry/cardano-registry.service', () => ({
 jest.mock('@/services/purchase-indexer/purchase-indexer.service', () => ({
   updateSuccessfulPurchaseIndex: jest.fn(),
 }));
+jest.mock('@/services/x402-probe', () => ({
+  updateX402Probes: jest.fn(),
+}));
 jest.mock('@/services/health-check', () => ({
   uptimeTracking: { pruneHealthCheckEvents: jest.fn() },
 }));
@@ -52,6 +55,23 @@ describe('schedules', () => {
 
     expect(registrySync).not.toHaveBeenCalled();
     expect(healthCheck).not.toHaveBeenCalled();
+  });
+
+  it('probes x402 resources on its own interval after the other jobs start', async () => {
+    const probe = (
+      jest.requireMock('@/services/x402-probe') as {
+        updateX402Probes: jest.Mock;
+      }
+    ).updateX402Probes;
+    probe.mockResolvedValue({ probed: 0 });
+    void schedules.default();
+
+    await jest.advanceTimersByTimeAsync(1500 + 15000);
+    expect(probe).toHaveBeenCalledTimes(1);
+    await jest.advanceTimersByTimeAsync(3600 * 1000);
+    expect(probe).toHaveBeenCalledTimes(2);
+
+    await schedules.stopSchedules();
   });
 
   it('waits for the running job, then schedules nothing else', async () => {
