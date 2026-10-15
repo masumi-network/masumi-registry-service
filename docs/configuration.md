@@ -20,3 +20,5 @@ The registry is updated every 2 minutes and the deregistered entries are updated
 
 - **UPDATE_CARDANO_REGISTRY_INTERVAL**: The interval in seconds to update the registry
 - **UPDATE_CARDANO_DEREGISTER_INTERVAL**: The interval in seconds to update the deregistered entries
+- **UPDATE_X402_PROBE_INTERVAL**: The interval in seconds between probes of the resources of `X402` agents (default 3600, minimum 300). Each cycle sends an unpaid `GET` to at most 500 resources (25 per agent), stalest first; results are served by `GET /registry-entry-x402-probes`
+- **X402_DISCOVERY_FACILITATOR_URL**: The https base URL of the x402 facilitator whose Bazaar catalog `GET /x402-discovery` queries (default Coinbase CDP, `https://api.cdp.coinbase.com/platform/v2/x402`). It must be https on the default port, with no credentials, query or fragment. Callers cannot choose the facilitator. Only facilitators that implement `GET /discovery/merchant?payTo=` are supported

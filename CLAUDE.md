@@ -219,9 +219,10 @@ Types: feat, fix, docs, style, refactor, test, chore, perf, ci, revert, build
 
 ## Background Jobs
 
-Two scheduled tasks run via `AsyncInterval`:
+Scheduled tasks run via `AsyncInterval`:
 1. **Registry Sync** (`UPDATE_CARDANO_REGISTRY_INTERVAL`): Scans blockchain for new/burned agent NFTs
 2. **Health Check** (`UPDATE_HEALTH_CHECK_INTERVAL`): Verifies agent endpoint availability
+3. **x402 Probe** (`UPDATE_X402_PROBE_INTERVAL`): Sends an unpaid GET to each resource of Online `X402` entries and records the live 402 challenge (informational; never changes `Status`)
 
 ## Health Check Logic
 
@@ -263,6 +264,8 @@ Agents are verified by:
 | `PORT` | No | Server port (default: 3000) |
 | `UPDATE_CARDANO_REGISTRY_INTERVAL` | No | Sync interval in seconds (default: 50, min: 20) |
 | `UPDATE_HEALTH_CHECK_INTERVAL` | No | Health check interval in seconds (default: 100, min: 20) |
+| `UPDATE_X402_PROBE_INTERVAL` | No | x402 resource probe interval in seconds (default: 3600, min: 300) |
+| `X402_DISCOVERY_FACILITATOR_URL` | No | https base URL of the x402 facilitator queried by `GET /x402-discovery` (default: Coinbase CDP `https://api.cdp.coinbase.com/platform/v2/x402`) |
 
 ## Key Files Reference
 

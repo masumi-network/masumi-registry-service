@@ -17,6 +17,14 @@ import {
   registryEntrySpecSchemaOutput,
 } from '@/routes/api/registry-entry-spec';
 import {
+  registryEntryX402ProbesSchemaInput,
+  registryEntryX402ProbesSchemaOutput,
+} from '@/routes/api/registry-entry-x402-probes';
+import {
+  x402DiscoverySchemaInput,
+  x402DiscoverySchemaOutput,
+} from '@/routes/api/x402-discovery';
+import {
   queryPaymentInformationInput,
   queryPaymentInformationSchemaOutput,
 } from '@/routes/api/payment-information';
@@ -433,6 +441,203 @@ export function registerRegistryEntryPaths(
       404: {
         description:
           'Registry entry not found, or it is a Standard entry, which does not expose a spec',
+      },
+      500: {
+        description: 'Internal Server Error',
+      },
+    },
+  });
+  registry.registerPath({
+    method: 'get',
+    path: '/registry-entry-x402-probes/',
+    description:
+      "Returns what the registry's unpaid probes of an X402 agent's resources " +
+      'last answered: the live x402 challenge of each resource and whether it ' +
+      "agrees with the entry's registered EVM payment sources. Informational " +
+      "only; it never changes the entry's status. Resources are probed in " +
+      'rotation, so a resource that has not been probed yet is absent, and ' +
+      'only the first 100 resources of a manifest are tracked. Use `checkedAt` ' +
+      'for freshness: rows of an entry that is no longer Online keep their last ' +
+      'result. An agent can answer the probe differently from a real buyer, so ' +
+      'a match is not a trust signal.',
+    summary: 'REQUIRES API KEY Authentication (+user)',
+    tags: ['registry-entry'],
+    request: {
+      query: registryEntryX402ProbesSchemaInput.openapi({
+        example: {
+          network: 'Preprod',
+          agentIdentifier:
+            '222222222222222222222222222222222222222222222222222222222222222222',
+        },
+      }),
+    },
+    security: [{ [apiKeyAuthName]: [] }],
+    responses: {
+      200: {
+        description: 'The last probe result of each probed resource',
+        content: {
+          'application/json': {
+            schema: z
+              .object({
+                data: registryEntryX402ProbesSchemaOutput,
+                status: z.string(),
+              })
+              .openapi({
+                example: {
+                  data: {
+                    agentIdentifier:
+                      '222222222222222222222222222222222222222222222222222222222222222222',
+                    status: Status.Online,
+                    resources: [
+                      {
+                        resource: 'https://agent.example/v1/summarize',
+                        outcome: 'Payable',
+                        httpStatus: 402,
+                        x402Version: 2,
+                        accepts: [
+                          {
+                            scheme: 'exact',
+                            network: 'eip155:8453',
+                            amount: '80000',
+                            asset: '0x833589fcd6edb6e08f4c7c32d4f71b54bda02913',
+                            payTo: '0x9f86b5b01d584e2ef5ac2c7a60f3e5164d548881',
+                            maxTimeoutSeconds: 60,
+                          },
+                        ],
+                        matchesRegisteredSources: true,
+                        mismatches: [],
+                        reason: null,
+                        checkedAt: new Date(120000),
+                      },
+                    ],
+                  },
+                  status: 'success',
+                },
+              }),
+          },
+        },
+      },
+      400: {
+        description: 'Bad Request (possible parameters missing or invalid)',
+      },
+      401: {
+        description: 'Unauthorized',
+      },
+      404: {
+        description: 'Registry entry not found, or it is not an X402 entry',
+      },
+      500: {
+        description: 'Internal Server Error',
+      },
+    },
+  });
+  registry.registerPath({
+    method: 'get',
+    path: '/x402-discovery/',
+    description:
+      "Looks up an EVM seller address (payTo) in the configured x402 facilitator's " +
+      'Bazaar catalog and returns the APIs it sells, grouped by host into ' +
+      'candidate agents. Each candidate carries a suggested manifest in the ' +
+      "registry's own format, and is flagged when an X402 registry entry already " +
+      'lists it. Read-only: nothing is registered. The facilitator is set by the ' +
+      'operator, and results are cached for a few minutes. Catalog data is ' +
+      'third-party and unverified; probe a resource before relying on it.',
+    summary: 'REQUIRES API KEY Authentication (+user)',
+    tags: ['x402-discovery'],
+    request: {
+      query: x402DiscoverySchemaInput.openapi({
+        example: {
+          payTo: '0x589a2314a2E05F45e40C4823Da3Ba58D421dB3d8',
+          caip2Network: 'eip155:8453',
+        },
+      }),
+    },
+    security: [{ [apiKeyAuthName]: [] }],
+    responses: {
+      200: {
+        description: 'Candidate agents discovered for the address',
+        content: {
+          'application/json': {
+            schema: z
+              .object({
+                data: x402DiscoverySchemaOutput,
+                status: z.string(),
+              })
+              .openapi({
+                example: {
+                  data: {
+                    payTo: '0x589a2314a2e05f45e40c4823da3ba58d421db3d8',
+                    truncated: false,
+                    registeredEntries: [],
+                    candidates: [
+                      {
+                        host: 'www.api-xpay.com',
+                        serviceName: 'X Pay',
+                        networks: ['eip155:8453'],
+                        registered: false,
+                        manifestValid: true,
+                        suggestedManifest: {
+                          x402Version: 2,
+                          resources: [
+                            {
+                              resource: 'https://www.api-xpay.com/x402/time',
+                              type: 'http',
+                              description: 'Current server time in UTC',
+                            },
+                          ],
+                        },
+                        resources: [
+                          {
+                            resource: 'https://www.api-xpay.com/x402/time',
+                            method: 'GET',
+                            description: 'Current server time in UTC',
+                            serviceName: 'X Pay',
+                            tags: ['utility'],
+                            x402Version: 2,
+                            accepts: [
+                              {
+                                scheme: 'exact',
+                                network: 'eip155:8453',
+                                amount: '5000',
+                                asset:
+                                  '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+                                payTo:
+                                  '0x589a2314a2E05F45e40C4823Da3Ba58D421dB3d8',
+                                maxTimeoutSeconds: 60,
+                                extra: { name: 'USD Coin', version: '2' },
+                              },
+                            ],
+                            inputSchema: null,
+                            outputSchema: null,
+                            lastUpdated: '2026-10-15T04:27:50.886Z',
+                            quality: {
+                              l30DaysTotalCalls: 5470,
+                              l30DaysUniquePayers: 152,
+                              lastCalledAt: '2026-10-15T00:20:18.462Z',
+                            },
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                  status: 'success',
+                },
+              }),
+          },
+        },
+      },
+      400: {
+        description: 'Bad Request (possible parameters missing or invalid)',
+      },
+      401: {
+        description: 'Unauthorized',
+      },
+      429: {
+        description:
+          'Too many uncached facilitator lookups right now; retry shortly',
+      },
+      502: {
+        description: 'The configured x402 facilitator could not be queried',
       },
       500: {
         description: 'Internal Server Error',

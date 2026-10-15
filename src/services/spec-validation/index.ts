@@ -66,7 +66,7 @@ const openApiDocumentSchema = z
 // Pricing is agent-level (SupportedPaymentSources), so resources carry no
 // `accepts`. Embedded input/output schemas are accepted as objects here; strict
 // JSON-Schema-dialect validation is the deferred follow-up.
-const x402ManifestSchema = z.object({
+export const x402ManifestSchema = z.object({
   x402Version: z.number().int().optional(),
   resources: z
     .array(
@@ -191,6 +191,48 @@ export async function validateOpenApiSpec(
   return { outcome: 'valid', spec: parsed };
 }
 
+// validateSchema throws (it does not return false) for a schema that names an
+// unknown dialect or nests deeply enough to exhaust the stack.
+function isValidJsonSchema(schema: unknown): boolean {
+  try {
+    return (
+      ajv2020.validateSchema(
+        schema as Parameters<typeof ajv2020.validateSchema>[0]
+      ) === true
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Structurally validate an already-parsed x402 resource manifest, including each
+ * embedded schema against JSON Schema 2020-12. The same rules the health check
+ * applies to a fetched manifest.
+ */
+export function checkX402Manifest(parsed: unknown): SpecValidationOutcome {
+  const result = x402ManifestSchema.safeParse(parsed);
+  if (!result.success) {
+    return {
+      outcome: 'invalid',
+      reason: `manifest shape invalid: ${result.error.issues[0]?.message ?? 'unknown'}`,
+    };
+  }
+  // Each embedded input/output schema must be a valid JSON Schema 2020-12 doc.
+  for (const [index, resource] of result.data.resources.entries()) {
+    for (const key of ['inputSchema', 'outputSchema'] as const) {
+      const schema = resource[key];
+      if (schema != null && !isValidJsonSchema(schema)) {
+        return {
+          outcome: 'invalid',
+          reason: `resources[${index}].${key} is not a valid JSON Schema`,
+        };
+      }
+    }
+  }
+  return { outcome: 'valid', spec: parsed };
+}
+
 /** Fetch + structurally validate an x402 resource manifest. */
 export async function validateX402Manifest(
   url: string
@@ -211,26 +253,7 @@ export async function validateX402Manifest(
       reason: `manifest is not JSON: ${error instanceof Error ? error.message : String(error)}`,
     };
   }
-  const result = x402ManifestSchema.safeParse(parsed);
-  if (!result.success) {
-    return {
-      outcome: 'invalid',
-      reason: `manifest shape invalid: ${result.error.issues[0]?.message ?? 'unknown'}`,
-    };
-  }
-  // Each embedded input/output schema must be a valid JSON Schema 2020-12 doc.
-  for (const [index, resource] of result.data.resources.entries()) {
-    for (const key of ['inputSchema', 'outputSchema'] as const) {
-      const schema = resource[key];
-      if (schema != null && !ajv2020.validateSchema(schema)) {
-        return {
-          outcome: 'invalid',
-          reason: `resources[${index}].${key} is not a valid JSON Schema`,
-        };
-      }
-    }
-  }
-  return { outcome: 'valid', spec: parsed };
+  return checkX402Manifest(parsed);
 }
 
 export async function validateAgentCard(

@@ -1,5 +1,9 @@
-import { $Enums } from '@prisma/client';
-import { checkSpecEntry, specKindForType } from './spec-entry-check';
+import { $Enums, Prisma } from '@prisma/client';
+import {
+  checkSpecEntry,
+  specCachePatch,
+  specKindForType,
+} from './spec-entry-check';
 import { validateSpecUrl } from '@/services/spec-validation';
 
 jest.mock('@/services/spec-validation', () => ({
@@ -186,6 +190,32 @@ describe('checkSpecEntry', () => {
     );
     expect(result.status).toBe($Enums.Status.Online);
     expect(result.spec).toEqual(card);
+  });
+
+  it('asks for the cached copy to be dropped when a valid spec is too large to cache', async () => {
+    // Otherwise an older, smaller snapshot would keep being served and probed
+    // as if it were the live document.
+    mockValidateSpecUrl.mockResolvedValueOnce({
+      outcome: 'valid',
+      spec: { resources: ['x'.repeat(300 * 1024)] },
+    });
+
+    const result = await checkSpecEntry(
+      entry({
+        type: $Enums.RegistryEntryType.X402,
+        x402ResourcesUrl: 'https://agent.example/.well-known/x402.json',
+      })
+    );
+
+    expect(result).toEqual({ status: $Enums.Status.Online, dropSpec: true });
+    expect(specCachePatch(result)).toEqual({
+      spec: Prisma.DbNull,
+      specValidatedAt: null,
+    });
+  });
+
+  it('leaves the cached copy alone when the check did not pass', () => {
+    expect(specCachePatch({ spec: undefined })).toEqual({});
   });
 
   it('marks a Standard entry Invalid (it has no fetchable spec)', async () => {

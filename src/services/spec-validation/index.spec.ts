@@ -1,6 +1,7 @@
 import { fetchAgentCardBody } from '@/utils/a2a/fetch-agent-card';
 import { lookup } from 'node:dns/promises';
 import {
+  checkX402Manifest,
   validateAgentCard,
   validateOpenApiSpec,
   validateSpecUrl,
@@ -498,6 +499,37 @@ describe('spec-validation', () => {
       );
       // An x402 validator would have rejected this body (no `resources`).
       expect(result.outcome).toBe('valid');
+    });
+  });
+});
+
+describe('checkX402Manifest', () => {
+  const manifestWith = (inputSchema: unknown) => ({
+    x402Version: 2,
+    resources: [{ resource: 'https://a.example/x', inputSchema }],
+  });
+
+  it('reports a schema in an unknown dialect as invalid instead of throwing', () => {
+    expect(
+      checkX402Manifest(
+        manifestWith({
+          $schema: 'https://json-schema.org/draft/2019-09/schema',
+        })
+      )
+    ).toMatchObject({ outcome: 'invalid' });
+    expect(checkX402Manifest(manifestWith({ $schema: 5 }))).toMatchObject({
+      outcome: 'invalid',
+    });
+  });
+
+  it('reports a pathologically deep schema as invalid instead of throwing', () => {
+    let deep: Record<string, unknown> = { type: 'string' };
+    for (let level = 0; level < 5000; level += 1) {
+      deep = { type: 'array', items: deep };
+    }
+
+    expect(checkX402Manifest(manifestWith(deep))).toMatchObject({
+      outcome: 'invalid',
     });
   });
 });
