@@ -16,7 +16,7 @@ import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import type { Network } from '@/lib/agent-filters';
 import { classifyAuthError } from '@/lib/auth/errors';
-import { useNetwork } from '@/lib/contexts/NetworkContext';
+import { useAppContext } from '@/lib/contexts/AppContext';
 import { ENTRY_TYPE_LABELS } from '@/lib/display-labels';
 import { isAdminKey } from '@/lib/permissions';
 import { useAgent } from '@/lib/queries/useAgent';
@@ -34,11 +34,13 @@ function parseAgentIdentifier(value: unknown): string | null {
 function RefreshButton({
   network,
   agentIdentifier,
+  apiClient,
 }: {
   network: Network;
   agentIdentifier: string;
+  apiClient: ReturnType<typeof useAppContext>['apiClient'];
 }) {
-  const refresh = useRefreshAgent(network, agentIdentifier);
+  const refresh = useRefreshAgent(network, agentIdentifier, apiClient);
   return (
     <Button
       variant="outline"
@@ -63,9 +65,9 @@ function RefreshButton({
 }
 
 function AgentDetail({ agentIdentifier }: { agentIdentifier: string }) {
-  const { network, setNetwork } = useNetwork();
-  const query = useAgent(network, agentIdentifier);
-  const { data: key } = useApiKeyStatus();
+  const { network, setNetwork, apiClient, apiKey } = useAppContext();
+  const query = useAgent(network, agentIdentifier, apiClient);
+  const { data: key } = useApiKeyStatus(Boolean(apiKey), apiClient);
 
   if (query.isPending) return <AgentDetailSkeleton />;
   if (query.isError) {
@@ -120,12 +122,16 @@ function AgentDetail({ agentIdentifier }: { agentIdentifier: string }) {
           </p>
         </div>
         {isAdminKey(key) && (
-          <RefreshButton network={network} agentIdentifier={agent.agentIdentifier} />
+          <RefreshButton
+            network={network}
+            agentIdentifier={agent.agentIdentifier}
+            apiClient={apiClient}
+          />
         )}
       </div>
       <AgentOverview agent={agent} network={network} />
       <AgentHealth agent={agent} />
-      <AgentVersionLineage agent={agent} network={network} />
+      <AgentVersionLineage agent={agent} network={network} apiClient={apiClient} />
       <AgentPricing agent={agent} network={network} />
       <AgentSpecViewer agent={agent} network={network} />
     </div>

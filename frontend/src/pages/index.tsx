@@ -1,215 +1,259 @@
-import { useState } from 'react';
 import Head from 'next/head';
-import { Loader2, SlidersHorizontal } from 'lucide-react';
+import Link from 'next/link';
+import { useQuery } from '@tanstack/react-query';
+import { Bot, Database, Key, ChevronRight, Activity } from 'lucide-react';
 import { MainLayout } from '@/components/layout/MainLayout';
-import { KeyStatusCard } from '@/components/auth/KeyStatusCard';
-import { ApiStatus } from '@/components/dashboard/ApiStatus';
-import { AgentFilterPanel } from '@/components/agents/AgentFilterPanel';
-import { AgentList, AgentListHeader } from '@/components/agents/AgentList';
-import { AgentsEmptyState } from '@/components/agents/AgentsEmptyState';
-import { AgentListSkeleton } from '@/components/skeletons/AgentListSkeleton';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { Pagination } from '@/components/ui/pagination';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { activeFilterKeys } from '@/lib/agent-empty-result';
-import { PAGE_SIZES, type Network, type PageSize } from '@/lib/agent-filters';
-import { classifyAuthError } from '@/lib/auth/errors';
-import { useNetwork } from '@/lib/contexts/NetworkContext';
-import { useAgentFilters } from '@/lib/hooks/useAgentFilters';
-import { useAgents } from '@/lib/queries/useAgents';
-import { cn } from '@/lib/utils';
+import { AnimatedPage } from '@/components/ui/animated-page';
+import { StatCard } from '@/components/ui/stat-card';
+import { StatCardSkeleton } from '@/components/skeletons/StatCardSkeleton';
+import { RefreshButton } from '@/components/RefreshButton';
+import { ALL_AGENT_STATUSES } from '@/components/agents/AgentFilters';
+import { useAppContext } from '@/lib/contexts/AppContext';
+import type { Client } from '@/lib/api/generated/client';
+import { getApiKey, getHealth, getRegistrySource, postRegistryEntry } from '@/lib/api/generated';
 
-const FILTER_PANEL_ID = 'agent-filters';
+const PAGE_SIZE = 50;
+/** Safety cap so a huge registry can't hang the dashboard forever. */
+const MAX_PAGES = 100;
 
-function LoadError({
-  error,
-  network,
-  onRetry,
-}: {
-  error: unknown;
-  network: Network;
-  onRetry: () => void;
-}) {
-  return (
-    <div role="alert" className="space-y-3 px-4 py-10 text-center text-sm">
-      <p className="font-medium">Could not load agents.</p>
-      <p className="mx-auto max-w-md text-muted-foreground">
-        {classifyAuthError(error).message} The registry also fails this way when {network} has no
-        registry source configured.
-      </p>
-      {/* A retry resets the query to pending, so the skeleton shows the progress. */}
-      <Button variant="outline" size="sm" onClick={onRetry}>
-        Try again
-      </Button>
-    </div>
-  );
+type CountResult = {
+  count: number;
+  hasMore: boolean;
+};
+
+async function countInclusiveCursorPages(options: {
+  fetchPage: (cursorId: string | undefined) => Promise<Array<{ id: string }>>;
+}): Promise<CountResult> {
+  const seen = new Set<string>();
+  let cursorId: string | undefined;
+  let pages = 0;
+
+  while (pages < MAX_PAGES) {
+    const page = await options.fetchPage(cursorId);
+    pages += 1;
+
+    for (const item of page) {
+      if (!seen.has(item.id)) seen.add(item.id);
+    }
+
+    if (page.length < PAGE_SIZE) {
+      return { count: seen.size, hasMore: false };
+    }
+
+    const lastId = page[page.length - 1]?.id;
+    if (!lastId || lastId === cursorId) {
+      return { count: seen.size, hasMore: false };
+    }
+    cursorId = lastId;
+  }
+
+  return { count: seen.size, hasMore: true };
 }
 
-function PageSizeSelect({
-  value,
-  onChange,
-}: {
-  value: PageSize;
-  onChange: (pageSize: PageSize) => void;
-}) {
-  return (
-    <div className="flex items-center gap-2">
-      <Label htmlFor="agents-page-size" className="text-xs font-normal text-muted-foreground">
-        Per page
-      </Label>
-      <Select
-        value={String(value)}
-        onValueChange={(next) =>
-          onChange(PAGE_SIZES.find((size) => String(size) === next) ?? value)
-        }
-      >
-        <SelectTrigger id="agents-page-size" className="h-8 w-18">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {PAGE_SIZES.map((size) => (
-            <SelectItem key={size} value={String(size)}>
-              {size}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </div>
-  );
+function formatCount({ count, hasMore }: CountResult) {
+  return `${count}${hasMore ? '+' : ''}`;
 }
 
-/** The main screen: the registry's agents, with every filter the API supports. */
-export default function AgentsPage() {
-  const { network } = useNetwork();
-  const { isReady, filters, updateFilters } = useAgentFilters();
-  const { query, agents } = useAgents(filters, network, isReady);
-  const [isPanelOpen, setIsPanelOpen] = useState(false);
-  const activeCount = activeFilterKeys(filters).length;
+async function countAgents(apiClient: Client, network: 'Preprod' | 'Mainnet') {
+  return countInclusiveCursorPages({
+    fetchPage: async (cursorId) => {
+      const response = await postRegistryEntry({
+        client: apiClient,
+        body: {
+          network,
+          limit: PAGE_SIZE,
+          cursorId,
+          filter: { status: ALL_AGENT_STATUSES },
+        },
+      });
+      if (response.error) throw response.error;
+      return response.data?.data?.entries ?? [];
+    },
+  });
+}
 
-  const isLoadingFirstPage = !isReady || query.isPending;
-  const isEmpty = query.isSuccess && agents.length === 0;
-  const hasFailed = query.isError && agents.length === 0;
-  const statusText = isLoadingFirstPage
-    ? 'Loading agents…'
-    : hasFailed
-      ? 'Agents unavailable'
-      : `${agents.length} ${agents.length === 1 ? 'agent' : 'agents'} shown`;
+async function countSources(apiClient: Client) {
+  return countInclusiveCursorPages({
+    fetchPage: async (cursorId) => {
+      const response = await getRegistrySource({
+        client: apiClient,
+        query: { limit: PAGE_SIZE, cursorId },
+      });
+      if (response.error) throw response.error;
+      return response.data?.data?.sources ?? [];
+    },
+  });
+}
+
+async function countApiKeys(apiClient: Client) {
+  return countInclusiveCursorPages({
+    fetchPage: async (cursorId) => {
+      const response = await getApiKey({
+        client: apiClient,
+        query: { limit: PAGE_SIZE, cursorId },
+      });
+      if (response.error) throw response.error;
+      return response.data?.data?.apiKeys ?? [];
+    },
+  });
+}
+
+export default function DashboardPage() {
+  const { apiClient, network } = useAppContext();
+
+  const healthQuery = useQuery({
+    queryKey: ['health'],
+    queryFn: async () => {
+      const response = await getHealth({ client: apiClient });
+      if (response.error) throw response.error;
+      return response.data?.data;
+    },
+  });
+
+  const agentsCountQuery = useQuery({
+    queryKey: ['agents-count', network],
+    queryFn: () => countAgents(apiClient, network),
+  });
+
+  const sourcesCountQuery = useQuery({
+    queryKey: ['sources-count'],
+    queryFn: () => countSources(apiClient),
+  });
+
+  const keysCountQuery = useQuery({
+    queryKey: ['api-keys-count'],
+    queryFn: () => countApiKeys(apiClient),
+  });
+
+  const isRefreshing =
+    healthQuery.isFetching ||
+    agentsCountQuery.isFetching ||
+    sourcesCountQuery.isFetching ||
+    keysCountQuery.isFetching;
+
+  const handleRefresh = async () => {
+    await Promise.all([
+      healthQuery.refetch(),
+      agentsCountQuery.refetch(),
+      sourcesCountQuery.refetch(),
+      keysCountQuery.refetch(),
+    ]);
+  };
 
   return (
     <MainLayout>
       <Head>
-        <title>Agents | Masumi Registry</title>
+        <title>Dashboard | Registry Admin</title>
       </Head>
-      <div className="@container space-y-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="space-y-2">
-            <h1 className="text-2xl font-semibold tracking-tight">Agents</h1>
-            <p className="max-w-prose text-sm text-muted-foreground">
-              Registry entries on {network}. The filters live in the URL, so this view can be shared
-              as a link.
-            </p>
-          </div>
-          <div className="space-y-2">
-            <ApiStatus />
-            <KeyStatusCard />
-          </div>
-        </div>
-
-        <Button
-          variant="outline"
-          size="sm"
-          className="@5xl:hidden"
-          aria-expanded={isPanelOpen}
-          aria-controls={FILTER_PANEL_ID}
-          onClick={() => setIsPanelOpen((open) => !open)}
-        >
-          <SlidersHorizontal aria-hidden="true" />
-          {isPanelOpen ? 'Hide filters' : 'Show filters'}
-          {activeCount > 0 && (
-            <span className="rounded-full bg-muted px-1.5 text-xs tabular-nums">{activeCount}</span>
-          )}
-        </Button>
-
-        <div className="grid grid-cols-1 items-start gap-6 @5xl:grid-cols-[18rem_minmax(0,1fr)]">
-          <AgentFilterPanel
-            id={FILTER_PANEL_ID}
-            filters={filters}
-            onChange={updateFilters}
-            className={cn(!isPanelOpen && 'hidden @5xl:block')}
-          />
-
-          <section aria-labelledby="agent-results-heading" className="@container rounded-lg border">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
-              <h2 id="agent-results-heading" className="sr-only">
-                Results
-              </h2>
-              <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground">
-                {statusText}
-                {query.isRefetching && (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" aria-label="Refreshing" />
-                )}
+      <AnimatedPage>
+        <div className="space-y-6">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
+              <p className="text-sm text-muted-foreground">
+                Overview of registry sources and agents on {network}.
               </p>
-              <PageSizeSelect
-                value={filters.pageSize}
-                onChange={(pageSize) => updateFilters((current) => ({ ...current, pageSize }))}
-              />
             </div>
+            <RefreshButton onRefresh={handleRefresh} isRefreshing={isRefreshing} />
+          </div>
 
-            {isLoadingFirstPage ? (
-              <AgentListSkeleton rows={Math.min(filters.pageSize, 5)} />
-            ) : hasFailed ? (
-              <LoadError
-                error={query.error}
-                network={network}
-                onRetry={() => void query.refetch()}
-              />
-            ) : isEmpty ? (
-              <AgentsEmptyState filters={filters} network={network} onChange={updateFilters} />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {agentsCountQuery.isLoading ? (
+              <StatCardSkeleton />
             ) : (
-              <>
-                <AgentListHeader />
-                <AgentList agents={agents} />
-                {/* A failed next page or a failed background refresh: the rows above stay. */}
-                {query.isError ? (
-                  <div
-                    role="alert"
-                    className="flex flex-col items-center gap-2 border-t p-4 text-sm"
-                  >
-                    <p className="text-muted-foreground">
-                      {!query.isFetchNextPageError &&
-                        'Could not refresh, showing earlier results. '}
-                      {classifyAuthError(query.error).message}
-                    </p>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        void (query.isFetchNextPageError ? query.fetchNextPage() : query.refetch())
-                      }
-                    >
-                      Try again
-                    </Button>
-                  </div>
-                ) : (
-                  <Pagination
-                    className="border-t p-4"
-                    hasMore={query.hasNextPage}
-                    isLoading={query.isFetchingNextPage}
-                    onLoadMore={() => void query.fetchNextPage()}
-                  />
-                )}
-              </>
+              <StatCard
+                label="Agents"
+                index={0}
+                icon={<Bot className="h-4 w-4 text-blue-500" />}
+                accentColor="rgb(59, 130, 246)"
+              >
+                <div className="text-2xl font-semibold">
+                  {agentsCountQuery.isError
+                    ? '—'
+                    : formatCount(agentsCountQuery.data ?? { count: 0, hasMore: false })}
+                </div>
+                <Link
+                  href="/agents"
+                  className="text-sm text-primary hover:underline flex items-center mt-1"
+                >
+                  Browse agents
+                  <ChevronRight size={14} />
+                </Link>
+              </StatCard>
             )}
-          </section>
+
+            {sourcesCountQuery.isLoading ? (
+              <StatCardSkeleton />
+            ) : (
+              <StatCard
+                label="Sources"
+                index={1}
+                icon={<Database className="h-4 w-4 text-green-500" />}
+                accentColor="rgb(34, 197, 94)"
+              >
+                <div className="text-2xl font-semibold">
+                  {sourcesCountQuery.isError
+                    ? '—'
+                    : formatCount(sourcesCountQuery.data ?? { count: 0, hasMore: false })}
+                </div>
+                <Link
+                  href="/sources"
+                  className="text-sm text-primary hover:underline flex items-center mt-1"
+                >
+                  Manage sources
+                  <ChevronRight size={14} />
+                </Link>
+              </StatCard>
+            )}
+
+            {keysCountQuery.isLoading ? (
+              <StatCardSkeleton />
+            ) : (
+              <StatCard
+                label="API keys"
+                index={2}
+                icon={<Key className="h-4 w-4 text-orange-500" />}
+                accentColor="rgb(249, 115, 22)"
+              >
+                <div className="text-2xl font-semibold">
+                  {keysCountQuery.isError
+                    ? '—'
+                    : formatCount(keysCountQuery.data ?? { count: 0, hasMore: false })}
+                </div>
+                <Link
+                  href="/api-keys"
+                  className="text-sm text-primary hover:underline flex items-center mt-1"
+                >
+                  Manage keys
+                  <ChevronRight size={14} />
+                </Link>
+              </StatCard>
+            )}
+
+            {healthQuery.isLoading ? (
+              <StatCardSkeleton />
+            ) : (
+              <StatCard
+                label="Service health"
+                index={3}
+                icon={<Activity className="h-4 w-4 text-purple-500" />}
+                accentColor="rgb(168, 85, 247)"
+              >
+                {healthQuery.isError ? (
+                  <div className="text-sm text-destructive">Health check failed</div>
+                ) : (
+                  <div className="space-y-1">
+                    <div className="text-2xl font-semibold">{healthQuery.data?.type ?? '—'}</div>
+                    <div className="text-xs text-muted-foreground">
+                      v{healthQuery.data?.version ?? '—'}
+                    </div>
+                  </div>
+                )}
+              </StatCard>
+            )}
+          </div>
         </div>
-      </div>
+      </AnimatedPage>
     </MainLayout>
   );
 }

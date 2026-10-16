@@ -1,14 +1,16 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { postRegistryEntryRefresh } from '@/lib/api/generated';
+import type { Client } from '@/lib/api/generated/client';
 import type { Network } from '@/lib/agent-filters';
 import { queryKeys } from './query-keys';
 
 /** Re-syncs the registry from chain and re-runs this entry's health check now. */
-export function useRefreshAgent(network: Network, agentIdentifier: string) {
+export function useRefreshAgent(network: Network, agentIdentifier: string, client: Client) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async () => {
       const { data } = await postRegistryEntryRefresh({
+        client,
         body: { network, agentIdentifier },
         throwOnError: true,
       });

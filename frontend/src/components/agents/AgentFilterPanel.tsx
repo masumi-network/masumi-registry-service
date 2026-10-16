@@ -56,7 +56,9 @@ function CheckboxGroup<T extends string>({
               id={id}
               checked={isChecked}
               disabled={requireOne && isChecked && selected.length === 1}
-              onCheckedChange={(checked) => onToggle(option, checked === true)}
+              onCheckedChange={(checked: boolean | 'indeterminate') =>
+                onToggle(option, checked === true)
+              }
             />
             <Label htmlFor={id} className="font-normal">
               {labels?.[option] ?? option}
@@ -207,7 +209,9 @@ export function AgentFilterPanel({ id, filters, onChange, className }: AgentFilt
             checked={filters.resolveToLatestVersion}
             disabled={!filters.assetIdentifier}
             aria-describedby="filter-resolve-latest-hint"
-            onCheckedChange={(checked) => update({ resolveToLatestVersion: checked === true })}
+            onCheckedChange={(checked: boolean | 'indeterminate') =>
+              update({ resolveToLatestVersion: checked === true })
+            }
           />
           <div className="space-y-1">
             <Label htmlFor="filter-resolve-latest" className="font-normal">

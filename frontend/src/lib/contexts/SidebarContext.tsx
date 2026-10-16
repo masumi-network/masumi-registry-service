@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
-import { useIsNarrowScreen } from '@/lib/hooks/useIsNarrowScreen';
 
 interface SidebarContextType {
   collapsed: boolean;
@@ -13,29 +12,24 @@ interface SidebarContextType {
 
 const SidebarContext = createContext<SidebarContextType | undefined>(undefined);
 
-const SIDEBAR_COLLAPSED_KEY = 'sidebarCollapsed';
-
 export function SidebarProvider({ children }: { children: React.ReactNode }) {
-  // Start expanded so the pre-rendered HTML and the first client render match;
-  // the stored choice is applied after mount.
-  const [collapsed, setCollapsedState] = useState(false);
+  const [collapsed, setCollapsedState] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('sidebarCollapsed');
+      return saved ? JSON.parse(saved) : false;
+    }
+    return false;
+  });
   const [isHovered, setIsHovered] = useState(false);
-  const isNarrowScreen = useIsNarrowScreen();
   const [shouldAnimateIcon, setShouldAnimateIcon] = useState(false);
   const [hasAnimatedNav, setHasAnimatedNav] = useState(false);
   const prevCollapsedRef = useRef(collapsed);
   const prevHoveredRef = useRef(isHovered);
 
   useEffect(() => {
-    try {
-      const isStoredCollapsed = localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === 'true';
-      queueMicrotask(() => setCollapsedState(isStoredCollapsed));
-    } catch {
-      // Storage can throw in private mode or with blocked site data.
-    }
-  }, []);
+    localStorage.setItem('sidebarCollapsed', JSON.stringify(collapsed));
+  }, [collapsed]);
 
-  // Handle icon animation when collapsing or hover ends
   useEffect(() => {
     const isCollapsing = collapsed && !prevCollapsedRef.current;
     const isHoverEnding = collapsed && !isHovered && prevHoveredRef.current;
@@ -54,14 +48,8 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
     prevHoveredRef.current = isHovered;
   }, [collapsed, isHovered]);
 
-  // Persist only on user action, so the post-mount restore can never be overwritten.
   const setCollapsed = useCallback((value: boolean) => {
     setCollapsedState(value);
-    try {
-      localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(value));
-    } catch {
-      // Not persisting is fine; the choice still applies for this session.
-    }
   }, []);
 
   const markNavAnimated = useCallback(() => {
@@ -69,9 +57,9 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const value: SidebarContextType = {
-    collapsed: collapsed || isNarrowScreen,
+    collapsed,
     setCollapsed,
-    isHovered: isHovered && !isNarrowScreen,
+    isHovered,
     setIsHovered,
     shouldAnimateIcon,
     hasAnimatedNav,
