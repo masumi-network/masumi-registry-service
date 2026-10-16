@@ -34,11 +34,13 @@ function parseAgentIdentifier(value: unknown): string | null {
 function RefreshButton({
   network,
   agentIdentifier,
+  apiClient,
 }: {
   network: Network;
   agentIdentifier: string;
+  apiClient: ReturnType<typeof useAppContext>['apiClient'];
 }) {
-  const refresh = useRefreshAgent(network, agentIdentifier);
+  const refresh = useRefreshAgent(network, agentIdentifier, apiClient);
   return (
     <Button
       variant="outline"
@@ -63,9 +65,9 @@ function RefreshButton({
 }
 
 function AgentDetail({ agentIdentifier }: { agentIdentifier: string }) {
-  const { network, setNetwork } = useAppContext();
-  const query = useAgent(network, agentIdentifier);
-  const { data: key } = useApiKeyStatus();
+  const { network, setNetwork, apiClient, apiKey } = useAppContext();
+  const query = useAgent(network, agentIdentifier, apiClient);
+  const { data: key } = useApiKeyStatus(Boolean(apiKey), apiClient);
 
   if (query.isPending) return <AgentDetailSkeleton />;
   if (query.isError) {
@@ -120,12 +122,16 @@ function AgentDetail({ agentIdentifier }: { agentIdentifier: string }) {
           </p>
         </div>
         {isAdminKey(key) && (
-          <RefreshButton network={network} agentIdentifier={agent.agentIdentifier} />
+          <RefreshButton
+            network={network}
+            agentIdentifier={agent.agentIdentifier}
+            apiClient={apiClient}
+          />
         )}
       </div>
       <AgentOverview agent={agent} network={network} />
       <AgentHealth agent={agent} />
-      <AgentVersionLineage agent={agent} network={network} />
+      <AgentVersionLineage agent={agent} network={network} apiClient={apiClient} />
       <AgentPricing agent={agent} network={network} />
       <AgentSpecViewer agent={agent} network={network} />
     </div>

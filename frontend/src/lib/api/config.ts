@@ -21,4 +21,7 @@ export const createClientConfig: CreateClientConfig = (config) => ({
   // Called per request for operations the spec marks as secured. hey-api puts the
   // result in the header the spec's security scheme names (`token`).
   auth: () => apiKey,
+  // Without this, 401/403 stay on the response object and TanStack Query never treats
+  // the session as invalid (see get-query-client and ApiKeySessionGuard).
+  throwOnError: true,
 });

@@ -9,6 +9,8 @@ import {
   type ReactNode,
 } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { attachUnauthorizedSignOut } from '@/lib/api/client-auth';
+import { setApiKey as setGeneratedClientApiKey } from '@/lib/api/config';
 import { Client, createClient } from '@/lib/api/generated/client';
 import type { NetworkType } from '@/lib/api/types';
 
@@ -33,6 +35,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   const [apiClient, setApiClient] = useState(() =>
     createClient({
+      headers: { token: 'invalid-api' },
       baseURL: process.env.NEXT_PUBLIC_REGISTRY_API_BASE_URL,
     }),
   );
@@ -48,35 +51,37 @@ export function AppProvider({ children }: { children: ReactNode }) {
   });
 
   const apiKeyRef = useRef<string | null>(null);
+  const signOutRef = useRef<() => void>(() => {});
+
   useEffect(() => {
     apiKeyRef.current = apiKey;
   }, [apiKey]);
+
+  const buildApiClient = useCallback((token: string | null) => {
+    const client = createClient({
+      headers: { token: token ?? 'invalid-api' },
+      baseURL: process.env.NEXT_PUBLIC_REGISTRY_API_BASE_URL,
+    });
+    attachUnauthorizedSignOut(client, () => signOutRef.current());
+    return client;
+  }, []);
 
   const updateApiKey = useCallback(
     (newApiKey: string | null) => {
       if (newApiKey === apiKeyRef.current) return;
       apiKeyRef.current = newApiKey;
       setApiKey(newApiKey);
+      setGeneratedClientApiKey(newApiKey);
       if (newApiKey) {
-        setApiClient(
-          createClient({
-            headers: { token: newApiKey },
-            baseURL: process.env.NEXT_PUBLIC_REGISTRY_API_BASE_URL,
-          }),
-        );
+        setApiClient(buildApiClient(newApiKey));
         setAuthorized(true);
       } else {
         setAuthorized(false);
-        setApiClient(
-          createClient({
-            headers: { token: 'invalid-api' },
-            baseURL: process.env.NEXT_PUBLIC_REGISTRY_API_BASE_URL,
-          }),
-        );
+        setApiClient(buildApiClient(null));
       }
       queryClient.removeQueries();
     },
-    [queryClient],
+    [buildApiClient, queryClient],
   );
 
   const setNetwork = useCallback((value: NetworkType) => {
@@ -91,18 +96,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const signOut = useCallback(() => {
     apiKeyRef.current = null;
     setApiKey(null);
+    setGeneratedClientApiKey(null);
     setAuthorized(false);
-    setApiClient(
-      createClient({
-        headers: { token: 'invalid-api' },
-        baseURL: process.env.NEXT_PUBLIC_REGISTRY_API_BASE_URL,
-      }),
-    );
+    setApiClient(buildApiClient(null));
     setNetworkState('Preprod');
     localStorage.removeItem(API_KEY_STORAGE);
     localStorage.removeItem(NETWORK_STORAGE);
     queryClient.clear();
-  }, [queryClient]);
+  }, [buildApiClient, queryClient]);
+
+  useEffect(() => {
+    signOutRef.current = signOut;
+  }, [signOut]);
 
   const value = useMemo(
     () => ({

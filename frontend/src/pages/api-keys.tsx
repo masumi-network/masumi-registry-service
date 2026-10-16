@@ -196,7 +196,22 @@ export default function ApiKeysPage() {
                     </TableCell>
                   </TableRow>
                 )}
-                {!keysQuery.isLoading && keys.length === 0 && (
+                {keysQuery.isError && (
+                  <TableRow>
+                    <TableCell colSpan={5}>
+                      <EmptyState
+                        title="Could not load API keys"
+                        description={extractErrorMessage(keysQuery.error, 'Request failed')}
+                        action={
+                          <Button variant="outline" onClick={() => void keysQuery.refetch()}>
+                            Try again
+                          </Button>
+                        }
+                      />
+                    </TableCell>
+                  </TableRow>
+                )}
+                {!keysQuery.isLoading && !keysQuery.isError && keys.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={5}>
                       <EmptyState

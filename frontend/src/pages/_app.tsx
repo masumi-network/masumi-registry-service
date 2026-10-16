@@ -1,7 +1,6 @@
 import type { AppProps } from 'next/app';
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import Link from 'next/link';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import '@/styles/globals.css';
@@ -10,11 +9,10 @@ import { ThemeProvider, useTheme } from '@/lib/contexts/ThemeContext';
 import { SidebarProvider } from '@/lib/contexts/SidebarContext';
 import { QueryProvider } from '@/lib/contexts/QueryProvider';
 import { AppProvider, API_KEY_STORAGE, useAppContext } from '@/lib/contexts/AppContext';
+import { ApiKeySessionGuard } from '@/components/auth/ApiKeySessionGuard';
 import { ApiKeyDialog } from '@/components/api-keys/ApiKeyDialog';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
-import { Header } from '@/components/Header';
-import { Footer } from '@/components/Footer';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { getApiKeyStatus, getHealth } from '@/lib/api/generated';
 import { decodeLegacyStoredKey, decryptFromStorage, encryptForStorage } from '@/lib/secure-storage';
@@ -41,19 +39,11 @@ function ToastWrapper() {
 
 function ThemedApp({ Component, pageProps }: AppProps) {
   const [isHealthy, setIsHealthy] = useState<boolean | null>(null);
-  const [isMobile, setIsMobile] = useState(false);
   const [mounted, setMounted] = useState(false);
   const { apiClient, updateApiKey, authorized, setAuthorized, signOut, apiKey } = useAppContext();
 
   useEffect(() => {
     queueMicrotask(() => setMounted(true));
-  }, []);
-
-  useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 1024);
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
   useEffect(() => {
@@ -219,30 +209,15 @@ function ThemedApp({ Component, pageProps }: AppProps) {
     );
   }
 
-  if (isMobile) {
-    return (
-      <div className="min-h-screen flex flex-col">
-        <Header />
-        <div className="flex-1 flex items-center justify-center bg-background text-foreground">
-          <div className="text-center space-y-4 p-4">
-            <div className="text-lg text-muted-foreground">
-              Please use a desktop device to <br /> access the Masumi Admin Interface
-            </div>
-            <Button variant="muted">
-              <Link href="https://docs.masumi.io" target="_blank" rel="noopener noreferrer">
-                Learn more
-              </Link>
-            </Button>
-          </div>
-        </div>
-        <Footer />
-      </div>
-    );
-  }
-
   return (
     <>
-      {apiKey ? <Component {...pageProps} /> : <ApiKeyDialog />}
+      {apiKey ? (
+        <ApiKeySessionGuard>
+          <Component {...pageProps} />
+        </ApiKeySessionGuard>
+      ) : (
+        <ApiKeyDialog />
+      )}
       {mounted && <ToastWrapper />}
     </>
   );
