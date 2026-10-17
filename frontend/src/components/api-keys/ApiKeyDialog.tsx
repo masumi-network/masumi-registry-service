@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
+import { resetRegistryClientAuth } from '@/lib/api/client-auth';
 import { useAppContext, API_KEY_STORAGE } from '@/lib/contexts/AppContext';
 import { getApiKeyStatus } from '@/lib/api/generated';
 import { encryptForStorage } from '@/lib/secure-storage';
@@ -21,6 +22,7 @@ export function ApiKeyDialog() {
   const handleApiKeySubmit = async (key: string) => {
     setError('');
     setIsLoading(true);
+    let validated = false;
     try {
       apiClient.setConfig({ headers: { token: key } });
       const statusResponse = await getApiKeyStatus({ client: apiClient });
@@ -55,10 +57,14 @@ export function ApiKeyDialog() {
       const encryptedKey = await encryptForStorage(key);
       localStorage.setItem(API_KEY_STORAGE, encryptedKey);
       updateApiKey(key);
+      validated = true;
       router.push('/');
     } catch (err) {
       setError(extractErrorMessage(err, 'Invalid Key, check the entered data'));
     } finally {
+      if (!validated) {
+        resetRegistryClientAuth(apiClient);
+      }
       setIsLoading(false);
     }
   };

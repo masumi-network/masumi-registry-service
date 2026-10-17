@@ -27,12 +27,19 @@ export function attachUnauthorizedSignOut(client: Client, signOut: () => void): 
   );
 }
 
+export const UNAUTHENTICATED_CLIENT_TOKEN = 'invalid-api';
+
 /** AppContext API client with token header (and optional 401 sign-out). */
 export function createRegistryClient(token: string | null, signOut?: () => void): Client {
   const client = createClient({
-    headers: { token: token ?? 'invalid-api' },
+    headers: { token: token ?? UNAUTHENTICATED_CLIENT_TOKEN },
     baseURL: registryBaseUrl(),
   });
   if (signOut) attachUnauthorizedSignOut(client, signOut);
   return client;
+}
+
+/** Clears a probe token from a shared client after failed sign-in or restore. */
+export function resetRegistryClientAuth(client: Client): void {
+  client.setConfig({ headers: { token: UNAUTHENTICATED_CLIENT_TOKEN } });
 }

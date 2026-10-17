@@ -16,7 +16,8 @@ import { Spinner } from '@/components/ui/spinner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { getApiKeyStatus, getHealth } from '@/lib/api/generated';
 import { decodeLegacyStoredKey, decryptFromStorage, encryptForStorage } from '@/lib/secure-storage';
-import { handleApiCall } from '@/lib/utils';
+import { resetRegistryClientAuth } from '@/lib/api/client-auth';
+import { handleApiCall, isApiAuthRejection } from '@/lib/utils';
 
 function ToastWrapper() {
   const { theme } = useTheme();
@@ -105,9 +106,13 @@ function ThemedApp({ Component, pageProps }: AppProps) {
           token: storedApiKey,
         },
       });
+      let storedKeyAuthRejected = false;
       const statusResponse = await handleApiCall(() => getApiKeyStatus({ client: apiClient }), {
         onError: (error) => {
           console.error('API key status check failed:', error);
+          if (isApiAuthRejection(error)) {
+            storedKeyAuthRejected = true;
+          }
           if (!cancelled) {
             setIsHealthy(true);
             setAuthorized(false);
@@ -120,6 +125,10 @@ function ThemedApp({ Component, pageProps }: AppProps) {
       }
 
       if (!statusResponse) {
+        if (storedKeyAuthRejected) {
+          localStorage.removeItem(API_KEY_STORAGE);
+        }
+        resetRegistryClientAuth(apiClient);
         setIsHealthy(true);
         setAuthorized(false);
         return;
@@ -127,6 +136,8 @@ function ThemedApp({ Component, pageProps }: AppProps) {
 
       const status = statusResponse.data?.data;
       if (!status) {
+        localStorage.removeItem(API_KEY_STORAGE);
+        resetRegistryClientAuth(apiClient);
         setIsHealthy(true);
         setAuthorized(false);
         return;
@@ -137,6 +148,7 @@ function ThemedApp({ Component, pageProps }: AppProps) {
           toast.error('Unauthorized access');
         }
         localStorage.removeItem(API_KEY_STORAGE);
+        resetRegistryClientAuth(apiClient);
         setIsHealthy(true);
         setAuthorized(false);
         return;
