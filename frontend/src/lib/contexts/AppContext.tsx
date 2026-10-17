@@ -9,9 +9,9 @@ import {
   type ReactNode,
 } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { attachUnauthorizedSignOut } from '@/lib/api/client-auth';
+import { createRegistryClient } from '@/lib/api/client-auth';
 import { setApiKey as setGeneratedClientApiKey } from '@/lib/api/config';
-import { Client, createClient } from '@/lib/api/generated/client';
+import type { Client } from '@/lib/api/generated/client';
 import type { NetworkType } from '@/lib/api/types';
 
 const API_KEY_STORAGE = 'registry_api_key';
@@ -33,12 +33,14 @@ const AppContext = createContext<AppContextValue | undefined>(undefined);
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
-  const [apiClient, setApiClient] = useState(() =>
-    createClient({
-      headers: { token: 'invalid-api' },
-      baseURL: process.env.NEXT_PUBLIC_REGISTRY_API_BASE_URL,
-    }),
+  const signOutRef = useRef<() => void>(() => {});
+
+  const createAuthedClient = useCallback(
+    (token: string | null) => createRegistryClient(token, () => signOutRef.current()),
+    [],
   );
+
+  const [apiClient, setApiClient] = useState(() => createRegistryClient(null));
   const [authorized, setAuthorized] = useState(false);
   const [apiKey, setApiKey] = useState<string | null>(null);
   const [isChangingNetwork, setIsChangingNetwork] = useState(false);
@@ -51,20 +53,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   });
 
   const apiKeyRef = useRef<string | null>(null);
-  const signOutRef = useRef<() => void>(() => {});
-
   useEffect(() => {
     apiKeyRef.current = apiKey;
   }, [apiKey]);
-
-  const buildApiClient = useCallback((token: string | null) => {
-    const client = createClient({
-      headers: { token: token ?? 'invalid-api' },
-      baseURL: process.env.NEXT_PUBLIC_REGISTRY_API_BASE_URL,
-    });
-    attachUnauthorizedSignOut(client, () => signOutRef.current());
-    return client;
-  }, []);
 
   const updateApiKey = useCallback(
     (newApiKey: string | null) => {
@@ -73,15 +64,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setApiKey(newApiKey);
       setGeneratedClientApiKey(newApiKey);
       if (newApiKey) {
-        setApiClient(buildApiClient(newApiKey));
+        setApiClient(createAuthedClient(newApiKey));
         setAuthorized(true);
       } else {
         setAuthorized(false);
-        setApiClient(buildApiClient(null));
+        setApiClient(createRegistryClient(null));
       }
       queryClient.removeQueries();
     },
-    [buildApiClient, queryClient],
+    [createAuthedClient, queryClient],
   );
 
   const setNetwork = useCallback((value: NetworkType) => {
@@ -98,12 +89,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setApiKey(null);
     setGeneratedClientApiKey(null);
     setAuthorized(false);
-    setApiClient(buildApiClient(null));
+    setApiClient(createRegistryClient(null));
     setNetworkState('Preprod');
     localStorage.removeItem(API_KEY_STORAGE);
     localStorage.removeItem(NETWORK_STORAGE);
     queryClient.clear();
-  }, [buildApiClient, queryClient]);
+  }, [queryClient]);
 
   useEffect(() => {
     signOutRef.current = signOut;

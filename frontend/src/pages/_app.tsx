@@ -100,7 +100,11 @@ function ThemedApp({ Component, pageProps }: AppProps) {
         return;
       }
 
-      apiClient.setConfig({ headers: { token: storedApiKey } });
+      apiClient.setConfig({
+        headers: {
+          token: storedApiKey,
+        },
+      });
       const statusResponse = await handleApiCall(() => getApiKeyStatus({ client: apiClient }), {
         onError: (error) => {
           console.error('API key status check failed:', error);
@@ -152,7 +156,6 @@ function ThemedApp({ Component, pageProps }: AppProps) {
       }
 
       updateApiKey(storedApiKey);
-      setAuthorized(true);
       setIsHealthy(true);
     };
 

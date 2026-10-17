@@ -132,8 +132,8 @@ function AgentDetail({ agentIdentifier }: { agentIdentifier: string }) {
       <AgentOverview agent={agent} network={network} />
       <AgentHealth agent={agent} />
       <AgentVersionLineage agent={agent} network={network} apiClient={apiClient} />
-      <AgentPricing agent={agent} network={network} />
-      <AgentSpecViewer agent={agent} network={network} />
+      <AgentPricing agent={agent} network={network} apiClient={apiClient} />
+      <AgentSpecViewer agent={agent} network={network} apiClient={apiClient} />
     </div>
   );
 }
@@ -147,7 +147,7 @@ export default function AgentPage() {
     <MainLayout>
       <div className="mx-auto max-w-5xl space-y-6">
         <Link
-          href="/"
+          href="/agents"
           className="inline-flex items-center gap-1 rounded-sm text-sm text-muted-foreground hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden"
         >
           <ArrowLeft className="h-4 w-4" aria-hidden="true" />

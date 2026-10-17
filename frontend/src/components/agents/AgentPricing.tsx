@@ -2,6 +2,7 @@ import { isAxiosError } from 'axios';
 import { z } from 'zod';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { RegistryEntry } from '@/lib/api/generated';
+import type { Client } from '@/lib/api/generated/client';
 import type { Network } from '@/lib/agent-filters';
 import { classifyAuthError } from '@/lib/auth/errors';
 import { PAYMENT_TYPE_LABELS, formatAmount, unitLabel } from '@/lib/display-labels';
@@ -136,8 +137,16 @@ function unavailableMessage(error: unknown): string {
 }
 
 /** Payment type and price, from payment-information, which reads the seller wallet from chain. */
-export function AgentPricing({ agent, network }: { agent: RegistryEntry; network: Network }) {
-  const paymentInformation = usePaymentInformation(agent.agentIdentifier);
+export function AgentPricing({
+  agent,
+  network,
+  apiClient,
+}: {
+  agent: RegistryEntry;
+  network: Network;
+  apiClient: Client;
+}) {
+  const paymentInformation = usePaymentInformation(agent.agentIdentifier, apiClient);
   // Without the live read (a burned asset, Blockfrost down), the entry's own copy of the
   // pricing is shown; only the seller wallet is missing then.
   const pricing: PricingFields = paymentInformation.data ?? agent;
