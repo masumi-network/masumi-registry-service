@@ -13,41 +13,21 @@ import type { Client } from '@/lib/api/generated/client';
 import { getApiKey, getHealth, getRegistrySource, postRegistryEntry } from '@/lib/api/generated';
 
 const PAGE_SIZE = 50;
-/** Safety cap so a huge registry can't hang the dashboard forever. */
-const MAX_PAGES = 100;
 
 type CountResult = {
   count: number;
   hasMore: boolean;
 };
 
-async function countInclusiveCursorPages(options: {
-  fetchPage: (cursorId: string | undefined) => Promise<Array<{ id: string }>>;
-}): Promise<CountResult> {
-  const seen = new Set<string>();
-  let cursorId: string | undefined;
-  let pages = 0;
-
-  while (pages < MAX_PAGES) {
-    const page = await options.fetchPage(cursorId);
-    pages += 1;
-
-    for (const item of page) {
-      if (!seen.has(item.id)) seen.add(item.id);
-    }
-
-    if (page.length < PAGE_SIZE) {
-      return { count: seen.size, hasMore: false };
-    }
-
-    const lastId = page[page.length - 1]?.id;
-    if (!lastId || lastId === cursorId) {
-      return { count: seen.size, hasMore: false };
-    }
-    cursorId = lastId;
+/** One list request; full page means "PAGE_SIZE+" without walking the whole registry. */
+async function boundedListCount(
+  fetchPage: (cursorId: string | undefined) => Promise<Array<{ id: string }>>,
+): Promise<CountResult> {
+  const page = await fetchPage(undefined);
+  if (page.length < PAGE_SIZE) {
+    return { count: page.length, hasMore: false };
   }
-
-  return { count: seen.size, hasMore: true };
+  return { count: PAGE_SIZE, hasMore: true };
 }
 
 function formatCount({ count, hasMore }: CountResult) {
@@ -55,46 +35,40 @@ function formatCount({ count, hasMore }: CountResult) {
 }
 
 async function countAgents(apiClient: Client, network: 'Preprod' | 'Mainnet') {
-  return countInclusiveCursorPages({
-    fetchPage: async (cursorId) => {
-      const response = await postRegistryEntry({
-        client: apiClient,
-        body: {
-          network,
-          limit: PAGE_SIZE,
-          cursorId,
-          filter: { status: ALL_AGENT_STATUSES },
-        },
-      });
-      if (response.error) throw response.error;
-      return response.data?.data?.entries ?? [];
-    },
+  return boundedListCount(async (cursorId) => {
+    const response = await postRegistryEntry({
+      client: apiClient,
+      body: {
+        network,
+        limit: PAGE_SIZE,
+        cursorId,
+        filter: { status: ALL_AGENT_STATUSES },
+      },
+    });
+    if (response.error) throw response.error;
+    return response.data?.data?.entries ?? [];
   });
 }
 
 async function countSources(apiClient: Client) {
-  return countInclusiveCursorPages({
-    fetchPage: async (cursorId) => {
-      const response = await getRegistrySource({
-        client: apiClient,
-        query: { limit: PAGE_SIZE, cursorId },
-      });
-      if (response.error) throw response.error;
-      return response.data?.data?.sources ?? [];
-    },
+  return boundedListCount(async (cursorId) => {
+    const response = await getRegistrySource({
+      client: apiClient,
+      query: { limit: PAGE_SIZE, cursorId },
+    });
+    if (response.error) throw response.error;
+    return response.data?.data?.sources ?? [];
   });
 }
 
 async function countApiKeys(apiClient: Client) {
-  return countInclusiveCursorPages({
-    fetchPage: async (cursorId) => {
-      const response = await getApiKey({
-        client: apiClient,
-        query: { limit: PAGE_SIZE, cursorId },
-      });
-      if (response.error) throw response.error;
-      return response.data?.data?.apiKeys ?? [];
-    },
+  return boundedListCount(async (cursorId) => {
+    const response = await getApiKey({
+      client: apiClient,
+      query: { limit: PAGE_SIZE, cursorId },
+    });
+    if (response.error) throw response.error;
+    return response.data?.data?.apiKeys ?? [];
   });
 }
 

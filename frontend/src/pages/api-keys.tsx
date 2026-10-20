@@ -1,6 +1,6 @@
 import Head from 'next/head';
 import { useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
 import { MainLayout } from '@/components/layout/MainLayout';
@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { EmptyState } from '@/components/ui/empty-state';
 import { RefreshButton } from '@/components/RefreshButton';
+import { Pagination } from '@/components/ui/pagination';
 import { Spinner } from '@/components/ui/spinner';
 import { CopyButton } from '@/components/ui/copy-button';
 import {
@@ -44,6 +45,8 @@ import { extractErrorMessage, shortenId } from '@/lib/utils';
 type Permission = ApiKey['permission'];
 type APIKeyStatus = ApiKey['status'];
 
+const PAGE_SIZE = 50;
+
 export default function ApiKeysPage() {
   const { apiClient } = useAppContext();
   const queryClient = useQueryClient();
@@ -62,16 +65,20 @@ export default function ApiKeysPage() {
   const [deleteKey, setDeleteKey] = useState<ApiKey | null>(null);
   const [deleteToken, setDeleteToken] = useState('');
 
-  const keysQuery = useQuery({
+  const keysQuery = useInfiniteQuery({
     queryKey: ['api-keys'],
-    queryFn: async () => {
+    initialPageParam: undefined as string | undefined,
+    queryFn: async ({ pageParam }) => {
       const response = await getApiKey({
         client: apiClient,
-        query: { limit: 50 },
+        query: { limit: PAGE_SIZE, cursorId: pageParam },
       });
       if (response.error) throw response.error;
-      return response.data?.data;
+      const apiKeys = response.data?.data?.apiKeys ?? [];
+      const nextCursor = apiKeys.length === PAGE_SIZE ? apiKeys[apiKeys.length - 1]?.id : undefined;
+      return { apiKeys, nextCursor };
     },
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
   });
 
   const createMutation = useMutation({
@@ -136,7 +143,9 @@ export default function ApiKeysPage() {
     onError: (error) => toast.error(extractErrorMessage(error, 'Delete failed')),
   });
 
-  const keys = keysQuery.data?.apiKeys ?? [];
+  const keys = keysQuery.data?.pages.flatMap((page) => page.apiKeys) ?? [];
+  const hasMoreKeys = keysQuery.hasNextPage;
+  const isLoadingMoreKeys = keysQuery.isFetchingNextPage;
 
   return (
     <MainLayout>
@@ -157,7 +166,7 @@ export default function ApiKeysPage() {
                 onRefresh={async () => {
                   await keysQuery.refetch();
                 }}
-                isRefreshing={keysQuery.isFetching}
+                isRefreshing={keysQuery.isFetching && !isLoadingMoreKeys}
               />
               <Button
                 id="add-api-key-button"
@@ -277,6 +286,16 @@ export default function ApiKeysPage() {
               </TableBody>
             </Table>
           </div>
+
+          {!keysQuery.isLoading && !keysQuery.isError && keys.length > 0 && (
+            <Pagination
+              hasMore={Boolean(hasMoreKeys)}
+              isLoading={
+                isLoadingMoreKeys || (keysQuery.isFetching && !keysQuery.isFetchingNextPage)
+              }
+              onLoadMore={() => void keysQuery.fetchNextPage()}
+            />
+          )}
         </div>
       </AnimatedPage>
 

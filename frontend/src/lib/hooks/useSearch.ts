@@ -145,7 +145,7 @@ export function useSearch(enabled = true) {
         title: agent.name,
         description: `${agent.status} · ${shortenId(agent.agentIdentifier, 12)}`,
         type: 'agent',
-        href: `/agents?q=${encodeURIComponent(agent.name)}`,
+        href: `/agent?agentIdentifier=${encodeURIComponent(agent.agentIdentifier)}`,
         elementId: `agent-${agent.id}`,
         keywords: [
           agent.agentIdentifier,
@@ -193,7 +193,7 @@ export function useSearch(enabled = true) {
             title: agent.name,
             description: `${agent.status} · ${shortenId(agent.agentIdentifier, 12)}`,
             type: 'agent',
-            href: `/agents?q=${encodeURIComponent(trimmed)}`,
+            href: `/agent?agentIdentifier=${encodeURIComponent(agent.agentIdentifier)}`,
             elementId: id,
             keywords: [agent.agentIdentifier, ...(agent.tags ?? [])],
           });
