@@ -28,16 +28,16 @@ A Registry Lookup service for MASUMI AI Nodes on the Cardano blockchain. Provide
 
 ## Tech Stack
 
-- **Runtime**: Node.js v22.19+, TypeScript 5.x, ES Modules (`"type": "module"`)
+- **Runtime**: Node.js v22.19+, TypeScript 6, ES Modules (`"type": "module"`)
 - **Package Manager**: pnpm 10.x (pinned via `packageManager` field, exact versions enforced via `.npmrc`)
 - **Framework**: Express 5 + express-zod-api (type-safe endpoints with auto OpenAPI)
-- **Database**: PostgreSQL 15 + Prisma ORM 6.x
-- **Validation**: Zod 3.x with @asteasolutions/zod-to-openapi
+- **Database**: PostgreSQL 15 + Prisma ORM 7
+- **Validation**: Zod 4 with @asteasolutions/zod-to-openapi
 - **Blockchain**: Blockfrost API + @meshsdk/core for Cardano
 - **Concurrency**: async-mutex for safe concurrent operations
 - **Logging**: Winston (dev/prod configurations)
 - **Testing**: Jest + ts-jest
-- **Linting**: ESLint 9 (flat config) + Prettier
+- **Linting**: ESLint 10 (flat config) + Prettier
 - **Git Hooks**: Husky + lint-staged + commitlint
 
 ## Project Structure
@@ -152,7 +152,7 @@ try {
 
 - Use path aliases: `@/routes/*`, `@/services/*`, `@/repositories/*`, `@/utils/*`
 - Import Zod from `@/utils/zod-openapi` (includes OpenAPI extensions)
-- Use `z.nativeEnum()` for Prisma enums
+- Use `z.enum()` for Prisma enums (`z.nativeEnum()` is deprecated in Zod 4)
 - Use cursor-based pagination with `cursorId` parameter
 - Handle blockchain metadata strings with `metadataStringConvert()` (handles string arrays)
 - Cache BlockFrost instances via `getBlockfrostInstance()` to prevent memory leaks
@@ -211,7 +211,7 @@ Types: feat, fix, docs, style, refactor, test, chore, perf, ci, revert, build
 | **RegistryEntry** | An AI agent registered on Cardano via NFT metadata |
 | **RegistrySource** | Configuration for a policy ID to scan for agents |
 | **Capability** | Named capability with version (e.g., "text-generation", "1.0") |
-| **AgentPricing** | Payment model: Fixed (with amounts) or Free |
+| **AgentPricing** | Payment model: Fixed (with amounts), Free, or Dynamic |
 | **Status** | Agent state: Online, Offline, Deregistered, Invalid |
 | **Network** | Cardano network: Preprod or Mainnet |
 | **ApiKey** | Auth token with permission (User/Admin) and usage tracking |
@@ -258,8 +258,8 @@ Agents are verified by:
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `DATABASE_URL` | Yes | PostgreSQL connection string |
-| `Admin_KEY` | Yes | Admin API key for bootstrapping |
-| `Blockfrost_API_KEY` | Yes | Blockfrost API key |
+| `ADMIN_KEY` | Seed only | Admin API key that `prisma/seed.ts` creates (min 15 characters) |
+| `BLOCKFROST_API_KEY_PREPROD` / `BLOCKFROST_API_KEY_MAINNET` | Seed only | Blockfrost key per network that `prisma/seed.ts` stores on the registry source |
 | `PORT` | No | Server port (default: 3000) |
 | `UPDATE_CARDANO_REGISTRY_INTERVAL` | No | Sync interval in seconds (default: 50, min: 20) |
 | `UPDATE_HEALTH_CHECK_INTERVAL` | No | Health check interval in seconds (default: 100, min: 20) |

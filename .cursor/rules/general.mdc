@@ -33,7 +33,7 @@ TypeScript Guidelines
 
 - Enable and respect strict mode; never use `any` type without explicit justification in comments.
 - Use `z.infer<typeof schema>` for type inference from Zod schemas instead of manual type definitions.
-- Use `z.nativeEnum()` for Prisma enum types to ensure type safety.
+- Use `z.enum()` for Prisma enum types to ensure type safety.
 - Prefer explicit return types on all exported functions for better documentation and error detection.
 - Use descriptive names for functions and variables that explain their purpose.
 
