@@ -66,7 +66,7 @@ const openApiDocumentSchema = z
 // Pricing is agent-level (SupportedPaymentSources), so resources carry no
 // `accepts`. Embedded input/output schemas are accepted as objects here; strict
 // JSON-Schema-dialect validation is the deferred follow-up.
-const x402ManifestSchema = z.object({
+export const x402ManifestSchema = z.object({
   x402Version: z.number().int().optional(),
   resources: z
     .array(
@@ -152,13 +152,50 @@ async function fetchSpecBody(url: string): Promise<FetchResult> {
   }
 }
 
-function parseJsonOrYaml(body: string): unknown {
+interface ParseOptions {
+  /** false: the body must be JSON (an untrusted body is never YAML-parsed). */
+  allowYaml?: boolean;
+  /** Aliases the YAML parser may resolve; the library default is 100. */
+  maxAliasCount?: number;
+}
+
+function parseJsonOrYaml(
+  body: string,
+  { allowYaml = true, maxAliasCount }: ParseOptions
+): unknown {
   try {
     return JSON.parse(body);
-  } catch {
+  } catch (error) {
+    if (!allowYaml) throw error;
     // OpenAPI documents are commonly YAML; fall back before giving up.
-    return parseYaml(body);
+    // uniqueKeys:false skips the duplicate-key check, which is quadratic in the
+    // size of a mapping and lets one large body stall the event loop.
+    return parseYaml(body, { uniqueKeys: false, maxAliasCount });
   }
+}
+
+/** Structurally validate an OpenAPI 3.0/3.1 document body (JSON or YAML). */
+export function parseOpenApiDocument(
+  body: string,
+  options: ParseOptions = {}
+): SpecValidationOutcome {
+  let parsed: unknown;
+  try {
+    parsed = parseJsonOrYaml(body, options);
+  } catch (error) {
+    return {
+      outcome: 'invalid',
+      reason: `${options.allowYaml === false ? 'not JSON' : 'not JSON or YAML'}: ${error instanceof Error ? error.message : String(error)}`,
+    };
+  }
+  const result = openApiDocumentSchema.safeParse(parsed);
+  if (!result.success) {
+    return {
+      outcome: 'invalid',
+      reason: `not a valid OpenAPI document: ${result.error.issues[0]?.message ?? 'unknown'}`,
+    };
+  }
+  return { outcome: 'valid', spec: parsed };
 }
 
 /** Fetch + structurally validate an OpenAPI 3.0/3.1 document (JSON or YAML). */
@@ -172,23 +209,7 @@ export async function validateOpenApiSpec(
       reason: fetched.reason,
     };
   }
-  let parsed: unknown;
-  try {
-    parsed = parseJsonOrYaml(fetched.body);
-  } catch (error) {
-    return {
-      outcome: 'invalid',
-      reason: `not JSON or YAML: ${error instanceof Error ? error.message : String(error)}`,
-    };
-  }
-  const result = openApiDocumentSchema.safeParse(parsed);
-  if (!result.success) {
-    return {
-      outcome: 'invalid',
-      reason: `not a valid OpenAPI document: ${result.error.issues[0]?.message ?? 'unknown'}`,
-    };
-  }
-  return { outcome: 'valid', spec: parsed };
+  return parseOpenApiDocument(fetched.body);
 }
 
 /** Fetch + structurally validate an x402 resource manifest. */

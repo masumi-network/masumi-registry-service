@@ -20,3 +20,5 @@ The registry is updated every 2 minutes and the deregistered entries are updated
 
 - **UPDATE_CARDANO_REGISTRY_INTERVAL**: The interval in seconds to update the registry
 - **UPDATE_CARDANO_DEREGISTER_INTERVAL**: The interval in seconds to update the deregistered entries
+- **UPDATE_X402_PROBE_INTERVAL**: The interval in seconds between probes of the resources of `X402` agents (default 3600, minimum 300). Each cycle sends an unpaid `GET` to at most 500 resources (25 per agent), stalest first; results are served by `GET /registry-entry-x402-probes`
+- **UPDATE_X402_OPENAPI_DISCOVERY_INTERVAL**: The interval in seconds between OpenAPI discovery runs for the origins of `X402` agents' resources (default 21600, minimum 300). Each cycle checks at most 100 origins (5 per agent), stalest first: the document advertised in the origin root's `Link: rel="service-desc"` header, then `/openapi.json`, `/.well-known/openapi.json` and `/openapi.yaml`. JSON documents up to 2 MiB are read; YAML documents over 64 KiB are not (reported `Invalid`). Results are served by `GET /registry-entry-x402-openapi`

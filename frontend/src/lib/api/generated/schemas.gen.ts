@@ -1269,6 +1269,213 @@ export const RegistryEntrySpecSchema = {
     ]
 } as const;
 
+export const RegistryEntryX402ProbesSchema = {
+    type: 'object',
+    properties: {
+        agentIdentifier: {
+            type: 'string'
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'Online',
+                'Offline',
+                'Deregistered',
+                'Invalid'
+            ]
+        },
+        resources: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    resource: {
+                        type: 'string'
+                    },
+                    outcome: {
+                        type: 'string',
+                        enum: [
+                            'Payable',
+                            'Free',
+                            'Invalid',
+                            'Unsupported',
+                            'Unreachable'
+                        ],
+                        description: 'Payable: 402 with a usable challenge. Free: answered without payment. Invalid: 402 without a usable challenge, or a URL the probe refuses. Unsupported: the resource does not serve GET (405, or 404 on a POST-only route; the probe never sends a body). Unreachable: no answer, or another status such as 5xx.'
+                    },
+                    httpStatus: {
+                        type: 'number',
+                        nullable: true
+                    },
+                    x402Version: {
+                        type: 'number',
+                        nullable: true
+                    },
+                    accepts: {
+                        type: 'array',
+                        nullable: true,
+                        items: {
+                            type: 'object',
+                            properties: {
+                                scheme: {
+                                    type: 'string'
+                                },
+                                network: {
+                                    type: 'string'
+                                },
+                                amount: {
+                                    type: 'string',
+                                    description: 'Atomic units'
+                                },
+                                asset: {
+                                    type: 'string'
+                                },
+                                payTo: {
+                                    type: 'string'
+                                },
+                                maxTimeoutSeconds: {
+                                    type: 'number',
+                                    nullable: true
+                                }
+                            },
+                            required: [
+                                'scheme',
+                                'network',
+                                'amount',
+                                'asset',
+                                'payTo',
+                                'maxTimeoutSeconds'
+                            ]
+                        },
+                        description: 'Payment requirements the resource asked for'
+                    },
+                    matchesRegisteredSources: {
+                        type: 'boolean',
+                        nullable: true,
+                        description: 'Whether the challenge agrees with the entry’s registered EVM payment sources on scheme, network, asset, amount and payTo. It does not promise the Masumi payment service accepts the challenge: that service also pins maxTimeoutSeconds and extra.assetTransferMethod/decimals when it verifies a payment for a seller. Null when there is nothing to compare.'
+                    },
+                    mismatches: {
+                        type: 'array',
+                        items: {
+                            type: 'string'
+                        }
+                    },
+                    reason: {
+                        type: 'string',
+                        nullable: true
+                    },
+                    checkedAt: {
+                        type: 'string',
+                        format: 'date-time'
+                    }
+                },
+                required: [
+                    'resource',
+                    'outcome',
+                    'httpStatus',
+                    'x402Version',
+                    'accepts',
+                    'matchesRegisteredSources',
+                    'mismatches',
+                    'reason',
+                    'checkedAt'
+                ]
+            }
+        }
+    },
+    required: [
+        'agentIdentifier',
+        'status',
+        'resources'
+    ]
+} as const;
+
+export const RegistryEntryX402OpenApiSchema = {
+    type: 'object',
+    properties: {
+        agentIdentifier: {
+            type: 'string'
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'Online',
+                'Offline',
+                'Deregistered',
+                'Invalid'
+            ]
+        },
+        origins: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    origin: {
+                        type: 'string',
+                        description: 'https origin of the resources it covers'
+                    },
+                    outcome: {
+                        type: 'string',
+                        enum: [
+                            'Found',
+                            'NotFound',
+                            'Invalid',
+                            'Unreachable'
+                        ],
+                        description: 'Found: a valid OpenAPI document was served. NotFound: the origin answered but no candidate location served a document. Invalid: a candidate served something that is not a valid OpenAPI document, a JSON document over 2 MiB, a YAML document over 64 KiB (YAML is not parsed beyond that), or the origin is a URL the registry refuses to contact. Unreachable: the origin did not answer.'
+                    },
+                    specUrl: {
+                        type: 'string',
+                        nullable: true,
+                        description: 'Where the document was found (Found only)'
+                    },
+                    openApiVersion: {
+                        type: 'string',
+                        nullable: true,
+                        description: 'OpenAPI version the document declares'
+                    },
+                    title: {
+                        type: 'string',
+                        nullable: true,
+                        description: 'info.title of the document'
+                    },
+                    spec: {
+                        type: 'object',
+                        nullable: true,
+                        additionalProperties: {
+                            nullable: true
+                        },
+                        description: 'The document itself, when small enough to be cached (256 KiB). Null for a larger one: fetch it from specUrl.'
+                    },
+                    reason: {
+                        type: 'string',
+                        nullable: true
+                    },
+                    checkedAt: {
+                        type: 'string',
+                        format: 'date-time'
+                    }
+                },
+                required: [
+                    'origin',
+                    'outcome',
+                    'specUrl',
+                    'openApiVersion',
+                    'title',
+                    'spec',
+                    'reason',
+                    'checkedAt'
+                ]
+            }
+        }
+    },
+    required: [
+        'agentIdentifier',
+        'status',
+        'origins'
+    ]
+} as const;
+
 export const CapabilitySchema = {
     type: 'object',
     properties: {

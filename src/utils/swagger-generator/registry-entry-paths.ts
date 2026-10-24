@@ -17,6 +17,14 @@ import {
   registryEntrySpecSchemaOutput,
 } from '@/routes/api/registry-entry-spec';
 import {
+  registryEntryX402OpenApiSchemaInput,
+  registryEntryX402OpenApiSchemaOutput,
+} from '@/routes/api/registry-entry-x402-openapi';
+import {
+  registryEntryX402ProbesSchemaInput,
+  registryEntryX402ProbesSchemaOutput,
+} from '@/routes/api/registry-entry-x402-probes';
+import {
   queryPaymentInformationInput,
   queryPaymentInformationSchemaOutput,
 } from '@/routes/api/payment-information';
@@ -433,6 +441,172 @@ export function registerRegistryEntryPaths(
       404: {
         description:
           'Registry entry not found, or it is a Standard entry, which does not expose a spec',
+      },
+      500: {
+        description: 'Internal Server Error',
+      },
+    },
+  });
+  registry.registerPath({
+    method: 'get',
+    path: '/registry-entry-x402-probes/',
+    description:
+      "Returns what the registry's unpaid probes of an X402 agent's resources " +
+      'last answered: the live x402 challenge of each resource and whether it ' +
+      "agrees with the entry's registered EVM payment sources. Informational " +
+      "only; it never changes the entry's status. Resources are probed in " +
+      'rotation, so a resource that has not been probed yet is absent, and ' +
+      'only the first 100 resources of a manifest are tracked. Use `checkedAt` ' +
+      'for freshness: rows of an entry that is no longer Online keep their last ' +
+      'result. An agent can answer the probe differently from a real buyer, so ' +
+      'a match is not a trust signal.',
+    summary: 'REQUIRES API KEY Authentication (+user)',
+    tags: ['registry-entry'],
+    request: {
+      query: registryEntryX402ProbesSchemaInput.openapi({
+        example: {
+          network: 'Preprod',
+          agentIdentifier:
+            '222222222222222222222222222222222222222222222222222222222222222222',
+        },
+      }),
+    },
+    security: [{ [apiKeyAuthName]: [] }],
+    responses: {
+      200: {
+        description: 'The last probe result of each probed resource',
+        content: {
+          'application/json': {
+            schema: z
+              .object({
+                data: registryEntryX402ProbesSchemaOutput,
+                status: z.string(),
+              })
+              .openapi({
+                example: {
+                  data: {
+                    agentIdentifier:
+                      '222222222222222222222222222222222222222222222222222222222222222222',
+                    status: Status.Online,
+                    resources: [
+                      {
+                        resource: 'https://agent.example/v1/summarize',
+                        outcome: 'Payable',
+                        httpStatus: 402,
+                        x402Version: 2,
+                        accepts: [
+                          {
+                            scheme: 'exact',
+                            network: 'eip155:8453',
+                            amount: '80000',
+                            asset: '0x833589fcd6edb6e08f4c7c32d4f71b54bda02913',
+                            payTo: '0x9f86b5b01d584e2ef5ac2c7a60f3e5164d548881',
+                            maxTimeoutSeconds: 60,
+                          },
+                        ],
+                        matchesRegisteredSources: true,
+                        mismatches: [],
+                        reason: null,
+                        checkedAt: new Date(120000),
+                      },
+                    ],
+                  },
+                  status: 'success',
+                },
+              }),
+          },
+        },
+      },
+      400: {
+        description: 'Bad Request (possible parameters missing or invalid)',
+      },
+      401: {
+        description: 'Unauthorized',
+      },
+      404: {
+        description: 'Registry entry not found, or it is not an X402 entry',
+      },
+      500: {
+        description: 'Internal Server Error',
+      },
+    },
+  });
+  registry.registerPath({
+    method: 'get',
+    path: '/registry-entry-x402-openapi/',
+    description:
+      'Returns where the registry last found an OpenAPI document for the ' +
+      "origins an X402 agent's resources live on. For each origin it tries the " +
+      'document advertised in a `Link: rel="service-desc"` header of the ' +
+      'origin root, then `/openapi.json`, `/.well-known/openapi.json` and ' +
+      '`/openapi.yaml`. ' +
+      "Informational only; it never changes the entry's status. At most 5 " +
+      'origins per agent are tracked and origins are checked in rotation, so ' +
+      'an origin that has not been checked yet is absent. Use `checkedAt` for ' +
+      'freshness: rows of an entry that is no longer Online keep their last ' +
+      "result. The document is the origin's own claim about its API, not a " +
+      "trust signal: the origin comes from the agent's manifest and has not " +
+      'agreed to host that agent, so a found document does not prove it ' +
+      'belongs to the agent. YAML documents over 64 KiB are not read.',
+    summary: 'REQUIRES API KEY Authentication (+user)',
+    tags: ['registry-entry'],
+    request: {
+      query: registryEntryX402OpenApiSchemaInput.openapi({
+        example: {
+          network: 'Preprod',
+          agentIdentifier:
+            '222222222222222222222222222222222222222222222222222222222222222222',
+        },
+      }),
+    },
+    security: [{ [apiKeyAuthName]: [] }],
+    responses: {
+      200: {
+        description: 'The last discovery result of each origin',
+        content: {
+          'application/json': {
+            schema: z
+              .object({
+                data: registryEntryX402OpenApiSchemaOutput,
+                status: z.string(),
+              })
+              .openapi({
+                example: {
+                  data: {
+                    agentIdentifier:
+                      '222222222222222222222222222222222222222222222222222222222222222222',
+                    status: Status.Online,
+                    origins: [
+                      {
+                        origin: 'https://agent.example',
+                        outcome: 'Found',
+                        specUrl: 'https://agent.example/openapi.json',
+                        openApiVersion: '3.1.0',
+                        title: 'Summarizer API',
+                        spec: {
+                          openapi: '3.1.0',
+                          info: { title: 'Summarizer API', version: '1.0.0' },
+                          paths: {},
+                        },
+                        reason: null,
+                        checkedAt: new Date(120000),
+                      },
+                    ],
+                  },
+                  status: 'success',
+                },
+              }),
+          },
+        },
+      },
+      400: {
+        description: 'Bad Request (possible parameters missing or invalid)',
+      },
+      401: {
+        description: 'Unauthorized',
+      },
+      404: {
+        description: 'Registry entry not found, or it is not an X402 entry',
       },
       500: {
         description: 'Internal Server Error',

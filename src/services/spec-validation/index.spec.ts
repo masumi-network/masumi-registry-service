@@ -1,6 +1,7 @@
 import { fetchAgentCardBody } from '@/utils/a2a/fetch-agent-card';
 import { lookup } from 'node:dns/promises';
 import {
+  parseOpenApiDocument,
   validateAgentCard,
   validateOpenApiSpec,
   validateSpecUrl,
@@ -140,6 +141,48 @@ describe('spec-validation', () => {
         'https://agent.example/openapi.yaml'
       );
       expect(result.outcome).toBe('valid');
+    });
+  });
+
+  describe('parseOpenApiDocument', () => {
+    const doc = {
+      openapi: '3.1.0',
+      info: { title: 'T', version: '1' },
+      paths: {},
+    };
+
+    it('accepts a JSON document', () => {
+      expect(parseOpenApiDocument(JSON.stringify(doc))).toEqual({
+        outcome: 'valid',
+        spec: doc,
+      });
+    });
+
+    it('accepts a YAML document', () => {
+      const yaml =
+        'openapi: 3.0.3\ninfo:\n  title: T\n  version: "1"\npaths: {}\n';
+      expect(parseOpenApiDocument(yaml)).toMatchObject({ outcome: 'valid' });
+    });
+
+    it('rejects text that is neither JSON nor YAML as invalid', () => {
+      expect(parseOpenApiDocument('{ not: [valid')).toMatchObject({
+        outcome: 'invalid',
+      });
+    });
+
+    it('rejects an HTML page as invalid, never unreachable', () => {
+      expect(
+        parseOpenApiDocument('<!doctype html><html></html>')
+      ).toMatchObject({
+        outcome: 'invalid',
+      });
+    });
+
+    it('rejects a JSON document that is not OpenAPI', () => {
+      expect(parseOpenApiDocument('{"hello":"world"}')).toMatchObject({
+        outcome: 'invalid',
+        reason: expect.stringContaining('not a valid OpenAPI document'),
+      });
     });
   });
 

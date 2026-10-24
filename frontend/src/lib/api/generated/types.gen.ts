@@ -299,6 +299,76 @@ export type RegistryEntrySpec = {
     spec?: unknown;
 };
 
+export type RegistryEntryX402Probes = {
+    agentIdentifier: string;
+    status: 'Online' | 'Offline' | 'Deregistered' | 'Invalid';
+    resources: Array<{
+        resource: string;
+        /**
+         * Payable: 402 with a usable challenge. Free: answered without payment. Invalid: 402 without a usable challenge, or a URL the probe refuses. Unsupported: the resource does not serve GET (405, or 404 on a POST-only route; the probe never sends a body). Unreachable: no answer, or another status such as 5xx.
+         */
+        outcome: 'Payable' | 'Free' | 'Invalid' | 'Unsupported' | 'Unreachable';
+        httpStatus: number | null;
+        x402Version: number | null;
+        /**
+         * Payment requirements the resource asked for
+         */
+        accepts: Array<{
+            scheme: string;
+            network: string;
+            /**
+             * Atomic units
+             */
+            amount: string;
+            asset: string;
+            payTo: string;
+            maxTimeoutSeconds: number | null;
+        }> | null;
+        /**
+         * Whether the challenge agrees with the entry’s registered EVM payment sources on scheme, network, asset, amount and payTo. It does not promise the Masumi payment service accepts the challenge: that service also pins maxTimeoutSeconds and extra.assetTransferMethod/decimals when it verifies a payment for a seller. Null when there is nothing to compare.
+         */
+        matchesRegisteredSources: boolean | null;
+        mismatches: Array<string>;
+        reason: string | null;
+        checkedAt: Date;
+    }>;
+};
+
+export type RegistryEntryX402OpenApi = {
+    agentIdentifier: string;
+    status: 'Online' | 'Offline' | 'Deregistered' | 'Invalid';
+    origins: Array<{
+        /**
+         * https origin of the resources it covers
+         */
+        origin: string;
+        /**
+         * Found: a valid OpenAPI document was served. NotFound: the origin answered but no candidate location served a document. Invalid: a candidate served something that is not a valid OpenAPI document, a JSON document over 2 MiB, a YAML document over 64 KiB (YAML is not parsed beyond that), or the origin is a URL the registry refuses to contact. Unreachable: the origin did not answer.
+         */
+        outcome: 'Found' | 'NotFound' | 'Invalid' | 'Unreachable';
+        /**
+         * Where the document was found (Found only)
+         */
+        specUrl: string | null;
+        /**
+         * OpenAPI version the document declares
+         */
+        openApiVersion: string | null;
+        /**
+         * info.title of the document
+         */
+        title: string | null;
+        /**
+         * The document itself, when small enough to be cached (256 KiB). Null for a larger one: fetch it from specUrl.
+         */
+        spec: {
+            [key: string]: unknown;
+        } | null;
+        reason: string | null;
+        checkedAt: Date;
+    }>;
+};
+
 export type Capability = {
     capabilities: Array<{
         id: string;
@@ -632,6 +702,88 @@ export type GetRegistryEntrySpecResponses = {
 };
 
 export type GetRegistryEntrySpecResponse = GetRegistryEntrySpecResponses[keyof GetRegistryEntrySpecResponses];
+
+export type GetRegistryEntryX402ProbesData = {
+    body?: never;
+    path?: never;
+    query: {
+        network: 'Preprod' | 'Mainnet';
+        agentIdentifier: string;
+    };
+    url: '/registry-entry-x402-probes/';
+};
+
+export type GetRegistryEntryX402ProbesErrors = {
+    /**
+     * Bad Request (possible parameters missing or invalid)
+     */
+    400: unknown;
+    /**
+     * Unauthorized
+     */
+    401: unknown;
+    /**
+     * Registry entry not found, or it is not an X402 entry
+     */
+    404: unknown;
+    /**
+     * Internal Server Error
+     */
+    500: unknown;
+};
+
+export type GetRegistryEntryX402ProbesResponses = {
+    /**
+     * The last probe result of each probed resource
+     */
+    200: {
+        data: RegistryEntryX402Probes;
+        status: string;
+    };
+};
+
+export type GetRegistryEntryX402ProbesResponse = GetRegistryEntryX402ProbesResponses[keyof GetRegistryEntryX402ProbesResponses];
+
+export type GetRegistryEntryX402OpenapiData = {
+    body?: never;
+    path?: never;
+    query: {
+        network: 'Preprod' | 'Mainnet';
+        agentIdentifier: string;
+    };
+    url: '/registry-entry-x402-openapi/';
+};
+
+export type GetRegistryEntryX402OpenapiErrors = {
+    /**
+     * Bad Request (possible parameters missing or invalid)
+     */
+    400: unknown;
+    /**
+     * Unauthorized
+     */
+    401: unknown;
+    /**
+     * Registry entry not found, or it is not an X402 entry
+     */
+    404: unknown;
+    /**
+     * Internal Server Error
+     */
+    500: unknown;
+};
+
+export type GetRegistryEntryX402OpenapiResponses = {
+    /**
+     * The last discovery result of each origin
+     */
+    200: {
+        data: RegistryEntryX402OpenApi;
+        status: string;
+    };
+};
+
+export type GetRegistryEntryX402OpenapiResponse = GetRegistryEntryX402OpenapiResponses[keyof GetRegistryEntryX402OpenapiResponses];
 
 export type PostRegistryDiffData = {
     body?: {

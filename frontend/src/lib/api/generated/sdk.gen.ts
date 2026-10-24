@@ -2,8 +2,8 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import { getPaymentInformationResponseTransformer, getRegistryEntryPurchasesResponseTransformer, getRegistryEntrySpecResponseTransformer, postInboxAgentRegistrationDiffResponseTransformer, postInboxAgentRegistrationRefreshResponseTransformer, postInboxAgentRegistrationResponseTransformer, postInboxAgentRegistrationSearchResponseTransformer, postRegistryDiffResponseTransformer, postRegistryEntryRefreshResponseTransformer, postRegistryEntryResponseTransformer, postRegistryEntrySearchResponseTransformer } from './transformers.gen';
-import type { DeleteApiKeyData, DeleteApiKeyErrors, DeleteApiKeyResponses, DeleteRegistrySourceData, DeleteRegistrySourceResponses, GetApiKeyData, GetApiKeyErrors, GetApiKeyResponses, GetApiKeyStatusData, GetApiKeyStatusResponses, GetCapabilityData, GetCapabilityErrors, GetCapabilityResponses, GetHealthData, GetHealthResponses, GetPaymentInformationData, GetPaymentInformationErrors, GetPaymentInformationResponses, GetRegistryEntryPurchasesData, GetRegistryEntryPurchasesErrors, GetRegistryEntryPurchasesResponses, GetRegistryEntrySpecData, GetRegistryEntrySpecErrors, GetRegistryEntrySpecResponses, GetRegistrySourceData, GetRegistrySourceResponses, PatchApiKeyData, PatchApiKeyErrors, PatchApiKeyResponses, PatchRegistrySourceData, PatchRegistrySourceResponses, PostApiKeyData, PostApiKeyErrors, PostApiKeyResponses, PostInboxAgentRegistrationData, PostInboxAgentRegistrationDiffData, PostInboxAgentRegistrationDiffErrors, PostInboxAgentRegistrationDiffResponses, PostInboxAgentRegistrationErrors, PostInboxAgentRegistrationRefreshData, PostInboxAgentRegistrationRefreshErrors, PostInboxAgentRegistrationRefreshResponses, PostInboxAgentRegistrationResponses, PostInboxAgentRegistrationSearchData, PostInboxAgentRegistrationSearchErrors, PostInboxAgentRegistrationSearchResponses, PostRegistryDiffData, PostRegistryDiffErrors, PostRegistryDiffResponses, PostRegistryEntryData, PostRegistryEntryErrors, PostRegistryEntryRefreshData, PostRegistryEntryRefreshErrors, PostRegistryEntryRefreshResponses, PostRegistryEntryResponses, PostRegistryEntrySearchData, PostRegistryEntrySearchErrors, PostRegistryEntrySearchResponses, PostRegistrySourceData, PostRegistrySourceResponses } from './types.gen';
+import { getPaymentInformationResponseTransformer, getRegistryEntryPurchasesResponseTransformer, getRegistryEntrySpecResponseTransformer, getRegistryEntryX402OpenapiResponseTransformer, getRegistryEntryX402ProbesResponseTransformer, postInboxAgentRegistrationDiffResponseTransformer, postInboxAgentRegistrationRefreshResponseTransformer, postInboxAgentRegistrationResponseTransformer, postInboxAgentRegistrationSearchResponseTransformer, postRegistryDiffResponseTransformer, postRegistryEntryRefreshResponseTransformer, postRegistryEntryResponseTransformer, postRegistryEntrySearchResponseTransformer } from './transformers.gen';
+import type { DeleteApiKeyData, DeleteApiKeyErrors, DeleteApiKeyResponses, DeleteRegistrySourceData, DeleteRegistrySourceResponses, GetApiKeyData, GetApiKeyErrors, GetApiKeyResponses, GetApiKeyStatusData, GetApiKeyStatusResponses, GetCapabilityData, GetCapabilityErrors, GetCapabilityResponses, GetHealthData, GetHealthResponses, GetPaymentInformationData, GetPaymentInformationErrors, GetPaymentInformationResponses, GetRegistryEntryPurchasesData, GetRegistryEntryPurchasesErrors, GetRegistryEntryPurchasesResponses, GetRegistryEntrySpecData, GetRegistryEntrySpecErrors, GetRegistryEntrySpecResponses, GetRegistryEntryX402OpenapiData, GetRegistryEntryX402OpenapiErrors, GetRegistryEntryX402OpenapiResponses, GetRegistryEntryX402ProbesData, GetRegistryEntryX402ProbesErrors, GetRegistryEntryX402ProbesResponses, GetRegistrySourceData, GetRegistrySourceResponses, PatchApiKeyData, PatchApiKeyErrors, PatchApiKeyResponses, PatchRegistrySourceData, PatchRegistrySourceResponses, PostApiKeyData, PostApiKeyErrors, PostApiKeyResponses, PostInboxAgentRegistrationData, PostInboxAgentRegistrationDiffData, PostInboxAgentRegistrationDiffErrors, PostInboxAgentRegistrationDiffResponses, PostInboxAgentRegistrationErrors, PostInboxAgentRegistrationRefreshData, PostInboxAgentRegistrationRefreshErrors, PostInboxAgentRegistrationRefreshResponses, PostInboxAgentRegistrationResponses, PostInboxAgentRegistrationSearchData, PostInboxAgentRegistrationSearchErrors, PostInboxAgentRegistrationSearchResponses, PostRegistryDiffData, PostRegistryDiffErrors, PostRegistryDiffResponses, PostRegistryEntryData, PostRegistryEntryErrors, PostRegistryEntryRefreshData, PostRegistryEntryRefreshErrors, PostRegistryEntryRefreshResponses, PostRegistryEntryResponses, PostRegistryEntrySearchData, PostRegistryEntrySearchErrors, PostRegistryEntrySearchResponses, PostRegistrySourceData, PostRegistrySourceResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -102,6 +102,32 @@ export const getRegistryEntrySpec = <ThrowOnError extends boolean = true>(option
     responseType: 'json',
     security: [{ name: 'token', type: 'apiKey' }],
     url: '/registry-entry-spec/',
+    ...options
+});
+
+/**
+ * REQUIRES API KEY Authentication (+user)
+ *
+ * Returns what the registry's unpaid probes of an X402 agent's resources last answered: the live x402 challenge of each resource and whether it agrees with the entry's registered EVM payment sources. Informational only; it never changes the entry's status. Resources are probed in rotation, so a resource that has not been probed yet is absent, and only the first 100 resources of a manifest are tracked. Use `checkedAt` for freshness: rows of an entry that is no longer Online keep their last result. An agent can answer the probe differently from a real buyer, so a match is not a trust signal.
+ */
+export const getRegistryEntryX402Probes = <ThrowOnError extends boolean = true>(options: Options<GetRegistryEntryX402ProbesData, ThrowOnError>): RequestResult<GetRegistryEntryX402ProbesResponses, GetRegistryEntryX402ProbesErrors, ThrowOnError> => (options.client ?? client).get<GetRegistryEntryX402ProbesResponses, GetRegistryEntryX402ProbesErrors, ThrowOnError>({
+    responseTransformer: getRegistryEntryX402ProbesResponseTransformer,
+    responseType: 'json',
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/registry-entry-x402-probes/',
+    ...options
+});
+
+/**
+ * REQUIRES API KEY Authentication (+user)
+ *
+ * Returns where the registry last found an OpenAPI document for the origins an X402 agent's resources live on. For each origin it tries the document advertised in a `Link: rel="service-desc"` header of the origin root, then `/openapi.json`, `/.well-known/openapi.json` and `/openapi.yaml`. Informational only; it never changes the entry's status. At most 5 origins per agent are tracked and origins are checked in rotation, so an origin that has not been checked yet is absent. Use `checkedAt` for freshness: rows of an entry that is no longer Online keep their last result. The document is the origin's own claim about its API, not a trust signal: the origin comes from the agent's manifest and has not agreed to host that agent, so a found document does not prove it belongs to the agent. YAML documents over 64 KiB are not read.
+ */
+export const getRegistryEntryX402Openapi = <ThrowOnError extends boolean = true>(options: Options<GetRegistryEntryX402OpenapiData, ThrowOnError>): RequestResult<GetRegistryEntryX402OpenapiResponses, GetRegistryEntryX402OpenapiErrors, ThrowOnError> => (options.client ?? client).get<GetRegistryEntryX402OpenapiResponses, GetRegistryEntryX402OpenapiErrors, ThrowOnError>({
+    responseTransformer: getRegistryEntryX402OpenapiResponseTransformer,
+    responseType: 'json',
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/registry-entry-x402-openapi/',
     ...options
 });
 
