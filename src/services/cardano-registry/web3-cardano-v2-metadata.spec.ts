@@ -61,6 +61,45 @@ const sampleV2Metadata = {
 };
 
 describe('web3CardanoV2 metadata', () => {
+  it.each([
+    ['name', { name: '  ' }],
+    ['image', { image: ['', ' '] }],
+    [
+      'example_output url',
+      { example_output: [{ name: 'out', mime_type: 'text/plain', url: '' }] },
+    ],
+  ])('rejects a blank required %s', (_field, override) => {
+    expect(
+      web3CardanoV2MetadataSchema.safeParse({
+        ...sampleV2Metadata,
+        ...override,
+      }).success
+    ).toBe(false);
+  });
+
+  it('rejects blank decimals on Cardano fixed pricing', () => {
+    const metadata = web3CardanoV2MetadataSchema.parse({
+      ...sampleV2Metadata,
+      supported_payment_sources: [
+        {
+          ...sampleV2Metadata.supported_payment_sources[0],
+          pricing: {
+            pricingType: 'Fixed',
+            fixed: [{ asset: '', amount: '5000000', decimals: '' }],
+          },
+        },
+      ],
+    });
+    expect(() => buildV2SupportedPaymentSourceRows(metadata)).toThrow(
+      'decimals is not valid for Cardano'
+    );
+  });
+
+  it('keeps the empty lovelace asset in fixed Cardano pricing', () => {
+    const metadata = web3CardanoV2MetadataSchema.parse(sampleV2Metadata);
+    expect(() => buildV2SupportedPaymentSourceRows(metadata)).not.toThrow();
+  });
+
   it('accepts the type/openapi_spec_url/x402_resources_url keys (strict schema)', () => {
     // The schema is .strict(); these keys must be allowed or every OpenApi/X402
     // entry the indexer sees would be rejected as invalid.

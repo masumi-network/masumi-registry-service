@@ -1,4 +1,4 @@
-FROM node:20-slim AS deps
+FROM node:22.23.4-slim@sha256:de170b39439eb0e5a3444ad7d60b015614a381e10fecae2e30ec9e735122f38d AS deps
 RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 RUN corepack enable && corepack prepare pnpm@10.33.0 --activate
 WORKDIR /usr/src/app
@@ -11,10 +11,22 @@ COPY ./src ./src
 COPY ./prisma ./prisma
 COPY tsconfig.json .
 COPY public ./public
-RUN pnpm run build
+RUN pnpm run build:backend
 RUN pnpm prune --prod
 
-FROM node:20-slim AS runner
+# The admin UI is a static export built in its own stage, so its packages never reach
+# the backend's node_modules (pruning a workspace that includes frontend/ fails).
+FROM node:22.23.4-slim@sha256:de170b39439eb0e5a3444ad7d60b015614a381e10fecae2e30ec9e735122f38d AS frontend-builder
+RUN corepack enable && corepack prepare pnpm@10.33.0 --activate
+WORKDIR /usr/src/app
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
+COPY frontend/package.json ./frontend/
+RUN pnpm install --frozen-lockfile --filter registry-admin-frontend
+COPY ./frontend ./frontend
+ENV NEXT_TELEMETRY_DISABLED=1
+RUN pnpm -C frontend run build
+
+FROM node:22.23.4-slim@sha256:de170b39439eb0e5a3444ad7d60b015614a381e10fecae2e30ec9e735122f38d AS runner
 RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 WORKDIR /usr/src/app
 
@@ -23,6 +35,7 @@ ENV NODE_ENV=production
 COPY --from=builder --chown=node:node /usr/src/app/dist ./dist
 COPY --from=builder --chown=node:node /usr/src/app/node_modules ./node_modules
 COPY --from=builder --chown=node:node /usr/src/app/package.json ./
+COPY --from=frontend-builder --chown=node:node /usr/src/app/frontend/dist ./frontend/dist
 
 USER node
 

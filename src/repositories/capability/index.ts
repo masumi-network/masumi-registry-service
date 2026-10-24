@@ -1,1 +1,1 @@
-export { capabilityRepository } from "./capability.repository"
+export { capabilityRepository } from './capability.repository';

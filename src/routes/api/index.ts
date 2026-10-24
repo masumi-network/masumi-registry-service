@@ -6,6 +6,7 @@ import {
   searchRegistryEntryPost,
 } from '@/routes/api/registry-entry';
 import { registryEntrySpecGet } from '@/routes/api/registry-entry-spec';
+import { registryEntryPurchasesGet } from '@/routes/api/registry-entry-purchases';
 import {
   queryAPIKeyEndpointGet as queryCentralizedRegistrySourceGet,
   addAPIKeyEndpointPost as addCentralizedRegistrySourceEndpointPost,
@@ -42,6 +43,9 @@ export const apiRouter: Routing = {
     },
     'registry-entry-spec': {
       get: registryEntrySpecGet,
+    },
+    'registry-entry-purchases': {
+      get: registryEntryPurchasesGet,
     },
     'registry-diff': {
       post: registryDiffPost,

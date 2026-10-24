@@ -7,7 +7,7 @@ import { Mutex, tryAcquire, MutexInterface } from 'async-mutex';
 import { prisma } from '@/utils/db';
 import { z } from '@/utils/zod-openapi';
 import { metadataStringConvert } from '@/utils/metadata-string-convert';
-import { healthCheckService } from '@/services/health-check';
+import { healthCheckService, uptimeTracking } from '@/services/health-check';
 import { logger } from '@/utils/logger';
 import { DEFAULTS } from '@/utils/config';
 import { getBlockfrostInstance } from '@/utils/blockfrost';
@@ -189,27 +189,27 @@ async function syncWeb3CardanoRegistryEntry(params: {
           },
   };
 
-  const updateData = {
-    ...sharedQuery,
-    lastUptimeCheck: new Date(),
-    uptimeCount: {
-      increment: status == $Enums.Status.Online ? 1 : 0,
-    },
-    uptimeCheckCount: { increment: 1 },
-  };
-
-  const createData = {
-    ...sharedQuery,
-    lastUptimeCheck: new Date(),
-    uptimeCount: status == $Enums.Status.Online ? 1 : 0,
-    uptimeCheckCount: 1,
-  };
-
-  await prisma.registryEntry.upsert({
+  // An existing entry gets the check applied first (compare-and-set); the
+  // upsert then only creates the uptime fields for a new entry.
+  const checkedAt = new Date();
+  const uptime = await uptimeTracking.applyUptimeCheck(
+    prisma,
+    { assetIdentifier: params.asset },
+    status,
+    checkedAt
+  );
+  const entry = await prisma.registryEntry.upsert({
     where: { assetIdentifier: params.asset },
-    update: updateData,
-    create: createData,
+    update: sharedQuery,
+    create: {
+      ...sharedQuery,
+      ...uptimeTracking.uptimeCheckCreate(status, checkedAt),
+    },
   });
+  // A skipped check (e.g. a Deregistered entry) has no history event.
+  if (uptime !== 'skipped') {
+    await uptimeTracking.recordSyncCheck(entry.id, status, checkedAt);
+  }
 
   return true;
 }

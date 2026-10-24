@@ -58,6 +58,11 @@ jest.mock('@/services/health-check', () => ({
     checkAndVerifyEndpoint: jest.fn(),
     checkVerifyAndUpdateInboxAgentRegistrations: jest.fn(),
   },
+  uptimeTracking: {
+    applyUptimeCheck: jest.fn().mockResolvedValue('applied'),
+    uptimeCheckCreate: jest.fn().mockReturnValue({}),
+    recordSyncCheck: jest.fn(),
+  },
 }));
 
 jest.mock('@/utils/logger', () => ({

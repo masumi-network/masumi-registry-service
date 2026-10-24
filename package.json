@@ -7,14 +7,25 @@
   "license": "MIT",
   "type": "module",
   "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": "^22.23.4"
+  },
   "prisma": {
     "seed": "tsx ./prisma/seed.ts"
   },
   "scripts": {
     "prepare": "husky || true",
     "preinstall": "node -e \"if (!(process.env.npm_config_user_agent||'').startsWith('pnpm')) { console.error('\\nThis project uses pnpm. Use: pnpm install\\n'); process.exit(1); }\"",
-    "lint": "eslint --fix --quiet --config eslint.config.mjs src/",
-    "format": "prettier --log-level silent --write src/**/*.ts",
+    "lint:backend": "eslint --config eslint.config.mjs --max-warnings=0 src/",
+    "lint:backend:fix": "eslint --fix --quiet --config eslint.config.mjs src/",
+    "lint": "pnpm run lint:backend && pnpm -C frontend run lint",
+    "lint:fix": "pnpm run lint:backend:fix && pnpm -C frontend run lint:fix",
+    "typecheck:frontend": "pnpm -C frontend run typecheck",
+    "test:frontend": "pnpm -C frontend run test",
+    "format:backend": "prettier --log-level silent --write \"src/**/*.ts\"",
+    "format": "pnpm run format:backend && pnpm -C frontend run format",
+    "format:check": "prettier --check \"src/**/*.ts\" && pnpm -C frontend run format:check",
+    "check:unused": "pnpm run knip && tsc --noEmit --noUnusedLocals --noUnusedParameters && pnpm -C frontend exec tsc --noEmit --noUnusedLocals --noUnusedParameters",
     "test": "export DATABASE_URL=postgresql://mock-user:mock-pass@localhost:5432/mock-testdb && jest",
     "test:watch": "export DATABASE_URL=postgresql://mock-user:mock-pass@localhost:5432/mock-testdb && jest --watch",
     "test:coverage": "export DATABASE_URL=postgresql://mock-user:mock-pass@localhost:5432/mock-testdb && jest --coverage",
@@ -23,9 +34,11 @@
     "prisma:migrate:dev": "prisma migrate dev",
     "prisma:seed": "prisma db seed",
     "dev": "tsx watch ./src/index.ts",
-    "build": "prisma generate && tsc --noEmit && pkgroll && mkdir -p dist/public && cp -r public/* dist/public/",
-    "start": "NODE_ENV=production && node ./dist/index.js",
+    "build:backend": "prisma generate && tsc --noEmit && pkgroll && mkdir -p dist/public && cp -r public/* dist/public/",
+    "build": "pnpm run build:backend && pnpm -C frontend run build",
+    "start": "NODE_ENV=production node ./dist/index.js",
     "swagger-json": "export DATABASE_URL=postgresql://mock-user:mock-pass@localhost:5432/mock-testdb && tsx ./src/utils/swagger-generator/cli.ts",
+    "check:api-client": "pnpm run swagger-json && pnpm -C frontend run openapi-ts && out=$(git status --porcelain -- src/utils/swagger-generator/openapi-docs.json frontend/src/lib/api/generated) && if [ -n \"$out\" ]; then echo \"$out\"; echo 'Generated API client is stale: commit the files listed above.'; exit 1; fi",
     "knip": "knip",
     "snapshot:export": "tsx ./src/scripts/snapshot-export.ts",
     "snapshot:import": "tsx ./src/scripts/snapshot-import.ts",
@@ -78,11 +91,5 @@
     "tsx": "4.21.0",
     "typescript": "6.0.3",
     "typescript-eslint": "8.59.3"
-  },
-  "lint-staged": {
-    "*.{js,ts}": [
-      "pnpm run lint",
-      "pnpm run format"
-    ]
   }
 }

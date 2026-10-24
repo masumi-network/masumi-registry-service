@@ -1,7 +1,7 @@
 import { $Enums } from '@prisma/client';
 import { prisma } from '@/utils/db';
 import { metadataStringConvert } from '@/utils/metadata-string-convert';
-import { healthCheckService } from '@/services/health-check';
+import { healthCheckService, uptimeTracking } from '@/services/health-check';
 import {
   checkSpecEntry,
   specCachePatch,
@@ -159,14 +159,20 @@ export async function syncWeb3CardanoV2RegistryEntry(params: {
           },
   };
 
-  await prisma.$transaction(async (tx) => {
+  const checkedAt = new Date();
+  const { entryId, uptime } = await prisma.$transaction(async (tx) => {
+    // An existing entry gets the check applied first (compare-and-set); the
+    // upsert then only creates the uptime fields for a new entry.
+    const uptime = await uptimeTracking.applyUptimeCheck(
+      tx,
+      { assetIdentifier: params.asset },
+      status,
+      checkedAt
+    );
     const entry = await tx.registryEntry.upsert({
       where: { assetIdentifier: params.asset },
       update: {
         ...sharedQuery,
-        lastUptimeCheck: new Date(),
-        uptimeCount: { increment: status == $Enums.Status.Online ? 1 : 0 },
-        uptimeCheckCount: { increment: 1 },
         ExampleOutput: { deleteMany: {}, ...(exampleOutputCreate ?? {}) },
         SupportedPaymentSources: {
           deleteMany: {},
@@ -183,9 +189,7 @@ export async function syncWeb3CardanoV2RegistryEntry(params: {
       },
       create: {
         ...sharedQuery,
-        lastUptimeCheck: new Date(),
-        uptimeCount: status == $Enums.Status.Online ? 1 : 0,
-        uptimeCheckCount: 1,
+        ...uptimeTracking.uptimeCheckCreate(status, checkedAt),
         ExampleOutput: exampleOutputCreate,
         SupportedPaymentSources:
           supportedPaymentSourceRows.length > 0
@@ -210,7 +214,12 @@ export async function syncWeb3CardanoV2RegistryEntry(params: {
         where: { registryEntryId: entry.id },
       });
     }
+    return { entryId: entry.id, uptime };
   });
+  // A skipped check (e.g. a Deregistered entry) has no history event.
+  if (uptime !== 'skipped') {
+    await uptimeTracking.recordSyncCheck(entryId, status, checkedAt);
+  }
 
   return true;
 }

@@ -83,6 +83,17 @@ describe('inbox agent registration helpers', () => {
     ).toBeNull();
   });
 
+  it('rejects slugs with leading or trailing whitespace', () => {
+    expect(
+      parseInboxAgentRegistrationMetadata({
+        type: INBOX_REGISTRY_METADATA_TYPE,
+        name: 'Inbox Agent',
+        agentslug: ' inbox-agent',
+        metadata_version: 1,
+      })
+    ).toBeNull();
+  });
+
   it('rejects invalid provider urls', () => {
     expect(
       parseInboxAgentRegistrationMetadata({

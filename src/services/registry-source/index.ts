@@ -1,2 +1,1 @@
-export { registrySourceService } from "./registry-source.service";
-
+export { registrySourceService } from './registry-source.service';

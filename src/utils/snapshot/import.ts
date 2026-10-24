@@ -12,6 +12,7 @@ import {
   type ImportResult,
 } from './types';
 import { validateSnapshotPricingLayout } from './pricing-layout';
+import { seedUptimeEwma } from './uptime-seed';
 
 const MAX_SNAPSHOT_BYTES = 100 * 1024 * 1024; // 100 MB
 
@@ -268,6 +269,7 @@ async function importSnapshotForSource(
           lastUptimeCheck: new Date(entry.lastUptimeCheck),
           uptimeCount: entry.uptimeCount,
           uptimeCheckCount: entry.uptimeCheckCount,
+          uptimeEwma: seedUptimeEwma(entry.uptimeCount, entry.uptimeCheckCount),
           status: entry.status,
           statusUpdatedAt: new Date(entry.statusUpdatedAt),
           paymentType: entry.paymentType,

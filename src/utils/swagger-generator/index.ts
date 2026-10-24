@@ -7,6 +7,7 @@ import {
 import { CONFIG } from '@/utils/config';
 import { healthResponseSchema } from '@/routes/api/health';
 import { registerRegistryEntryPaths } from './registry-entry-paths';
+import { registerRegistryEntryPurchasesPaths } from './registry-entry-purchases-paths';
 import { registerInboxAgentRegistrationPaths } from './inbox-agent-registration-paths';
 import { registerRegistrySourcePaths } from './registry-source-paths';
 import { registerApiKeyPaths } from './api-key-paths';
@@ -47,6 +48,7 @@ export function generateOpenAPI() {
   });
 
   registerRegistryEntryPaths(registry, apiKeyAuth.name);
+  registerRegistryEntryPurchasesPaths(registry, apiKeyAuth.name);
   registerInboxAgentRegistrationPaths(registry, apiKeyAuth.name);
   registerRegistrySourcePaths(registry, apiKeyAuth.name);
   registerApiKeyPaths(registry, apiKeyAuth.name);
