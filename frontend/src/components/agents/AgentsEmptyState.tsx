@@ -4,6 +4,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import {
   isDefaultStatusSelection,
   resetFilters,
+  shownStatuses,
   type AgentFilters,
   type Network,
 } from '@/lib/agent-filters';
@@ -32,12 +33,15 @@ function describe(
     case 'single': {
       const [only] = explanation.keys;
       const isDefaultStatusCulprit =
-        explanation.keys.includes('status') && isDefaultStatusSelection(filters.statuses);
+        explanation.keys.includes('status') && isDefaultStatusSelection(shownStatuses(filters));
       if (explanation.keys.length > 1) {
         // Each one alone would let agents through; together they rule each other out.
         return `No agent matches these filters together. Removing any one of them brings agents back.${
           isDefaultStatusCulprit ? ' Only Online agents are shown by default.' : ''
         }`;
+      }
+      if (only === 'query') {
+        return `No agent matches the search “${filters.query}” with these filters. Clearing the search brings agents back.`;
       }
       if (isDefaultStatusCulprit) {
         return 'Only Online agents are shown by default, and no Online agent matches. Agents with another status do.';
@@ -63,7 +67,7 @@ export function AgentsEmptyState({ filters, network, onChange }: AgentsEmptyStat
     <div role="status" aria-live="polite">
       <EmptyState
         icon="search"
-        title="No agents match these filters"
+        title={filters.query ? 'No agents match this search' : 'No agents match these filters'}
         description={describe(explanation, filters, network)}
         className="[&_p]:max-w-md"
         action={
@@ -82,7 +86,9 @@ export function AgentsEmptyState({ filters, network, onChange }: AgentsEmptyStat
                     {/* Leaving status out means every status, not "no status". */}
                     {key === 'status'
                       ? 'Show all statuses'
-                      : `Remove ${describeFilter(filters, key)}`}
+                      : key === 'query'
+                        ? 'Clear search'
+                        : `Remove ${describeFilter(filters, key)}`}
                   </span>
                 </Button>
               ))}

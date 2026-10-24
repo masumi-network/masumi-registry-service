@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { AgentRankingDetails, type AgentRowView } from '@/components/agents/AgentRankingDetails';
 import { Badge, type BadgeProps } from '@/components/ui/badge';
 import type { RegistryEntry } from '@/lib/api/generated';
 import type { AgentStatus } from '@/lib/agent-filters';
@@ -58,7 +59,7 @@ export function RelativeTime({ date }: { date: Date }) {
   );
 }
 
-function AgentRow({ agent }: { agent: RegistryEntry }) {
+function AgentRow({ agent, view }: { agent: RegistryEntry; view: AgentRowView }) {
   const tags = agent.tags ?? [];
   const capability = [agent.Capability?.name, agent.Capability?.version].filter(Boolean).join(' ');
 
@@ -121,6 +122,7 @@ function AgentRow({ agent }: { agent: RegistryEntry }) {
           <RelativeTime date={agent.lastUptimeCheck} />
         </span>
       </Cell>
+      <AgentRankingDetails agent={agent} view={view} />
     </li>
   );
 }
@@ -144,11 +146,12 @@ export function AgentListHeader() {
   );
 }
 
-export function AgentList({ agents }: { agents: RegistryEntry[] }) {
+/** The agents in the order the API returned them; a sorted view is ranked server side. */
+export function AgentList({ agents, view }: { agents: RegistryEntry[]; view: AgentRowView }) {
   return (
     <ul aria-label="Agents" className="divide-y">
       {agents.map((agent) => (
-        <AgentRow key={agent.id} agent={agent} />
+        <AgentRow key={agent.id} agent={agent} view={view} />
       ))}
     </ul>
   );

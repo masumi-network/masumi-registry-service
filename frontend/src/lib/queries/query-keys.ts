@@ -1,4 +1,4 @@
-import type { AgentFilters, Network, RegistryQueryBody } from '@/lib/agent-filters';
+import type { AgentFilters, Network, RegistryListRequest } from '@/lib/agent-filters';
 
 // All TanStack Query keys live here, so invalidation can target a whole domain.
 // Feature slices add their own entries next to the hooks that use them.
@@ -8,7 +8,7 @@ export const queryKeys = {
   agentLists: ['agents', 'list'] as const,
   agentList: (network: Network, filters: AgentFilters) =>
     ['agents', 'list', network, filters] as const,
-  agentProbe: (body: RegistryQueryBody) => ['agents', 'probe', body] as const,
+  agentProbe: (request: RegistryListRequest) => ['agents', 'probe', request] as const,
   agent: (network: Network, agentIdentifier: string) =>
     ['agents', 'detail', network, agentIdentifier] as const,
   latestAgentVersion: (network: Network, agentIdentifier: string) =>

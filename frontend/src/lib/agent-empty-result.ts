@@ -1,12 +1,17 @@
-import { AGENT_STATUSES, type AgentFilters } from './agent-filters';
+import { AGENT_STATUSES, shownStatuses, type AgentFilters } from './agent-filters';
 import { PAYMENT_TYPE_LABELS } from './display-labels';
 
 // Works out which filter emptied a view: each active filter is left out once, and a probe
 // that then finds agents names its filter as the cause.
 
 const FILTER_KEYS = [
+  'query',
   'status',
   'paymentTypes',
+  'pricing',
+  'uptime',
+  'onlyOnline',
+  'registered',
   'policyId',
   'assetIdentifier',
   'tags',
@@ -32,9 +37,14 @@ export interface EmptyResultProbe {
 }
 
 const isFilterActive: Record<FilterKey, (filters: AgentFilters) => boolean> = {
+  query: (filters) => filters.query !== '',
   // The default Online status counts: it alone hides most of the registry.
-  status: (filters) => filters.statuses.length < AGENT_STATUSES.length,
+  status: (filters) => shownStatuses(filters).length < AGENT_STATUSES.length,
   paymentTypes: (filters) => filters.paymentTypes.length > 0,
+  pricing: (filters) => filters.pricingType !== '' || filters.priceUnit !== '',
+  uptime: (filters) => filters.minUptimePercent !== '',
+  onlyOnline: (filters) => filters.onlyOnline,
+  registered: (filters) => filters.registeredAfter !== '' || filters.registeredBefore !== '',
   policyId: (filters) => filters.policyId !== '',
   assetIdentifier: (filters) => filters.assetIdentifier !== '',
   tags: (filters) => filters.tags.length > 0,
@@ -42,8 +52,21 @@ const isFilterActive: Record<FilterKey, (filters: AgentFilters) => boolean> = {
 };
 
 const clearFilter: Record<FilterKey, (filters: AgentFilters) => AgentFilters> = {
-  status: (filters) => ({ ...filters, statuses: [...AGENT_STATUSES] }),
+  query: (filters) => ({ ...filters, query: '' }),
+  status: (filters) => ({ ...filters, statuses: [...AGENT_STATUSES], excludedStatuses: [] }),
   paymentTypes: (filters) => ({ ...filters, paymentTypes: [] }),
+  pricing: (filters) => ({
+    ...filters,
+    pricingType: '',
+    priceUnit: '',
+    minPrice: '',
+    maxPrice: '',
+    // A price sort cannot outlive its unit.
+    sortBy: filters.sortBy === 'price' ? '' : filters.sortBy,
+  }),
+  uptime: (filters) => ({ ...filters, minUptimePercent: '' }),
+  onlyOnline: (filters) => ({ ...filters, onlyOnline: false }),
+  registered: (filters) => ({ ...filters, registeredAfter: '', registeredBefore: '' }),
   policyId: (filters) => ({ ...filters, policyId: '' }),
   assetIdentifier: (filters) => ({
     ...filters,
@@ -55,9 +78,29 @@ const clearFilter: Record<FilterKey, (filters: AgentFilters) => AgentFilters> = 
 };
 
 const describers: Record<FilterKey, (filters: AgentFilters) => string> = {
-  status: (filters) => `Status: ${filters.statuses.join(', ')}`,
+  query: (filters) => `Search: “${filters.query}”`,
+  status: (filters) =>
+    filters.excludedStatuses.length > 0
+      ? `Hidden status: ${filters.excludedStatuses.join(', ')}`
+      : `Status: ${filters.statuses.join(', ')}`,
   paymentTypes: (filters) =>
     `Payment type: ${filters.paymentTypes.map((type) => PAYMENT_TYPE_LABELS[type]).join(', ')}`,
+  pricing: (filters) => {
+    const range = [
+      filters.minPrice && `from ${filters.minPrice}`,
+      filters.maxPrice && `up to ${filters.maxPrice}`,
+    ].filter(Boolean);
+    return `Pricing: ${[filters.pricingType, filters.priceUnit, ...range].filter(Boolean).join(' ')}`;
+  },
+  uptime: (filters) => `Uptime: at least ${filters.minUptimePercent}%`,
+  onlyOnline: () => 'Only Online',
+  registered: (filters) =>
+    `Registered: ${[
+      filters.registeredAfter && `from ${filters.registeredAfter}`,
+      filters.registeredBefore && `until ${filters.registeredBefore}`,
+    ]
+      .filter(Boolean)
+      .join(' ')}`,
   policyId: (filters) => `Policy ID: ${filters.policyId}`,
   assetIdentifier: (filters) =>
     `Asset identifier: ${filters.assetIdentifier}${filters.resolveToLatestVersion ? ' (latest version)' : ''}`,
@@ -66,7 +109,10 @@ const describers: Record<FilterKey, (filters: AgentFilters) => string> = {
     `Capability: ${[filters.capabilityName, filters.capabilityVersion].filter(Boolean).join(' ')}`,
 };
 
-/** Filters that narrow the view, in a fixed order. The health re-check date is not one. */
+/**
+ * What narrows the view, search text included, in a fixed order. The health re-check date
+ * and the sort do not narrow it.
+ */
 export function activeFilterKeys(filters: AgentFilters): FilterKey[] {
   return FILTER_KEYS.filter((key) => isFilterActive[key](filters));
 }
@@ -81,8 +127,9 @@ export function describeFilter(filters: AgentFilters, key: FilterKey): string {
 }
 
 export function planEmptyResultProbes(filters: AgentFilters): EmptyResultProbe[] {
-  // A probe only asks whether anything would show; it must never force live health checks.
-  const base: AgentFilters = { ...filters, minHealthCheckDate: '' };
+  // A probe only asks whether anything would show. It must never force live health checks,
+  // nor ask for a sort, which makes the API rank the whole filtered set.
+  const base: AgentFilters = { ...filters, lastCheckedAfter: '', sortBy: '' };
   const keys = activeFilterKeys(base);
   const probes: EmptyResultProbe[] = keys.map((key) => ({
     id: key,

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
@@ -13,6 +13,14 @@ interface TextFilterInputProps {
   /** Changes whenever the URL view changes, so a replaced commit can be noticed. */
   revision: unknown;
   onCommit: (value: string) => void;
+  /** An error message for a value the API would reject; such a value is never committed. */
+  validate?: (value: string) => string | null;
+  hint?: string;
+  disabled?: boolean;
+  type?: 'text' | 'search';
+  inputMode?: 'text' | 'numeric' | 'decimal';
+  labelClassName?: string;
+  inputClassName?: string;
 }
 
 /**
@@ -27,6 +35,13 @@ export function TextFilterInput({
   placeholder,
   revision,
   onCommit,
+  validate,
+  hint,
+  disabled,
+  type = 'text',
+  inputMode,
+  labelClassName,
+  inputClassName = 'font-mono text-xs',
 }: TextFilterInputProps) {
   const [draft, setDraft] = useState(value);
   const [syncedValue, setSyncedValue] = useState(value);
@@ -36,6 +51,9 @@ export function TextFilterInput({
   const [awaitingEcho, setAwaitingEcho] = useState<string | null>(null);
   const [externalChanges, setExternalChanges] = useState(0);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  // A draft that failed `validate` and was kept out of the URL. When the error clears,
+  // say because the other bound of a range moved, it is committed after all.
+  const rejectedDraft = useRef<string | null>(null);
 
   if (value !== syncedValue || revision !== seenRevision) {
     setSyncedValue(value);
@@ -56,20 +74,45 @@ export function TextFilterInput({
   useEffect(() => clearTimeout(timer.current), [externalChanges]);
   useEffect(() => () => clearTimeout(timer.current), []);
 
+  const trimmedDraft = draft.trim();
+  const error = trimmedDraft && validate ? validate(trimmedDraft) : null;
+  const hintId = `${id}-hint`;
+  const errorId = `${id}-error`;
+
   function commit(next: string) {
     clearTimeout(timer.current);
     timer.current = undefined;
     const trimmed = next.trim();
+    rejectedDraft.current = null;
     if (trimmed === value) return;
+    // The message under the field explains why; the view keeps its last valid value.
+    if (trimmed && validate?.(trimmed)) {
+      rejectedDraft.current = trimmed;
+      return;
+    }
     setAwaitingEcho(trimmed);
     onCommit(trimmed);
   }
 
+  const retryRejectedDraft = useEffectEvent(() => {
+    if (rejectedDraft.current !== null && rejectedDraft.current === draft.trim()) commit(draft);
+  });
+  useEffect(() => {
+    if (!error) retryRejectedDraft();
+  }, [error]);
+
   return (
     <div className="space-y-1.5">
-      <Label htmlFor={id}>{label}</Label>
+      <Label htmlFor={id} className={labelClassName}>
+        {label}
+      </Label>
       <Input
         id={id}
+        type={type}
+        inputMode={inputMode}
+        disabled={disabled}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={[hint && hintId, error && errorId].filter(Boolean).join(' ') || undefined}
         value={draft}
         maxLength={maxLength}
         placeholder={placeholder}
@@ -88,8 +131,17 @@ export function TextFilterInput({
           // Leaving the field (say, for a nav link) must not leave a commit pending.
           if (timer.current !== undefined) commit(draft);
         }}
-        className="font-mono text-xs"
+        className={inputClassName}
       />
+      {/* Always rendered, so screen readers announce an error when it appears. */}
+      <p id={errorId} aria-live="polite" className="text-xs text-destructive empty:hidden">
+        {error}
+      </p>
+      {hint && (
+        <p id={hintId} className="text-xs text-muted-foreground">
+          {hint}
+        </p>
+      )}
     </div>
   );
 }
