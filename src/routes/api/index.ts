@@ -6,6 +6,8 @@ import {
   searchRegistryEntryPost,
 } from '@/routes/api/registry-entry';
 import { registryEntrySpecGet } from '@/routes/api/registry-entry-spec';
+import { registryEntryX402ProbesGet } from '@/routes/api/registry-entry-x402-probes';
+import { x402DiscoveryGet } from '@/routes/api/x402-discovery';
 import { registryEntryPurchasesGet } from '@/routes/api/registry-entry-purchases';
 import {
   queryAPIKeyEndpointGet as queryCentralizedRegistrySourceGet,
@@ -43,6 +45,12 @@ export const apiRouter: Routing = {
     },
     'registry-entry-spec': {
       get: registryEntrySpecGet,
+    },
+    'registry-entry-x402-probes': {
+      get: registryEntryX402ProbesGet,
+    },
+    'x402-discovery': {
+      get: x402DiscoveryGet,
     },
     'registry-entry-purchases': {
       get: registryEntryPurchasesGet,

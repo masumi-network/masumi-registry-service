@@ -5,6 +5,7 @@ const NUMERIC_VARS = [
   'UPDATE_CARDANO_REGISTRY_INTERVAL',
   'UPDATE_HEALTH_CHECK_INTERVAL',
   'UPDATE_PURCHASE_INDEX_INTERVAL',
+  'UPDATE_X402_PROBE_INTERVAL',
   'DB_CONNECTION_TIMEOUT',
   'DB_CONNECTION_POOL_LIMIT',
   'DB_STAEMENT_TIMEOUT',
@@ -33,6 +34,7 @@ describe('numeric configuration', () => {
       UPDATE_CARDANO_REGISTRY_INTERVAL: 50,
       UPDATE_HEALTH_CHECK_INTERVAL: 100,
       UPDATE_PURCHASE_INDEX_INTERVAL: 300,
+      UPDATE_X402_PROBE_INTERVAL: 3600,
       RANKING_WEIGHTS: { distinctBuyers: 0.6, uptime: 0.3, lineageAge: 0.1 },
       DB_CONNECTION_TIMEOUT: 20,
       DB_CONNECTION_POOL_LIMIT: 5,
@@ -101,6 +103,49 @@ describe('numeric configuration', () => {
     );
     expect(loadConfig({ UPDATE_HEALTH_CHECK_INTERVAL: '20' })).toMatchObject({
       UPDATE_HEALTH_CHECK_INTERVAL: 20,
+    });
+  });
+
+  it('keeps the x402 probe interval at least five minutes', () => {
+    expect(() => loadConfig({ UPDATE_X402_PROBE_INTERVAL: '299' })).toThrow(
+      /UPDATE_X402_PROBE_INTERVAL/
+    );
+    expect(loadConfig({ UPDATE_X402_PROBE_INTERVAL: '300' })).toMatchObject({
+      UPDATE_X402_PROBE_INTERVAL: 300,
+    });
+  });
+
+  describe('X402_DISCOVERY_FACILITATOR_URL', () => {
+    it('defaults to the Coinbase CDP facilitator', () => {
+      expect(loadConfig({})).toMatchObject({
+        X402_DISCOVERY_FACILITATOR_URL:
+          'https://api.cdp.coinbase.com/platform/v2/x402',
+      });
+    });
+
+    it('accepts an https url and drops a trailing slash', () => {
+      expect(
+        loadConfig({
+          X402_DISCOVERY_FACILITATOR_URL: 'https://facilitator.example/x402/',
+        })
+      ).toMatchObject({
+        X402_DISCOVERY_FACILITATOR_URL: 'https://facilitator.example/x402',
+      });
+    });
+
+    it.each([
+      ['http', 'http://facilitator.example'],
+      ['garbage', 'not a url'],
+      ['userinfo', 'https://user:pw@facilitator.example'],
+      ['a query string', 'https://facilitator.example/x?a=1'],
+      ['a custom port', 'https://facilitator.example:8443'],
+      ['an empty query', 'https://facilitator.example/x?'],
+      ['an empty fragment', 'https://facilitator.example/x#'],
+      ['a backslash', 'https://facilitator.example\\@evil.example'],
+    ])('rejects %s and names the variable', (_label, value) => {
+      expect(() =>
+        loadConfig({ X402_DISCOVERY_FACILITATOR_URL: value })
+      ).toThrow(/^Invalid X402_DISCOVERY_FACILITATOR_URL ENV variable/);
     });
   });
 

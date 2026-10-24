@@ -44,6 +44,38 @@ function readNumberEnv(
   return value;
 }
 
+// The facilitator whose catalog is queried to discover an address's x402 APIs.
+// Fixed by the operator, never by a caller, so the endpoint is no open proxy.
+const DEFAULT_X402_DISCOVERY_FACILITATOR_URL =
+  'https://api.cdp.coinbase.com/platform/v2/x402';
+
+// Reads an https base URL env var (default port, no credentials, query or
+// fragment), falling back only when unset. Rejects anything else at startup.
+function readHttpsBaseUrlEnv(name: string, fallback: string): string {
+  const raw = process.env[name];
+  const value = raw === undefined ? fallback : raw.trim();
+  try {
+    const url = new URL(value);
+    if (
+      // URL drops an empty "?" or "#" and reads "\\" as "/": reject the raw text.
+      !/[?#\\]/.test(value) &&
+      url.protocol === 'https:' &&
+      url.port === '' &&
+      url.username === '' &&
+      url.password === '' &&
+      url.search === '' &&
+      url.hash === ''
+    ) {
+      return value.replace(/\/+$/, '');
+    }
+  } catch {
+    // Falls through to the error below.
+  }
+  throw new Error(
+    `Invalid ${name} ENV variable: expected an https URL without port, credentials, query or fragment, got "${raw}"`
+  );
+}
+
 const updateCardanoRegistryInterval = readNumberEnv(
   'UPDATE_CARDANO_REGISTRY_INTERVAL',
   50,
@@ -76,6 +108,13 @@ const updatePurchaseIndexInterval = readNumberEnv(
   300,
   { min: 60, max: MAX_TIMER_SECONDS }
 );
+// Every probe is a request to a third party's server, so this runs far less
+// often than the health check.
+const updateX402ProbeInterval = readNumberEnv(
+  'UPDATE_X402_PROBE_INTERVAL',
+  3600,
+  { min: 300, max: MAX_TIMER_SECONDS }
+);
 
 // Weights of the ranking score. Distinct buyers dominate: they are the only
 // input that costs an attacker real on-chain transactions (thesis §4.1).
@@ -96,6 +135,11 @@ const rankingWeights = {
 if (Object.values(rankingWeights).reduce((sum, weight) => sum + weight, 0) <= 0)
   throw new Error('Invalid RANKING_WEIGHT_* ENV variables');
 
+const x402DiscoveryFacilitatorUrl = readHttpsBaseUrlEnv(
+  'X402_DISCOVERY_FACILITATOR_URL',
+  DEFAULT_X402_DISCOVERY_FACILITATOR_URL
+);
+
 const corsAllowedOrigins = parseCorsAllowedOrigins(
   process.env.CORS_ALLOWED_ORIGINS
 );
@@ -107,6 +151,8 @@ export const CONFIG = {
   UPDATE_CARDANO_REGISTRY_INTERVAL: updateCardanoRegistryInterval,
   UPDATE_HEALTH_CHECK_INTERVAL: updateHealthCheckInterval,
   UPDATE_PURCHASE_INDEX_INTERVAL: updatePurchaseIndexInterval,
+  UPDATE_X402_PROBE_INTERVAL: updateX402ProbeInterval,
+  X402_DISCOVERY_FACILITATOR_URL: x402DiscoveryFacilitatorUrl,
   RANKING_WEIGHTS: rankingWeights,
   VERSION: '0.1.2',
   DB_CONNECTION_TIMEOUT: dbConnectionTimeout,

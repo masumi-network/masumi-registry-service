@@ -39,13 +39,15 @@ describe('generateOpenAPI', () => {
         Object.keys(methods).map((method) => `${method} ${route}`)
     );
 
-    expect(operations).toHaveLength(22);
+    expect(operations).toHaveLength(24);
     expect(operations).toEqual(
       expect.arrayContaining([
         'get /health/',
         'post /registry-entry/',
         'post /registry-diff/',
         'get /registry-entry-spec/',
+        'get /registry-entry-x402-probes/',
+        'get /x402-discovery/',
         'get /registry-entry-purchases/',
         'get /capability/',
         'post /inbox-agent-registration-diff/',
