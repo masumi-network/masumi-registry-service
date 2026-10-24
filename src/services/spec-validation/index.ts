@@ -66,7 +66,7 @@ const openApiDocumentSchema = z
 // Pricing is agent-level (SupportedPaymentSources), so resources carry no
 // `accepts`. Embedded input/output schemas are accepted as objects here; strict
 // JSON-Schema-dialect validation is the deferred follow-up.
-const x402ManifestSchema = z.object({
+export const x402ManifestSchema = z.object({
   x402Version: z.number().int().optional(),
   resources: z
     .array(

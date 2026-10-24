@@ -108,6 +108,7 @@ model RegistryEntry {
   SupportedPaymentSources SupportedPaymentSource[]
   Verifications           AgentVerification[]
   HealthCheckEvents       HealthCheckEvent[]
+  X402ResourceProbes      X402ResourceProbe[]
   A2A                     A2ARegistryEntry?
 
   metadataVersion Int
@@ -432,4 +433,49 @@ model HealthCheckEvent {
 
   @@index([registryEntryId, checkedAt])
   @@index([checkedAt])
+}
+
+// What an X402 agent's own resource endpoints answer to an unpaid request
+// (MAS-455). One row per manifest resource, refreshed by a slow background job
+// and re-created from the live endpoints, so it is derived data: never part of
+// a snapshot. Purely informational — it never changes RegistryEntry.status.
+enum X402ProbeOutcome {
+  // 402 with a usable x402 challenge.
+  Payable
+  // 2xx: answered without asking for payment.
+  Free
+  // 402 without a usable challenge, or a resource URL the probe refuses.
+  Invalid
+  // The probe only sends GET and the resource does not serve it (405, or 404 on
+  // a POST-only route).
+  Unsupported
+  // No answer, or any other status (5xx, redirect, other 4xx).
+  Unreachable
+}
+
+model X402ResourceProbe {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // The manifest resource URL that was probed.
+  resource    String
+  outcome     X402ProbeOutcome
+  httpStatus  Int?
+  x402Version Int?
+  // Normalized payment requirements the resource asked for (ProbeAccept[]).
+  accepts     Json?
+  // Does the challenge agree with the entry's registered EVM payment sources?
+  // Null when there was nothing to compare (e.g. Cardano-only entries).
+  matchesRegisteredSources Boolean?
+  mismatches               String[]
+  // Why the probe was Invalid or Unreachable.
+  reason    String?
+  checkedAt DateTime
+
+  RegistryEntry   RegistryEntry @relation(fields: [registryEntryId], references: [id], onDelete: Cascade)
+  registryEntryId String
+
+  @@unique([registryEntryId, resource])
+  @@index([registryEntryId, checkedAt])
 }

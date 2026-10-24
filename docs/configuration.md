@@ -20,3 +20,4 @@ The registry is updated every 2 minutes and the deregistered entries are updated
 
 - **UPDATE_CARDANO_REGISTRY_INTERVAL**: The interval in seconds to update the registry
 - **UPDATE_CARDANO_DEREGISTER_INTERVAL**: The interval in seconds to update the deregistered entries
+- **UPDATE_X402_PROBE_INTERVAL**: The interval in seconds between probes of the resources of `X402` agents (default 3600, minimum 300). Each cycle sends an unpaid `GET` to at most 500 resources (25 per agent), stalest first; results are served by `GET /registry-entry-x402-probes`

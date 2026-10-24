@@ -3,6 +3,7 @@ import {
   updateHealthCheck,
 } from '@/services/cardano-registry/cardano-registry.service';
 import { uptimeTracking } from '@/services/health-check';
+import { updateX402Probes } from '@/services/x402-probe';
 import { updateSuccessfulPurchaseIndex } from '@/services/purchase-indexer/purchase-indexer.service';
 import { CONFIG } from '@/utils/config';
 import { logger } from '@/utils/logger';
@@ -50,6 +51,10 @@ async function init() {
       await updateSuccessfulPurchaseIndex();
       logger.info('Finished updating successful purchase index');
     }, CONFIG.UPDATE_PURCHASE_INDEX_INTERVAL * 1000),
+    AsyncInterval.start(async () => {
+      logger.info('Probing x402 resources');
+      await updateX402Probes({ shouldStop: () => isStopping });
+    }, CONFIG.UPDATE_X402_PROBE_INTERVAL * 1000),
     AsyncInterval.start(async () => {
       const { count } = await uptimeTracking.pruneHealthCheckEvents(new Date());
       logger.info('Pruned old health check events', { count });
