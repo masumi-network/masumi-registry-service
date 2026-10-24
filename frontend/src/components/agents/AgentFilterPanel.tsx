@@ -17,6 +17,7 @@ import {
   type AgentFilters,
 } from '@/lib/agent-filters';
 import { PAYMENT_TYPE_LABELS } from '@/lib/display-labels';
+import type { Client } from '@/lib/api/generated/client';
 import type { AgentFiltersUpdate } from '@/lib/hooks/useAgentFilters';
 import { cn } from '@/lib/utils';
 
@@ -56,7 +57,9 @@ function CheckboxGroup<T extends string>({
               id={id}
               checked={isChecked}
               disabled={requireOne && isChecked && selected.length === 1}
-              onCheckedChange={(checked) => onToggle(option, checked === true)}
+              onCheckedChange={(checked: boolean | 'indeterminate') =>
+                onToggle(option, checked === true)
+              }
             />
             <Label htmlFor={id} className="font-normal">
               {labels?.[option] ?? option}
@@ -76,6 +79,7 @@ interface AgentFilterPanelProps {
   filters: AgentFilters;
   onChange: (update: AgentFiltersUpdate) => void;
   className?: string;
+  apiClient?: Client;
 }
 
 /**
@@ -83,7 +87,13 @@ interface AgentFilterPanelProps {
  * the newest view (`onChange` takes an update, not a value), so quick changes never undo
  * each other.
  */
-export function AgentFilterPanel({ id, filters, onChange, className }: AgentFilterPanelProps) {
+export function AgentFilterPanel({
+  id,
+  filters,
+  onChange,
+  className,
+  apiClient,
+}: AgentFilterPanelProps) {
   const update = (patch: Partial<AgentFilters>) =>
     onChange((current) => ({ ...current, ...patch }));
   const isDefault = sameView(resetFilters(filters), filters);
@@ -154,6 +164,7 @@ export function AgentFilterPanel({ id, filters, onChange, className }: AgentFilt
       <CapabilityFilter
         name={filters.capabilityName}
         version={filters.capabilityVersion}
+        apiClient={apiClient}
         onChange={(capabilityName, capabilityVersion) =>
           update({ capabilityName, capabilityVersion })
         }
@@ -207,7 +218,9 @@ export function AgentFilterPanel({ id, filters, onChange, className }: AgentFilt
             checked={filters.resolveToLatestVersion}
             disabled={!filters.assetIdentifier}
             aria-describedby="filter-resolve-latest-hint"
-            onCheckedChange={(checked) => update({ resolveToLatestVersion: checked === true })}
+            onCheckedChange={(checked: boolean | 'indeterminate') =>
+              update({ resolveToLatestVersion: checked === true })
+            }
           />
           <div className="space-y-1">
             <Label htmlFor="filter-resolve-latest" className="font-normal">

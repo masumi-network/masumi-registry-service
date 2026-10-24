@@ -12,6 +12,7 @@ import {
   withoutFilter,
   type EmptyResultExplanation,
 } from '@/lib/agent-empty-result';
+import type { Client } from '@/lib/api/generated/client';
 import type { AgentFiltersUpdate } from '@/lib/hooks/useAgentFilters';
 import { useEmptyResultExplanation } from '@/lib/queries/useEmptyResultExplanation';
 
@@ -19,6 +20,7 @@ interface AgentsEmptyStateProps {
   filters: AgentFilters;
   network: Network;
   onChange: (update: AgentFiltersUpdate) => void;
+  apiClient?: Client;
 }
 
 function describe(
@@ -54,8 +56,8 @@ function describe(
 }
 
 /** The empty list, saying which filter excluded everything (see lib/agent-empty-result). */
-export function AgentsEmptyState({ filters, network, onChange }: AgentsEmptyStateProps) {
-  const explanation = useEmptyResultExplanation(filters, network);
+export function AgentsEmptyState({ filters, network, onChange, apiClient }: AgentsEmptyStateProps) {
+  const explanation = useEmptyResultExplanation(filters, network, apiClient);
   const removals = 'keys' in explanation ? explanation.keys : [];
   const canReset = explanation.kind === 'combination' || explanation.kind === 'unknown';
 

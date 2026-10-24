@@ -1,0 +1,10 @@
+node_modules
+dist
+.next
+.env.local
+.DS_Store
+*.log
+
+# Full Inter desktop package exceeds pre-commit size limits; variable + web fonts are enough
+public/fonts/inter/Inter.ttc
+public/fonts/inter/extras/

@@ -9,22 +9,21 @@ import kanjiBlack from '@/assets/Kanji.svg';
 const MasumiLogo = React.memo(() => {
   const { theme } = useTheme();
   return (
-    <div className="flex h-8 items-center gap-3">
+    <div className="flex h-8 items-end justify-center gap-4">
       <Image
         src={theme === 'dark' ? masumiWhite : masumiBlack}
         alt="Masumi Logo"
-        // The SVG's own aspect ratio (1920x679.76) at h-8, so next/image sees no resize.
-        width={90}
+        width={100}
         height={32}
-        className="h-8 w-auto max-w-none"
+        className="h-8 w-auto"
         priority
       />
       <Image
         src={theme === 'dark' ? kanjiWhite : kanjiBlack}
-        alt=""
-        width={16}
-        height={34}
-        className="h-[34px] w-auto max-w-none"
+        alt="Kanji"
+        width={28}
+        height={32}
+        className="h-8 w-auto"
         priority
       />
     </div>

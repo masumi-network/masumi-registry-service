@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import type { RegistryEntry } from '@/lib/api/generated';
+import type { Client } from '@/lib/api/generated/client';
 import type { Network } from '@/lib/agent-filters';
 import { useLatestAgentVersion } from '@/lib/queries/useAgent';
 import { DetailSection, Field, Mono } from './AgentDetailSection';
@@ -29,14 +30,16 @@ function VersionLink({ agentIdentifier }: { agentIdentifier: string }) {
 export function AgentVersionLineage({
   agent,
   network,
+  apiClient,
 }: {
   agent: RegistryEntry;
   network: Network;
+  apiClient: Client;
 }) {
   const previous = agent.supersedesAgentIdentifier;
   const next = agent.supersededByAgentIdentifier;
   // Only a superseded version needs the lookup; otherwise this one is the latest.
-  const latest = useLatestAgentVersion(network, agent.agentIdentifier, next !== null);
+  const latest = useLatestAgentVersion(network, agent.agentIdentifier, next !== null, apiClient);
   if (previous === null && next === null) return null;
 
   return (

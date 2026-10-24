@@ -23,6 +23,37 @@ Reach the public Swagger UI at [https://registry.masumi.network/docs/](https://r
 
 The API key is `public-test-key-masumi-registry-c23f3d21`.
 
+## Admin UI
+
+A static Next.js admin interface is available at `/admin` (same pattern as the payment node). Sign in with an **Admin** API key (`token` header).
+
+### Develop the admin UI
+
+Allow the Next origin in the registry `.env` (required for browser calls from `:3001`):
+
+```sh
+CORS_ALLOWED_ORIGINS=http://localhost:3001
+```
+
+```sh
+# Terminal 1 — registry API (default PORT 3000)
+pnpm run dev
+
+# Terminal 2 — admin UI on http://localhost:3001/admin
+pnpm run frontend:dev
+```
+
+Copy `frontend/.env.example` to `frontend/.env.local` and set the API URL to match registry `PORT` (see example).
+
+### Build and serve via the registry process
+
+```sh
+pnpm run frontend:build
+pnpm run build && pnpm start
+```
+
+Then open `http://localhost:3000/admin` (API + UI same origin; client uses `/api/v1`).
+
 ## System Requirements
 
 Ensure your system meets the following requirements before installation:

@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { postRegistryEntry, type RegistryEntry } from '@/lib/api/generated';
+import type { Client } from '@/lib/api/generated/client';
 import {
   buildRegistryQueryBody,
   type AgentFilters,
@@ -22,8 +23,9 @@ const entryKey = (entry: RegistryEntry) => entry.id;
 export async function fetchRegistryEntries(
   body: RegistryQueryBody,
   signal?: AbortSignal,
+  client?: Client,
 ): Promise<RegistryEntry[]> {
-  const { data } = await postRegistryEntry({ body, signal, throwOnError: true });
+  const { data } = await postRegistryEntry({ body, signal, throwOnError: true, client });
   // A proxy error page can arrive as a 200 with a non-JSON body.
   if (!Array.isArray(data?.data?.entries)) throw new Error('Unexpected registry entry response');
   return data.data.entries;
@@ -33,7 +35,12 @@ export async function fetchRegistryEntries(
  * The agent list for one view, a page at a time ("Load more"). The registry's cursor is
  * inclusive, so later pages repeat a row; `agents` is the de-duplicated list to render.
  */
-export function useAgents(filters: AgentFilters, network: Network, enabled: boolean) {
+export function useAgents(
+  filters: AgentFilters,
+  network: Network,
+  enabled: boolean,
+  client?: Client,
+) {
   const query = useInfiniteQuery({
     queryKey: queryKeys.agentList(network, filters),
     initialPageParam: undefined as string | undefined,
@@ -42,7 +49,7 @@ export function useAgents(filters: AgentFilters, network: Network, enabled: bool
       // more to still add a full page, within the API's maximum.
       const limit = pageParam ? Math.min(filters.pageSize + 1, API_MAX_LIMIT) : filters.pageSize;
       const body = buildRegistryQueryBody(filters, network, { limit, cursorId: pageParam });
-      const items = await fetchRegistryEntries(body, signal);
+      const items = await fetchRegistryEntries(body, signal, client);
       return { items, limit, cursorId: pageParam };
     },
     getNextPageParam: (lastPage) => nextInclusiveCursor(lastPage, entryKey),

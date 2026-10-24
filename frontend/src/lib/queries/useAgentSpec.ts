@@ -1,14 +1,21 @@
 import { useQuery } from '@tanstack/react-query';
 import { getRegistryEntrySpec } from '@/lib/api/generated';
+import type { Client } from '@/lib/api/generated/client';
 import type { Network } from '@/lib/agent-filters';
 import { queryKeys } from './query-keys';
 
 /** The registry's cached, validated spec of an OpenApi, x402 or A2A entry. Standard entries have none. */
-export function useAgentSpec(network: Network, agentIdentifier: string, enabled: boolean) {
+export function useAgentSpec(
+  network: Network,
+  agentIdentifier: string,
+  enabled: boolean,
+  client: Client,
+) {
   return useQuery({
     queryKey: queryKeys.agentSpec(network, agentIdentifier),
     queryFn: async ({ signal }) => {
       const { data } = await getRegistryEntrySpec({
+        client,
         query: { network, agentIdentifier },
         signal,
         throwOnError: true,
