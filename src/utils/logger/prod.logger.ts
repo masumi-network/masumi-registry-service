@@ -1,5 +1,6 @@
 import { createLogger, format, transports } from 'winston';
 import { TransformableInfo } from 'logform';
+import { redactSecrets } from '@/utils/logger/redact-secrets';
 
 const { combine, timestamp, errors, json } = format;
 
@@ -23,6 +24,7 @@ function buildProdLogger() {
       timestamp(),
       errors({ stack: true }),
       serializeErrors(),
+      redactSecrets(),
       json()
     ),
     defaultMeta: { service: 'registry-service' },
