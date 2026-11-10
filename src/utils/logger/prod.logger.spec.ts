@@ -1,3 +1,4 @@
+import createHttpError from 'http-errors';
 import { PassThrough } from 'stream';
 import { transports } from 'winston';
 import { buildProdLogger } from '@/utils/logger/prod.logger';
@@ -40,6 +41,30 @@ describe('prod logger secret redaction', () => {
     expect(input.nested[0].token).toBe(API_TOKEN);
   });
 
+  it('redacts secrets in error text, error properties and causes', () => {
+    const { logger, lines } = captureProdLogger();
+    // Prisma validation errors print their call arguments in the message.
+    const prismaError = Object.assign(
+      new Error(`Invalid create() call:\n  rpcProviderApiKey: "${RPC_KEY}",`),
+      { meta: { Token: API_TOKEN } }
+    );
+    // express-zod-api wraps unknown errors like this before logging them.
+    const httpError = createHttpError(500, prismaError.message, {
+      cause: prismaError,
+    });
+
+    logger.error('Server side error', {
+      error: httpError,
+      payload: { inner: prismaError },
+    });
+
+    const output = lines.join('');
+    expect(output).toContain('Server side error');
+    expect(output).toContain('Invalid create() call');
+    expect(output).not.toContain(RPC_KEY);
+    expect(output).not.toContain(API_TOKEN);
+  });
+
   it('logs a self-referencing object without recursing forever', () => {
     const { logger, lines } = captureProdLogger();
     const meta: Record<string, unknown> = { token: API_TOKEN };
@@ -48,7 +73,7 @@ describe('prod logger secret redaction', () => {
     logger.info('cyclic', { meta });
 
     const output = lines.join('');
-    expect(output).toContain('"self":"[Circular]"');
+    expect(output).toContain('"message":"cyclic"');
     expect(output).not.toContain(API_TOKEN);
   });
 });

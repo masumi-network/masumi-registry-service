@@ -1,10 +1,20 @@
 import { format } from 'winston';
 
-// Fields whose values must never reach the logs. express-zod-api logs the
-// full request input as `payload` on any 5xx, and these inputs carry them.
-const SECRET_KEYS = new Set(['rpcProviderApiKey', 'token']);
+// Fields whose values must never reach the logs, matched in any case.
+// express-zod-api logs the full request input as `payload` on any 5xx, and
+// these inputs carry them.
+const SECRET_KEYS = new Set(['rpcproviderapikey', 'token']);
 const REDACTED = '[REDACTED]';
 const CIRCULAR = '[Circular]';
+
+// Error text can embed a secret as `key: "value"` (Prisma validation errors
+// print their call arguments like this). Only quoted values are matched.
+const SECRET_IN_TEXT =
+  /\b(rpcProviderApiKey|token)(["']?\s*[:=]\s*)(["'])(?:\\.|(?!\3)[^\\])*\3/gi;
+
+function isSecretKey(key: string): boolean {
+  return SECRET_KEYS.has(key.toLowerCase());
+}
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   if (value === null || typeof value !== 'object') return false;
@@ -12,19 +22,35 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return proto === Object.prototype || proto === null;
 }
 
+// Errors keep message, stack and cause off the enumerable own properties.
+function errorEntries(error: Error): Record<string, unknown> {
+  return {
+    ...error,
+    message: error.message,
+    stack: error.stack,
+    ...('cause' in error ? { cause: error.cause } : {}),
+  };
+}
+
 // Returns a redacted copy, so the caller's objects (e.g. live request input)
 // are never mutated.
 function redact(value: unknown, ancestors: WeakSet<object>): unknown {
-  if (!Array.isArray(value) && !isPlainObject(value)) return value;
+  if (typeof value === 'string') {
+    return value.replace(SECRET_IN_TEXT, `$1$2$3${REDACTED}$3`);
+  }
+  const isError = value instanceof Error;
+  if (!isError && !Array.isArray(value) && !isPlainObject(value)) return value;
   if (ancestors.has(value)) return CIRCULAR;
   ancestors.add(value);
   const result = Array.isArray(value)
     ? value.map((item) => redact(item, ancestors))
     : Object.fromEntries(
-        Object.entries(value).map(([key, item]) => [
-          key,
-          SECRET_KEYS.has(key) ? REDACTED : redact(item, ancestors),
-        ])
+        Object.entries(isError ? errorEntries(value) : value).map(
+          ([key, item]) => [
+            key,
+            isSecretKey(key) ? REDACTED : redact(item, ancestors),
+          ]
+        )
       );
   ancestors.delete(value);
   return result;
@@ -35,7 +61,7 @@ function redact(value: unknown, ancestors: WeakSet<object>): unknown {
 export const redactSecrets = format((info) => {
   const ancestors = new WeakSet<object>();
   for (const key of Object.keys(info)) {
-    info[key] = SECRET_KEYS.has(key) ? REDACTED : redact(info[key], ancestors);
+    info[key] = isSecretKey(key) ? REDACTED : redact(info[key], ancestors);
   }
   return info;
 });
