@@ -65,6 +65,37 @@ describe('prod logger secret redaction', () => {
     expect(output).not.toContain(API_TOKEN);
   });
 
+  it.each([
+    ['Prisma style', `rpcProviderApiKey: "${RPC_KEY}",`],
+    ['JSON', JSON.stringify({ token: API_TOKEN, n: 1 })],
+    [
+      'JSON stringified twice',
+      JSON.stringify(JSON.stringify({ token: API_TOKEN, n: 1 })),
+    ],
+    ['escaped quote in value', `token: "a\\"${API_TOKEN}" tail`],
+    ['single quotes, mixed case', `Token='${API_TOKEN}' tail`],
+    ['unterminated quote', `token: "${API_TOKEN}`],
+  ])('redacts a secret embedded in text (%s)', (_case, text) => {
+    const { logger, lines } = captureProdLogger();
+
+    logger.error(text);
+
+    const output = lines.join('');
+    expect(output).toContain('[REDACTED]');
+    expect(output).not.toContain(RPC_KEY);
+    expect(output).not.toContain(API_TOKEN);
+  });
+
+  it('keeps text after a redacted value and ignores similar words', () => {
+    const { logger, lines } = captureProdLogger();
+
+    logger.error('token: "a" and "b", tokens: "c", tokenHash: "d"');
+
+    expect(lines.join('')).toContain(
+      'token: \\"[REDACTED]\\" and \\"b\\", tokens: \\"c\\", tokenHash: \\"d\\"'
+    );
+  });
+
   it('logs a self-referencing object without recursing forever', () => {
     const { logger, lines } = captureProdLogger();
     const meta: Record<string, unknown> = { token: API_TOKEN };
