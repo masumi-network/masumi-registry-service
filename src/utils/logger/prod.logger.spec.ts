@@ -75,6 +75,13 @@ describe('prod logger secret redaction', () => {
     ['escaped quote in value', `token: "a\\"${API_TOKEN}" tail`],
     ['single quotes, mixed case', `Token='${API_TOKEN}' tail`],
     ['unterminated quote', `token: "${API_TOKEN}`],
+    ['truncated on a backslash', `token: "${API_TOKEN}\\`],
+    ['backslash before a newline', `token: "${API_TOKEN}\\\nmore"`],
+    [
+      'JSON stringified three times',
+      JSON.stringify(JSON.stringify(JSON.stringify({ token: API_TOKEN }))),
+    ],
+    ['backtick quotes', `token: \`${API_TOKEN}\` tail`],
   ])('redacts a secret embedded in text (%s)', (_case, text) => {
     const { logger, lines } = captureProdLogger();
 

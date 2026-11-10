@@ -9,10 +9,12 @@ const CIRCULAR = '[Circular]';
 
 // Error text can embed a secret as `key: "value"` (Prisma validation errors
 // print their call arguments like this). Only quoted values are matched.
-// `\\?` before a quote also covers JSON that was stringified twice; a value
-// with no closing quote (truncated text) is redacted to the end.
+// `\\*` before a quote also covers JSON that was stringified more than once.
+// The value ends at the first matching quote, even on a later line; with no
+// closing quote (truncated text) it runs to the end. Both fail safe: they can
+// redact extra text, never less.
 const SECRET_IN_TEXT =
-  /\b(rpcProviderApiKey|token)(\\?["']?\s*[:=]\s*)(\\?["'])(?:\\.|[^\\])*?(\3|$)/gi;
+  /\b(rpcProviderApiKey|token)(\\*["'`]?\s*[:=]\s*)(\\*["'`])(?:\\[\s\S]|[^\\])*?(\3|\\*$)/gi;
 
 function isSecretKey(key: string): boolean {
   return SECRET_KEYS.has(key.toLowerCase());
@@ -38,7 +40,12 @@ function errorEntries(error: Error): Record<string, unknown> {
 // are not mutated. Only the top-level info object is changed in place.
 function redact(value: unknown, ancestors: WeakSet<object>): unknown {
   if (typeof value === 'string') {
-    return value.replace(SECRET_IN_TEXT, `$1$2$3${REDACTED}$4`);
+    try {
+      return value.replace(SECRET_IN_TEXT, `$1$2$3${REDACTED}$4`);
+    } catch {
+      // Huge inputs (tens of MB) can overflow the regex stack. Fail safe.
+      return REDACTED;
+    }
   }
   const isError = value instanceof Error;
   if (!isError && !Array.isArray(value) && !isPlainObject(value)) return value;
