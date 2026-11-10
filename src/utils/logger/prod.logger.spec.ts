@@ -86,6 +86,10 @@ describe('prod logger secret redaction', () => {
       'quote inside a value stringified twice',
       JSON.stringify(JSON.stringify({ token: `ab"${API_TOKEN}` })),
     ],
+    [
+      'earlier value ending in a backslash',
+      `token: "a\\\\" rpcProviderApiKey: "${RPC_KEY}"`,
+    ],
     ['key right after an escape', JSON.stringify(`{\ntoken: "${API_TOKEN}"}`)],
   ])('redacts a secret embedded in text (%s)', (_case, text) => {
     const { logger, lines } = captureProdLogger();
@@ -117,18 +121,19 @@ describe('prod logger secret redaction', () => {
     logger.error(text);
 
     expect(performance.now() - started).toBeLessThan(1000);
-    expect(lines.join('')).toContain('[REDACTED]');
+    // The regex matched; the fail-safe catch would print only [REDACTED].
+    expect(lines.join('')).toContain('token: \\"[REDACTED]');
   });
 
   it('redacts the whole string when the scrubber throws', () => {
     const { logger, lines } = captureProdLogger();
     const marker = 'huge-input-marker';
+    const original = String.prototype.replace;
     const replace = jest.spyOn(String.prototype, 'replace');
-    const original = replace.getMockImplementation() ?? ''.replace;
     replace.mockImplementation(function (this: string, ...args) {
       // Stands in for a regex stack overflow on a string of tens of MB.
       if (this.includes(marker)) throw new RangeError('stack overflow');
-      return original.apply(this, args);
+      return Reflect.apply(original, this, args) as string;
     });
 
     try {

@@ -9,15 +9,17 @@ const CIRCULAR = '[Circular]';
 
 // Error text can embed a secret as `key: "value"` (Prisma validation errors
 // print their call arguments like this). Only quoted values are matched.
-// - Up to 7 backslashes before a quote cover JSON stringified up to 4 times.
-//   The bound keeps the match linear: each step compares a few characters.
+// - Up to 7 backslashes before a quote cover an object stringified up to 4
+//   times, or text with quotes stringified up to 3 times. The bound keeps the
+//   match linear: each step compares a few characters.
 // - The key may follow an escape such as `\n`, where `\b` does not hold.
-// - `\\\\\3` keeps an escaped quote of an encoded value inside the value.
+// - For an encoded (backslash) quote, `\\\\(?=\\)\3` keeps an escaped quote
+//   of the value inside the value. Raw quotes skip it, so `"a\\"` ends there.
 // - The value ends at the first matching quote, even on a later line; with no
 //   closing quote (truncated text) it runs to the end. Both fail safe: they
 //   can redact extra text, never less.
 const SECRET_IN_TEXT =
-  /(?:\b|(?<=\\[A-Za-z]))(rpcProviderApiKey|token)(\\{0,7}["'`]?\s*[:=]\s*)(\\{0,7}["'`])(?:\\\\\3|\\[\s\S]|[^\\])*?(\3|\\?$)/gi;
+  /(?:\b|(?<=\\[A-Za-z]))(rpcProviderApiKey|token)(\\{0,7}["'`]?\s*[:=]\s*)(\\{0,7}["'`])(?:\\\\(?=\\)\3|\\[\s\S]|[^\\])*?(\3|\\?$)/gi;
 
 function isSecretKey(key: string): boolean {
   return SECRET_KEYS.has(key.toLowerCase());
