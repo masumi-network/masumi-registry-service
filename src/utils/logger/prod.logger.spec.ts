@@ -82,6 +82,11 @@ describe('prod logger secret redaction', () => {
       JSON.stringify(JSON.stringify(JSON.stringify({ token: API_TOKEN }))),
     ],
     ['backtick quotes', `token: \`${API_TOKEN}\` tail`],
+    [
+      'quote inside a value stringified twice',
+      JSON.stringify(JSON.stringify({ token: `ab"${API_TOKEN}` })),
+    ],
+    ['key right after an escape', JSON.stringify(`{\ntoken: "${API_TOKEN}"}`)],
   ])('redacts a secret embedded in text (%s)', (_case, text) => {
     const { logger, lines } = captureProdLogger();
 
@@ -101,6 +106,40 @@ describe('prod logger secret redaction', () => {
     expect(lines.join('')).toContain(
       'token: \\"[REDACTED]\\" and \\"b\\", tokens: \\"c\\", tokenHash: \\"d\\"'
     );
+  });
+
+  it('scrubs a long run of backslashes in linear time', () => {
+    const { logger, lines } = captureProdLogger();
+    // About 5.7s with a quadratic pattern; a few ms when linear.
+    const text = `token: "${'\\'.repeat(200_000)}x`;
+
+    const started = performance.now();
+    logger.error(text);
+
+    expect(performance.now() - started).toBeLessThan(1000);
+    expect(lines.join('')).toContain('[REDACTED]');
+  });
+
+  it('redacts the whole string when the scrubber throws', () => {
+    const { logger, lines } = captureProdLogger();
+    const marker = 'huge-input-marker';
+    const replace = jest.spyOn(String.prototype, 'replace');
+    const original = replace.getMockImplementation() ?? ''.replace;
+    replace.mockImplementation(function (this: string, ...args) {
+      // Stands in for a regex stack overflow on a string of tens of MB.
+      if (this.includes(marker)) throw new RangeError('stack overflow');
+      return original.apply(this, args);
+    });
+
+    try {
+      logger.error(`${marker} token: "${API_TOKEN}"`);
+    } finally {
+      replace.mockRestore();
+    }
+
+    const output = lines.join('');
+    expect(output).toContain('"message":"[REDACTED]"');
+    expect(output).not.toContain(API_TOKEN);
   });
 
   it('logs a self-referencing object without recursing forever', () => {
