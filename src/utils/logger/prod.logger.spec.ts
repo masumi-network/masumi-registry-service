@@ -1,0 +1,54 @@
+import { PassThrough } from 'stream';
+import { transports } from 'winston';
+import { buildProdLogger } from '@/utils/logger/prod.logger';
+
+const RPC_KEY = 'mainnetSecretBlockfrostKey';
+const API_TOKEN = 'masumi-secret-api-token';
+
+function captureProdLogger() {
+  const logger = buildProdLogger();
+  const stream = new PassThrough();
+  const lines: string[] = [];
+  stream.on('data', (chunk: Buffer) => lines.push(chunk.toString()));
+  logger.clear().add(new transports.Stream({ stream }));
+  return { logger, lines };
+}
+
+describe('prod logger secret redaction', () => {
+  it('redacts secrets from the payload express-zod-api logs on a 5xx', () => {
+    const { logger, lines } = captureProdLogger();
+    const input = {
+      name: 'source',
+      rpcProviderApiKey: RPC_KEY,
+      nested: [{ token: API_TOKEN }],
+    };
+
+    // Same call shape as express-zod-api's default result handler.
+    logger.error('Server side error', {
+      error: new Error('boom'),
+      url: '/api/v1/registry-source',
+      payload: input,
+    });
+
+    const output = lines.join('');
+    expect(output).toContain('Server side error');
+    expect(output).toContain('"name":"source"');
+    expect(output).not.toContain(RPC_KEY);
+    expect(output).not.toContain(API_TOKEN);
+    // The live request input must not be mutated.
+    expect(input.rpcProviderApiKey).toBe(RPC_KEY);
+    expect(input.nested[0].token).toBe(API_TOKEN);
+  });
+
+  it('logs a self-referencing object without recursing forever', () => {
+    const { logger, lines } = captureProdLogger();
+    const meta: Record<string, unknown> = { token: API_TOKEN };
+    meta.self = meta;
+
+    logger.info('cyclic', { meta });
+
+    const output = lines.join('');
+    expect(output).toContain('"self":"[Circular]"');
+    expect(output).not.toContain(API_TOKEN);
+  });
+});
