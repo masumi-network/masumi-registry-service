@@ -6,6 +6,10 @@ import { format } from 'winston';
 const SECRET_KEYS = new Set(['rpcproviderapikey', 'token']);
 const REDACTED = '[REDACTED]';
 const CIRCULAR = '[Circular]';
+const TRUNCATED = '[Truncated]';
+// Objects nested deeper than this are cut. Request input can be nested
+// thousands of levels, which overflows the call stack while logging.
+const MAX_DEPTH = 100;
 
 // Error text can embed a secret as `key: "value"` (Prisma validation errors
 // print their call arguments like this). Only quoted values are matched.
@@ -43,7 +47,11 @@ function errorEntries(error: Error): Record<string, unknown> {
 
 // Returns a redacted copy, so nested caller objects (e.g. live request input)
 // are not mutated. Only the top-level info object is changed in place.
-function redact(value: unknown, ancestors: WeakSet<object>): unknown {
+function redact(
+  value: unknown,
+  ancestors: WeakSet<object>,
+  depth: number
+): unknown {
   if (typeof value === 'string') {
     try {
       return value.replace(SECRET_IN_TEXT, `$1$2$3${REDACTED}$4`);
@@ -55,14 +63,15 @@ function redact(value: unknown, ancestors: WeakSet<object>): unknown {
   const isError = value instanceof Error;
   if (!isError && !Array.isArray(value) && !isPlainObject(value)) return value;
   if (ancestors.has(value)) return CIRCULAR;
+  if (depth >= MAX_DEPTH) return TRUNCATED;
   ancestors.add(value);
   const result = Array.isArray(value)
-    ? value.map((item) => redact(item, ancestors))
+    ? value.map((item) => redact(item, ancestors, depth + 1))
     : Object.fromEntries(
         Object.entries(isError ? errorEntries(value) : value).map(
           ([key, item]) => [
             key,
-            isSecretKey(key) ? REDACTED : redact(item, ancestors),
+            isSecretKey(key) ? REDACTED : redact(item, ancestors, depth + 1),
           ]
         )
       );
@@ -75,7 +84,7 @@ function redact(value: unknown, ancestors: WeakSet<object>): unknown {
 export const redactSecrets = format((info) => {
   const ancestors = new WeakSet<object>();
   for (const key of Object.keys(info)) {
-    info[key] = isSecretKey(key) ? REDACTED : redact(info[key], ancestors);
+    info[key] = isSecretKey(key) ? REDACTED : redact(info[key], ancestors, 0);
   }
   return info;
 });

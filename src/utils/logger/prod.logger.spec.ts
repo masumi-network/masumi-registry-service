@@ -147,6 +147,21 @@ describe('prod logger secret redaction', () => {
     expect(output).not.toContain(API_TOKEN);
   });
 
+  it('cuts deeply nested input instead of throwing', () => {
+    const { logger, lines } = captureProdLogger();
+    // A 5xx logs raw request input; JSON bodies can nest this deep.
+    let payload: unknown = { token: API_TOKEN };
+    for (let level = 0; level < 5000; level++) payload = [payload];
+
+    expect(() =>
+      logger.error('Server side error', { payload, token: API_TOKEN })
+    ).not.toThrow();
+
+    const output = lines.join('');
+    expect(output).toContain('[Truncated]');
+    expect(output).not.toContain(API_TOKEN);
+  });
+
   it('logs a self-referencing object without recursing forever', () => {
     const { logger, lines } = captureProdLogger();
     const meta: Record<string, unknown> = { token: API_TOKEN };
