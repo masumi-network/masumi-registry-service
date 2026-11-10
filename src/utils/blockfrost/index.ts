@@ -20,7 +20,8 @@ export function getBlockfrostInstance(
       network: network === $Enums.Network.Mainnet ? 'mainnet' : 'preprod',
     });
     blockfrostInstanceCache.set(cacheKey, instance);
-    logger.info('Created new BlockFrostAPI instance', { network, cacheKey });
+    // Never log cacheKey: it contains the provider API key.
+    logger.info('Created new BlockFrostAPI instance', { network });
   }
 
   return instance;
