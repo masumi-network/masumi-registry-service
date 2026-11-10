@@ -54,7 +54,7 @@ Key Models
 - RegistrySource holds policy ID configurations for scanning the blockchain.
 - ApiKey stores authentication tokens with usage tracking and permissions.
 - Capability defines agent capabilities with name and version fields.
-- AgentPricing contains payment models as either Fixed with amounts or Free.
+- AgentPricing contains payment models: Fixed with amounts, Free, or Dynamic.
 
 Enum Usage
 

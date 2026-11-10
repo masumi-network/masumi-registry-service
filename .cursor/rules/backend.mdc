@@ -23,7 +23,7 @@ Endpoint Factory Usage
 Route Registration
 
 - Register all routes in src/routes/api/index.ts using the Routing type from express-zod-api.
-- Use DependsOnMethod to define multiple HTTP methods on the same path.
+- Define multiple HTTP methods on the same path with nested method keys (for example `'registry-entry': { post: queryRegistryEntryPost }`).
 - Follow the v1 versioning pattern with routes nested under the v1 key.
 - Export individual endpoint handlers from route module index.ts files.
 
@@ -31,7 +31,7 @@ Schema Guidelines
 
 - Import Zod from `@/utils/zod-openapi` to include OpenAPI extensions.
 - Add .openapi('SchemaName') to output schemas for automatic documentation generation.
-- Use z.nativeEnum() with Prisma enums imported from @prisma/client.
+- Use z.enum() with Prisma enums imported from @prisma/client.
 - Use ez.dateIn() from express-zod-api for date input parsing.
 - Define validation constraints with min, max, and default values.
 - Use coerce option for numeric inputs that may arrive as strings.
