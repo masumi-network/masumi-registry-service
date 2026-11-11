@@ -54,9 +54,9 @@ const staticItems: SearchableItem[] = [
     keywords: ['create api key', 'new api key'],
   },
   {
-    id: 'toggle-theme',
-    title: 'Toggle Theme',
-    description: 'Change between light and dark mode',
+    id: 'theme-settings',
+    title: 'Theme Settings',
+    description: 'Open settings to choose light, dark or system theme',
     type: 'action',
     href: '/settings',
     elementId: 'settings-theme-toggle',
