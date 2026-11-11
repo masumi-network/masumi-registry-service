@@ -98,6 +98,8 @@ export default function SettingsPage() {
                   />
                   <button
                     type="button"
+                    aria-label="Light theme"
+                    aria-pressed={preference === 'light'}
                     onClick={() => setThemePreference('light')}
                     className={cn(
                       'relative flex items-center justify-center h-6 w-[32px] rounded-full transition-colors z-10 active:scale-95',
@@ -108,6 +110,8 @@ export default function SettingsPage() {
                   </button>
                   <button
                     type="button"
+                    aria-label="System theme"
+                    aria-pressed={preference === 'auto'}
                     onClick={() => setThemePreference('auto')}
                     className={cn(
                       'relative flex items-center justify-center h-6 w-[32px] rounded-full transition-colors z-10 active:scale-95',
@@ -118,6 +122,8 @@ export default function SettingsPage() {
                   </button>
                   <button
                     type="button"
+                    aria-label="Dark theme"
+                    aria-pressed={preference === 'dark'}
                     onClick={() => setThemePreference('dark')}
                     className={cn(
                       'relative flex items-center justify-center h-6 w-[32px] rounded-full transition-colors z-10 active:scale-95',

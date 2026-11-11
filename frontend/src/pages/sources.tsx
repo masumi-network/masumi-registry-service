@@ -46,6 +46,11 @@ import {
 import { extractErrorMessage, shortenId } from '@/lib/utils';
 import type { NetworkType } from '@/lib/api/types';
 
+/** Names a source for assistive technology: its note, else its shortened policy ID. */
+function sourceLabel(source: { note?: string | null; policyId?: string | null }): string {
+  return source.note || shortenId(source.policyId ?? '') || 'registry source';
+}
+
 type SourceForm = {
   policyId: string;
   note: string;
@@ -249,10 +254,20 @@ export default function SourcesPage() {
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-1">
-                        <Button size="icon" variant="ghost" onClick={() => openEdit(source)}>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          aria-label={`Edit source ${sourceLabel(source)}`}
+                          onClick={() => openEdit(source)}
+                        >
                           <Pencil className="h-4 w-4" />
                         </Button>
-                        <Button size="icon" variant="ghost" onClick={() => setDeleteTarget(source)}>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          aria-label={`Delete source ${sourceLabel(source)}`}
+                          onClick={() => setDeleteTarget(source)}
+                        >
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
                       </div>
