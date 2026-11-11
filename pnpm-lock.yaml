@@ -7,8 +7,10 @@ settings:
 overrides:
   '@babel/core@>=7.0.0 <7.29.6': ^7.29.6
   '@blockfrost/openapi>rimraf': ^6.1.4
+  '@eslint/config-array>minimatch': ^11.0.7
   '@humanfs/node@>=0.16.0 <0.16.8': ^0.16.8
   '@jest/reporters>glob': ^14.0.4
+  '@typescript-eslint/typescript-estree>minimatch': ^11.0.7
   axios@>=1.0.0 <1.20.0: ^1.20.0
   baseline-browser-mapping@>=2.0.0 <2.11.0: ^2.11.0
   body-parser@>=2.0.0 <2.4.0: ^2.4.0
@@ -16,6 +18,7 @@ overrides:
   brace-expansion@>=2.0.0 <2.1.7: ^2.1.7
   brace-expansion@>=5.0.0 <5.0.12: ^5.0.12
   browserslist@>=4.0.0 <4.28.7: ^4.28.7
+  eslint>minimatch: ^11.0.7
   fast-uri@>=3.0.0 <3.1.9: ^3.1.9
   follow-redirects@>=1.0.0 <1.16.2: ^1.16.2
   form-data@>=4.0.0 <4.0.6: ^4.0.6
@@ -5169,10 +5172,6 @@ packages:
   minimalistic-assert@1.0.1:
     resolution: {integrity: sha512-UtJcAD4yEaGtjPezWuO9wC4nwUnVH/8/Im3yEHQP4b67cXlD/Qr9hdITCU1xDbSEXg2XKNaP8jsReV7vQd00/A==}
 
-  minimatch@10.2.5:
-    resolution: {integrity: sha512-MULkVLfKGYDFYejP07QOurDLLQpcjk7Fw+7jXS2R2czRQzR56yHRveU5NDJEOviH+hETZKSkIk5c+T23GjFUMg==}
-    engines: {node: 18 || 20 || >=22}
-
   minimatch@11.0.7:
     resolution: {integrity: sha512-Tnk+M9mPjqKDZlUd77eMSjPjhnlBIa1mABOwetMryIshUwi1YmOBdGFfQnHgn4Z8A66eLT8ENzJrxwYmKfqrZg==}
     engines: {node: 20 || >=22}
@@ -7357,7 +7356,7 @@ snapshots:
     dependencies:
       '@eslint/object-schema': 2.1.7
       debug: 4.4.3
-      minimatch: 3.1.5
+      minimatch: 11.0.7
     transitivePeerDependencies:
       - supports-color
 
@@ -7365,7 +7364,7 @@ snapshots:
     dependencies:
       '@eslint/object-schema': 3.0.5
       debug: 4.4.3
-      minimatch: 10.2.5
+      minimatch: 11.0.7
     transitivePeerDependencies:
       - supports-color
 
@@ -9255,7 +9254,7 @@ snapshots:
       '@typescript-eslint/types': 8.59.3
       '@typescript-eslint/visitor-keys': 8.59.3
       debug: 4.4.3
-      minimatch: 10.2.5
+      minimatch: 11.0.7
       semver: 7.7.4
       tinyglobby: 0.2.16
       ts-api-utils: 2.5.0(typescript@5.9.3)
@@ -9270,7 +9269,7 @@ snapshots:
       '@typescript-eslint/types': 8.59.3
       '@typescript-eslint/visitor-keys': 8.59.3
       debug: 4.4.3
-      minimatch: 10.2.5
+      minimatch: 11.0.7
       semver: 7.7.4
       tinyglobby: 0.2.16
       ts-api-utils: 2.5.0(typescript@6.0.3)
@@ -10662,7 +10661,7 @@ snapshots:
       imurmurhash: 0.1.4
       is-glob: 4.0.3
       json-stable-stringify-without-jsonify: 1.0.1
-      minimatch: 10.2.5
+      minimatch: 11.0.7
       natural-compare: 1.4.0
       optionator: 0.9.4
     optionalDependencies:
@@ -10703,7 +10702,7 @@ snapshots:
       is-glob: 4.0.3
       json-stable-stringify-without-jsonify: 1.0.1
       lodash.merge: 4.6.2
-      minimatch: 3.1.5
+      minimatch: 11.0.7
       natural-compare: 1.4.0
       optionator: 0.9.4
     optionalDependencies:
@@ -12040,10 +12039,6 @@ snapshots:
       dom-walk: 0.1.2
 
   minimalistic-assert@1.0.1: {}
-
-  minimatch@10.2.5:
-    dependencies:
-      brace-expansion: 5.0.12
 
   minimatch@11.0.7:
     dependencies:
