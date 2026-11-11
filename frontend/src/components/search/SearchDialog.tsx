@@ -6,9 +6,14 @@ import {
   CommandItem,
   CommandList,
 } from '@/components/ui/command';
+import { useDebouncedValue } from '@/lib/hooks/useDebouncedValue';
 import { useSearch, type SearchableItem } from '@/lib/hooks/useSearch';
 import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
+
+// Searching agents is a registry request, so wait for a pause in typing instead of
+// sending one per keystroke.
+const SEARCH_DEBOUNCE_MS = 300;
 
 interface SearchDialogProps {
   open: boolean;
@@ -20,12 +25,18 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
   const { handleSearch, isLoading } = useSearch(open);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchableItem[]>([]);
+  // An empty box settles at once (no delay), so text typed right after clearing it, or after
+  // closing and reopening the dialog, never searches for the previous text.
+  const isBoxEmpty = searchQuery.trim() === '';
+  const debouncedQuery = useDebouncedValue(searchQuery, isBoxEmpty ? 0 : SEARCH_DEBOUNCE_MS);
+  const query = isBoxEmpty ? '' : debouncedQuery;
+  const isWaitingToSearch = !isBoxEmpty && query !== searchQuery;
 
   useEffect(() => {
     if (!open) return;
 
     let cancelled = false;
-    handleSearch(searchQuery).then((results) => {
+    handleSearch(query).then((results) => {
       if (!cancelled) {
         setSearchResults(results || []);
       }
@@ -33,7 +44,7 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
     return () => {
       cancelled = true;
     };
-  }, [searchQuery, handleSearch, open]);
+  }, [query, handleSearch, open]);
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (!nextOpen) {
@@ -72,7 +83,8 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
   };
 
   const trimmedQuery = searchQuery.trim();
-  const showEmpty = !isLoading && trimmedQuery.length > 0 && searchResults.length === 0;
+  const showEmpty =
+    !isLoading && !isWaitingToSearch && trimmedQuery.length > 0 && searchResults.length === 0;
 
   return (
     <CommandDialog
@@ -105,7 +117,7 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
             ))}
           </CommandGroup>
         ) : null}
-        {isLoading ? (
+        {isLoading || isWaitingToSearch ? (
           <div className="text-muted-foreground px-3 py-2 text-xs">Searching…</div>
         ) : null}
       </CommandList>
