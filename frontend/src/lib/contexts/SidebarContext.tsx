@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
+import { useIsNarrowScreen } from '@/lib/hooks/useIsNarrowScreen';
 
 interface SidebarContextType {
   collapsed: boolean;
@@ -21,6 +22,7 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
     return false;
   });
   const [isHovered, setIsHovered] = useState(false);
+  const isNarrowScreen = useIsNarrowScreen();
   const [shouldAnimateIcon, setShouldAnimateIcon] = useState(false);
   const [hasAnimatedNav, setHasAnimatedNav] = useState(false);
   const prevCollapsedRef = useRef(collapsed);
@@ -56,10 +58,12 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
     setHasAnimatedNav(true);
   }, []);
 
+  // Below the desktop breakpoint the full sidebar leaves the page too little room, so it
+  // shows as a rail regardless of the saved preference (which is left untouched).
   const value: SidebarContextType = {
-    collapsed,
+    collapsed: collapsed || isNarrowScreen,
     setCollapsed,
-    isHovered,
+    isHovered: isHovered && !isNarrowScreen,
     setIsHovered,
     shouldAnimateIcon,
     hasAnimatedNav,
