@@ -4,7 +4,7 @@ import type { PostRegistryEntryData } from '@/lib/api/generated';
 
 export const AGENT_STATUSES = ['Online', 'Offline', 'Deregistered', 'Invalid'] as const;
 export const PAYMENT_TYPES = ['Web3CardanoV1', 'Web3CardanoV2', 'None'] as const;
-export const NETWORKS = ['Preprod', 'Mainnet'] as const;
+const NETWORKS = ['Preprod', 'Mainnet'] as const;
 export const PAGE_SIZES = [10, 25, 50] as const;
 
 export type AgentStatus = (typeof AGENT_STATUSES)[number];
@@ -180,10 +180,6 @@ export function sameView(left: AgentFilters, right: AgentFilters): boolean {
 /** Every filter back to its default. The page size stays: it is a display choice. */
 export function resetFilters(filters: AgentFilters): AgentFilters {
   return { ...DEFAULT_AGENT_FILTERS, statuses: [...DEFAULT_STATUSES], pageSize: filters.pageSize };
-}
-
-export function parseNetwork(value: unknown): Network | undefined {
-  return NETWORKS.find((network) => network === value);
 }
 
 export type RegistryQueryBody = NonNullable<PostRegistryEntryData['body']>;

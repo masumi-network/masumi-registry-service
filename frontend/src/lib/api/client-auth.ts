@@ -6,7 +6,7 @@ const registryBaseUrl = (): string =>
   (process.env.NEXT_PUBLIC_REGISTRY_API_BASE_URL || '/api/v1').replace(/\/+$/, '');
 
 /** Signs the user out when the registry rejects the API key (401/403). */
-export function attachUnauthorizedSignOut(client: Client, signOut: () => void): void {
+function attachUnauthorizedSignOut(client: Client, signOut: () => void): void {
   client.instance.interceptors.response.use(
     (response) => response,
     (error: unknown) => {
@@ -18,7 +18,7 @@ export function attachUnauthorizedSignOut(client: Client, signOut: () => void): 
   );
 }
 
-export const UNAUTHENTICATED_CLIENT_TOKEN = 'invalid-api';
+const UNAUTHENTICATED_CLIENT_TOKEN = 'invalid-api';
 
 /** AppContext API client with token header (and optional 401 sign-out). */
 export function createRegistryClient(token: string | null, signOut?: () => void): Client {

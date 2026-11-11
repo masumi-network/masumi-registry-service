@@ -7,7 +7,7 @@ import { AnimatedPage } from '@/components/ui/animated-page';
 import { StatCard } from '@/components/ui/stat-card';
 import { StatCardSkeleton } from '@/components/skeletons/StatCardSkeleton';
 import { RefreshButton } from '@/components/RefreshButton';
-import { ALL_AGENT_STATUSES } from '@/components/agents/AgentFilters';
+import { AGENT_STATUSES } from '@/lib/agent-filters';
 import { useAppContext } from '@/lib/contexts/AppContext';
 import type { Client } from '@/lib/api/generated/client';
 import { getApiKey, getHealth, getRegistrySource, postRegistryEntry } from '@/lib/api/generated';
@@ -42,7 +42,7 @@ async function countAgents(apiClient: Client, network: 'Preprod' | 'Mainnet') {
         network,
         limit: PAGE_SIZE,
         cursorId,
-        filter: { status: ALL_AGENT_STATUSES },
+        filter: { status: [...AGENT_STATUSES] },
       },
     });
     if (response.error) throw response.error;

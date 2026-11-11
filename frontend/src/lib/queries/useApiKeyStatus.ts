@@ -4,7 +4,7 @@ import type { Client } from '@/lib/api/generated/client';
 import { queryKeys } from './query-keys';
 
 /** Reads the status of the key currently set with `setApiKey`. Throws on any failure. */
-export async function fetchApiKeyStatus(signal?: AbortSignal, client?: Client): Promise<ApiKey> {
+async function fetchApiKeyStatus(signal?: AbortSignal, client?: Client): Promise<ApiKey> {
   const { data } = await getApiKeyStatus({ signal, throwOnError: true, client });
   // A proxy error page can arrive as a 200 with a non-JSON body.
   if (!data?.data?.permission) throw new Error('Unexpected API key status response');

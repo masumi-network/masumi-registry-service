@@ -1,8 +1,6 @@
 export type Theme = 'light' | 'dark';
 export type ThemePreference = Theme | 'auto';
 
-export const THEME_PREFERENCE_KEY = 'theme-preference';
-
 const PREFERENCES: readonly ThemePreference[] = ['light', 'dark', 'auto'];
 
 // localStorage is user-editable, so anything unexpected means "follow the system".
