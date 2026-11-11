@@ -16,6 +16,9 @@ overrides:
   '@babel/core@>=7.0.0 <7.29.6': ^7.29.6
   '@blockfrost/openapi>rimraf': ^6.1.4
   '@humanfs/node@>=0.16.0 <0.16.8': ^0.16.8
+  # glob GHSA-3g3m-2fjr-6pw4 is fixed only in 14.0.2. jest 30 still asks for
+  # glob 10 and calls only glob.sync, which glob 14 keeps.
+  '@jest/reporters>glob': ^14.0.4
   axios@>=1.0.0 <1.20.0: ^1.20.0
   baseline-browser-mapping@>=2.0.0 <2.11.0: ^2.11.0
   body-parser@>=2.0.0 <2.4.0: ^2.4.0
@@ -28,6 +31,8 @@ overrides:
   form-data@>=4.0.0 <4.0.6: ^4.0.6
   handlebars@>=4.0.0 <4.7.10: ^4.7.10
   ip-address: 10.7.4
+  jest-config>glob: ^14.0.4
+  jest-runtime>glob: ^14.0.4
   js-yaml@>=3.0.0 <3.15.2: ^3.15.2
   js-yaml@>=4.0.0 <4.3.2: ^4.3.2
   nanoid@>=3.0.0 <3.3.18: ^3.3.18
