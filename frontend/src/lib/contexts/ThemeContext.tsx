@@ -1,91 +1,102 @@
 import { createContext, useContext, useEffect, useState } from 'react';
-import {
-  parseThemePreference,
-  resolveTheme,
-  THEME_PREFERENCE_KEY,
-  type Theme,
-  type ThemePreference,
-} from '@/lib/theme';
 
-const DARK_SCHEME_QUERY = '(prefers-color-scheme: dark)';
-const THEME_CHANGE_MS = 500;
+type Theme = 'dark' | 'light';
+type ThemePreference = Theme | 'auto';
+
+const THEME_LIGHT = 'light';
+const THEME_DARK = 'dark';
+const THEME_AUTO = 'auto';
+const THEME_PREFERENCE_KEY = 'theme-preference';
 
 interface ThemeContextType {
   theme: Theme;
+  preference: ThemePreference;
   setThemePreference: (preference: ThemePreference) => void;
   isChangingTheme: boolean;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
-function applyThemeClass(theme: Theme) {
-  document.documentElement.classList.remove('light', 'dark');
-  document.documentElement.classList.add(theme);
-}
-
-function readStoredPreference(): ThemePreference {
-  try {
-    return parseThemePreference(localStorage.getItem(THEME_PREFERENCE_KEY));
-  } catch {
-    // Storage can throw in private mode or with blocked site data.
-    return 'auto';
-  }
-}
-
-function storePreference(preference: ThemePreference) {
-  try {
-    localStorage.setItem(THEME_PREFERENCE_KEY, preference);
-  } catch {
-    // Not persisting is fine; the choice still applies for this session.
-  }
-}
-
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false);
-  const [theme, setTheme] = useState<Theme>('light');
-  const [preference, setPreference] = useState<ThemePreference>('auto');
+  const [theme, setTheme] = useState<Theme>(THEME_LIGHT);
+  const [preference, setPreference] = useState<ThemePreference>(THEME_AUTO);
   const [isChangingTheme, setIsChangingTheme] = useState(false);
 
   useEffect(() => {
-    queueMicrotask(() => {
-      const stored = readStoredPreference();
-      const resolved = resolveTheme(stored, window.matchMedia(DARK_SCHEME_QUERY).matches);
-      setPreference(stored);
-      setTheme(resolved);
-      applyThemeClass(resolved);
+    const savedPreference = localStorage.getItem(THEME_PREFERENCE_KEY) as ThemePreference | null;
+
+    const apply = () => {
+      if (savedPreference) {
+        setPreference(savedPreference);
+        if (savedPreference !== THEME_AUTO) {
+          setTheme(savedPreference);
+          document.documentElement.classList.remove(THEME_LIGHT, THEME_DARK);
+          document.documentElement.classList.add(savedPreference);
+        }
+      }
+
+      if (!savedPreference || savedPreference === THEME_AUTO) {
+        const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+        const systemTheme = mediaQuery.matches ? THEME_DARK : THEME_LIGHT;
+        setTheme(systemTheme);
+        document.documentElement.classList.remove(THEME_LIGHT, THEME_DARK);
+        document.documentElement.classList.add(systemTheme);
+      }
+
       setMounted(true);
-    });
+    };
+    queueMicrotask(apply);
   }, []);
 
-  // While on "auto", follow live OS theme switches.
   useEffect(() => {
-    if (!mounted || preference !== 'auto') return;
+    if (!mounted) return;
 
-    const mediaQuery = window.matchMedia(DARK_SCHEME_QUERY);
-    const handleSystemThemeChange = (event: MediaQueryListEvent) => {
-      const resolved = resolveTheme('auto', event.matches);
-      setTheme(resolved);
-      applyThemeClass(resolved);
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+
+    const handleSystemThemeChange = (e: MediaQueryListEvent | MediaQueryList) => {
+      if (preference === THEME_AUTO) {
+        const newTheme = e.matches ? THEME_DARK : THEME_LIGHT;
+        setTheme(newTheme);
+        document.documentElement.classList.remove(THEME_LIGHT, THEME_DARK);
+        document.documentElement.classList.add(newTheme);
+      }
     };
 
+    handleSystemThemeChange(mediaQuery);
+
     mediaQuery.addEventListener('change', handleSystemThemeChange);
-    return () => mediaQuery.removeEventListener('change', handleSystemThemeChange);
+
+    return () => {
+      mediaQuery.removeEventListener('change', handleSystemThemeChange);
+    };
   }, [preference, mounted]);
 
   const setThemePreference = (newPreference: ThemePreference) => {
-    const resolved = resolveTheme(newPreference, window.matchMedia(DARK_SCHEME_QUERY).matches);
     setIsChangingTheme(true);
     setPreference(newPreference);
-    setTheme(resolved);
-    applyThemeClass(resolved);
-    storePreference(newPreference);
-    setTimeout(() => setIsChangingTheme(false), THEME_CHANGE_MS);
+
+    if (newPreference === THEME_AUTO) {
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      const systemTheme = mediaQuery.matches ? THEME_DARK : THEME_LIGHT;
+      setTheme(systemTheme);
+      document.documentElement.classList.remove(THEME_LIGHT, THEME_DARK);
+      document.documentElement.classList.add(systemTheme);
+      localStorage.setItem(THEME_PREFERENCE_KEY, THEME_AUTO);
+    } else {
+      setTheme(newPreference);
+      document.documentElement.classList.remove(THEME_LIGHT, THEME_DARK);
+      document.documentElement.classList.add(newPreference);
+      localStorage.setItem(THEME_PREFERENCE_KEY, newPreference);
+    }
+
+    setTimeout(() => {
+      setIsChangingTheme(false);
+    }, 500);
   };
 
-  // Same element shape before and after mount, so React never remounts the app subtree.
-  // display:contents adds no box; visibility hides the un-themed first paint.
   return (
-    <ThemeContext.Provider value={{ theme, setThemePreference, isChangingTheme }}>
+    <ThemeContext.Provider value={{ theme, preference, setThemePreference, isChangingTheme }}>
       <div style={{ display: 'contents', visibility: mounted ? 'visible' : 'hidden' }}>
         {children}
       </div>

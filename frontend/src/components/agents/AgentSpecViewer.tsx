@@ -3,6 +3,7 @@ import { Badge, type BadgeProps } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { RegistryEntry } from '@/lib/api/generated';
+import type { Client } from '@/lib/api/generated/client';
 import type { Network } from '@/lib/agent-filters';
 import { classifyAuthError } from '@/lib/auth/errors';
 import { SPEC_NAMES, specUrl } from '@/lib/health-reason';
@@ -410,9 +411,17 @@ function SpecBody({
 }
 
 /** The registry's cached, validated copy of an OpenApi, x402 or A2A agent's spec. */
-export function AgentSpecViewer({ agent, network }: { agent: RegistryEntry; network: Network }) {
+export function AgentSpecViewer({
+  agent,
+  network,
+  apiClient,
+}: {
+  agent: RegistryEntry;
+  network: Network;
+  apiClient: Client;
+}) {
   // Standard entries have no spec; the endpoint answers them with a 404.
-  const query = useAgentSpec(network, agent.agentIdentifier, agent.type !== 'Standard');
+  const query = useAgentSpec(network, agent.agentIdentifier, agent.type !== 'Standard', apiClient);
   if (agent.type === 'Standard') return null;
   const url = specUrl(agent);
   const validatedAt = query.data?.specValidatedAt;

@@ -3,13 +3,17 @@ import type { NextConfig } from 'next';
 const nextConfig: NextConfig = {
   output: 'export',
   distDir: 'dist',
-  // Express serves the export under this prefix (src/utils/admin-ui).
   basePath: '/admin',
+  env: {
+    NEXT_PUBLIC_REGISTRY_API_BASE_URL: process.env.NEXT_PUBLIC_REGISTRY_API_BASE_URL || '/api/v1',
+  },
   images: {
     unoptimized: true,
   },
+  typescript: {
+    ignoreBuildErrors: false,
+  },
   compiler: {
-    // Strip console.* from production bundles but keep console.error for real failures.
     removeConsole: process.env.NODE_ENV === 'production' ? { exclude: ['error'] } : false,
   },
 };

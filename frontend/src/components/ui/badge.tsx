@@ -7,30 +7,34 @@ const badgeVariants = cva(
   {
     variants: {
       variant: {
+        default: 'border-transparent bg-primary text-primary-foreground hover:bg-primary/80',
         secondary:
           'border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80',
-        // Tinted rather than the theme's destructive fill, which is unreadable as text on dark.
         destructive:
-          'border-transparent bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+          'border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/80',
         success:
           'border-transparent bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
         warning:
           'border-transparent bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+        pending:
+          'border-transparent bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 animate-subtle-pulse',
+        processing:
+          'border-transparent bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 animate-subtle-pulse',
+        outline: 'text-foreground',
       },
     },
     defaultVariants: {
-      variant: 'secondary',
+      variant: 'default',
     },
   },
 );
 
 export interface BadgeProps
-  extends React.HTMLAttributes<HTMLSpanElement>, VariantProps<typeof badgeVariants> {}
+  extends React.HTMLAttributes<HTMLDivElement>, VariantProps<typeof badgeVariants> {}
 
-// A span, so it is valid inside phrasing content such as <p> and <summary>.
-const Badge = React.forwardRef<HTMLSpanElement, BadgeProps>(
+const Badge = React.forwardRef<HTMLDivElement, BadgeProps>(
   ({ className, variant, ...props }, ref) => {
-    return <span ref={ref} className={cn(badgeVariants({ variant }), className)} {...props} />;
+    return <div ref={ref} className={cn(badgeVariants({ variant }), className)} {...props} />;
   },
 );
 Badge.displayName = 'Badge';

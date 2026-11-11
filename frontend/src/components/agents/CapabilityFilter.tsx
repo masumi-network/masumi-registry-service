@@ -6,6 +6,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import type { Client } from '@/lib/api/generated/client';
 import { useCapabilityOptions } from '@/lib/queries/useCapabilityOptions';
 
 // Radix Select items cannot have an empty value, so "any" needs a stand-in.
@@ -15,6 +16,7 @@ interface CapabilityFilterProps {
   name: string;
   version: string;
   onChange: (name: string, version: string) => void;
+  apiClient?: Client;
 }
 
 /** Keeps a value from the URL selectable even when the option list does not offer it. */
@@ -22,8 +24,8 @@ function withCurrent(options: string[], current: string): string[] {
   return current && !options.includes(current) ? [current, ...options] : options;
 }
 
-export function CapabilityFilter({ name, version, onChange }: CapabilityFilterProps) {
-  const { data: options, isPending, isError } = useCapabilityOptions();
+export function CapabilityFilter({ name, version, onChange, apiClient }: CapabilityFilterProps) {
+  const { data: options, isPending, isError } = useCapabilityOptions(apiClient);
   // The endpoint lists only capabilities of Online agents, so a shared link may name one
   // that is missing here; it still has to show as selected.
   const names = withCurrent(options?.map((option) => option.name) ?? [], name);

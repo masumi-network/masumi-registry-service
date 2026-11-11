@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import type { RegistryEntry } from '@/lib/api/generated';
+import type { Client } from '@/lib/api/generated/client';
 import { AGENT_STATUSES, type Network } from '@/lib/agent-filters';
 import { fetchRegistryEntries } from './useAgents';
 import { queryKeys } from './query-keys';
@@ -11,6 +12,7 @@ async function fetchAgent(
   agentIdentifier: string,
   resolveToLatestVersion: boolean,
   signal: AbortSignal,
+  client: Client,
 ): Promise<RegistryEntry | null> {
   const [entry] = await fetchRegistryEntries(
     {
@@ -23,23 +25,29 @@ async function fetchAgent(
       },
     },
     signal,
+    client,
   );
   return entry ?? null;
 }
 
 /** One registry entry by asset identifier; null when the network has none. */
-export function useAgent(network: Network, agentIdentifier: string) {
+export function useAgent(network: Network, agentIdentifier: string, client: Client) {
   return useQuery({
     queryKey: queryKeys.agent(network, agentIdentifier),
-    queryFn: ({ signal }) => fetchAgent(network, agentIdentifier, false, signal),
+    queryFn: ({ signal }) => fetchAgent(network, agentIdentifier, false, signal, client),
   });
 }
 
 /** The newest stored version of a V2 agent (`resolveToLatestVersion`). */
-export function useLatestAgentVersion(network: Network, agentIdentifier: string, enabled: boolean) {
+export function useLatestAgentVersion(
+  network: Network,
+  agentIdentifier: string,
+  enabled: boolean,
+  client: Client,
+) {
   return useQuery({
     queryKey: queryKeys.latestAgentVersion(network, agentIdentifier),
-    queryFn: ({ signal }) => fetchAgent(network, agentIdentifier, true, signal),
+    queryFn: ({ signal }) => fetchAgent(network, agentIdentifier, true, signal, client),
     enabled,
   });
 }

@@ -9,6 +9,7 @@ import {
   type ProbeId,
   type ProbeOutcome,
 } from '@/lib/agent-empty-result';
+import type { Client } from '@/lib/api/generated/client';
 import { fetchRegistryEntries } from './useAgents';
 import { queryKeys } from './query-keys';
 
@@ -25,6 +26,7 @@ function toOutcome(result: UseQueryResult<boolean>): ProbeOutcome {
 export function useEmptyResultExplanation(
   filters: AgentFilters,
   network: Network,
+  client?: Client,
 ): EmptyResultExplanation {
   const probes = useMemo(
     () =>
@@ -39,7 +41,7 @@ export function useEmptyResultExplanation(
     queries: probes.map((probe) => ({
       queryKey: queryKeys.agentProbe(probe.body),
       queryFn: async ({ signal }: { signal: AbortSignal }) =>
-        (await fetchRegistryEntries(probe.body, signal)).length > 0,
+        (await fetchRegistryEntries(probe.body, signal, client)).length > 0,
     })),
   });
 
