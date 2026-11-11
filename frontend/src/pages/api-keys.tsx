@@ -1,5 +1,5 @@
 import Head from 'next/head';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
@@ -40,12 +40,12 @@ import {
 } from '@/components/ui/table';
 import { useAppContext } from '@/lib/contexts/AppContext';
 import { deleteApiKey, getApiKey, patchApiKey, postApiKey, type ApiKey } from '@/lib/api/generated';
+import { apiKeyPageLimit, flattenApiKeyPages, nextApiKeyCursor } from '@/lib/api-key-pages';
+import type { InclusiveCursorPage } from '@/lib/pagination/cursor-pagination';
 import { extractErrorMessage, shortenId } from '@/lib/utils';
 
 type Permission = ApiKey['permission'];
 type APIKeyStatus = ApiKey['status'];
-
-const PAGE_SIZE = 50;
 
 export default function ApiKeysPage() {
   const { apiClient } = useAppContext();
@@ -68,17 +68,16 @@ export default function ApiKeysPage() {
   const keysQuery = useInfiniteQuery({
     queryKey: ['api-keys'],
     initialPageParam: undefined as string | undefined,
-    queryFn: async ({ pageParam }) => {
+    queryFn: async ({ pageParam }): Promise<InclusiveCursorPage<ApiKey>> => {
+      const limit = apiKeyPageLimit(pageParam);
       const response = await getApiKey({
         client: apiClient,
-        query: { limit: PAGE_SIZE, cursorId: pageParam },
+        query: { limit, cursorId: pageParam },
       });
       if (response.error) throw response.error;
-      const apiKeys = response.data?.data?.apiKeys ?? [];
-      const nextCursor = apiKeys.length === PAGE_SIZE ? apiKeys[apiKeys.length - 1]?.id : undefined;
-      return { apiKeys, nextCursor };
+      return { items: response.data?.data?.apiKeys ?? [], limit, cursorId: pageParam };
     },
-    getNextPageParam: (lastPage) => lastPage.nextCursor,
+    getNextPageParam: nextApiKeyCursor,
   });
 
   const createMutation = useMutation({
@@ -143,7 +142,11 @@ export default function ApiKeysPage() {
     onError: (error) => toast.error(extractErrorMessage(error, 'Delete failed')),
   });
 
-  const keys = keysQuery.data?.pages.flatMap((page) => page.apiKeys) ?? [];
+  const keyPages = keysQuery.data?.pages;
+  const keys = useMemo(
+    () => flattenApiKeyPages(keyPages?.map((page) => page.items) ?? []),
+    [keyPages],
+  );
   const hasMoreKeys = keysQuery.hasNextPage;
   const isLoadingMoreKeys = keysQuery.isFetchingNextPage;
 
@@ -259,6 +262,7 @@ export default function ApiKeysPage() {
                         <Button
                           size="icon"
                           variant="ghost"
+                          aria-label={`Edit API key ${shortenId(key.id, 8)}`}
                           onClick={() => {
                             setEditKey(key);
                             setEditToken('');
@@ -272,6 +276,7 @@ export default function ApiKeysPage() {
                         <Button
                           size="icon"
                           variant="ghost"
+                          aria-label={`Delete API key ${shortenId(key.id, 8)}`}
                           onClick={() => {
                             setDeleteKey(key);
                             setDeleteToken('');
