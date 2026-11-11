@@ -11,3 +11,40 @@ onlyBuiltDependencies:
 
 ignoredBuiltDependencies:
   - unrs-resolver
+
+overrides:
+  '@babel/core@>=7.0.0 <7.29.6': ^7.29.6
+  '@blockfrost/openapi>rimraf': ^6.1.4
+  # minimatch GHSA-g3hv-75wg-m249 is fixed only in 11.0.1. eslint, config-array
+  # and typescript-estree still ask for ^10 and call only minimatch() and
+  # Minimatch#match, which 11 keeps.
+  '@eslint/config-array>minimatch': ^11.0.7
+  '@humanfs/node@>=0.16.0 <0.16.8': ^0.16.8
+  # glob GHSA-3g3m-2fjr-6pw4 is fixed only in 14.0.2. jest 30 still asks for
+  # glob 10 and calls only glob.sync, which glob 14 keeps.
+  '@jest/reporters>glob': ^14.0.4
+  '@typescript-eslint/typescript-estree>minimatch': ^11.0.7
+  axios@>=1.0.0 <1.20.0: ^1.20.0
+  baseline-browser-mapping@>=2.0.0 <2.11.0: ^2.11.0
+  body-parser@>=2.0.0 <2.4.0: ^2.4.0
+  brace-expansion@>=1.0.0 <1.1.21: ^1.1.21
+  brace-expansion@>=2.0.0 <2.1.7: ^2.1.7
+  brace-expansion@>=5.0.0 <5.0.12: ^5.0.12
+  browserslist@>=4.0.0 <4.28.7: ^4.28.7
+  eslint>minimatch: ^11.0.7
+  fast-uri@>=3.0.0 <3.1.9: ^3.1.9
+  follow-redirects@>=1.0.0 <1.16.2: ^1.16.2
+  form-data@>=4.0.0 <4.0.6: ^4.0.6
+  handlebars@>=4.0.0 <4.7.10: ^4.7.10
+  ip-address: 10.7.4
+  jest-config>glob: ^14.0.4
+  jest-runtime>glob: ^14.0.4
+  js-yaml@>=3.0.0 <3.15.2: ^3.15.2
+  js-yaml@>=4.0.0 <4.3.2: ^4.3.2
+  nanoid@>=3.0.0 <3.3.18: ^3.3.18
+  pbkdf2@>=3.0.0 <3.1.7: ^3.1.7
+  proxy-addr@>=2.0.0 <2.0.8: ^2.0.8
+  qs@>=6.0.0 <6.16.1: ^6.16.1
+  smol-toml@>=1.0.0 <1.9.0: ^1.9.0
+  undici: 6.29.1
+  ws@>=7.0.0 <7.5.11: ^7.5.11
